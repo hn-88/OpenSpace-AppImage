@@ -20,7 +20,7 @@ jobs:
 
     
     - name: get openspace code for a particular release
-    # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
@@ -42,24 +42,10 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake \
--DCMAKE_BUILD_TYPE:STRING="Release" \
--DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-13 \
--DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc-13 \
--DCMAKE_CXX_STANDARD=20 \
--DASSIMP_BUILD_MINIZIP=1 "$openSpaceHome"
+      run: cmake -DCMAKE_BUILD_TYPE:STRING="Release" -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-13 -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 "$openSpaceHome"
 
     - name: Build
       # Build your program with the given configuration
       run: make -j 3
       
     
-
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        # Artifact name
-        name: OpenSpace-appimage.zip
-        # optional, default is artifact
-        # A file, directory or wildcard pattern that describes what to upload
-        #path: build/OCVWarp*x86_64.AppImage
