@@ -17,7 +17,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
+    
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: false
+        
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: false
+        docker-images: true
+        swap-storage: false
     
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
