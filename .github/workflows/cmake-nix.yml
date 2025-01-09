@@ -42,10 +42,16 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -DCMAKE_BUILD_TYPE:STRING="Release" -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-13 -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 "$openSpaceHome"
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        cmake -DCMAKE_BUILD_TYPE:STRING="Release" -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-13 -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 "$openSpaceHome"
 
     - name: Build
       # Build your program with the given configuration
-      run: make -j 3
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        make -j 3
       
     
