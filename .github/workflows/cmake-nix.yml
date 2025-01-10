@@ -68,5 +68,32 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
         make -j 3
+        
+    - name: Create appimage
+      working-directory: ${{github.workspace}}
+      # https://appimage-builder.readthedocs.io/en/latest/hosted-services/github-actions.html
+      # But instead of linuxdeployqt as in https://github.com/hn-88/OCVWarp/blob/master/.travis.yml
+      # trying with go-appimage
+      run: |
+        echo "create appimage"
+        mkdir -p appdir/usr/bin ; strip $HOME/source/OpenSpace/bin/OpenSpace ; cp $HOME/source/OpenSpace/bin/* ./appdir/usr/bin
+        mkdir -p appdir/usr/share/applications ; cp ./appdir/OCVWarp.desktop ./appdir/usr/share/applications/
+        mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OCVWarp.png ./appdir/usr/share/icons/hicolor/256x256/apps/
+        wget -c -nv "https://github.com/probonopd/go-appimage/releases/download/continuous/appimagetool-860-x86_64.AppImage"
+        chmod a+x appimagetool-860-x86_64.AppImage
+        #unset QTDIR; unset QT_PLUGIN_PATH ; unset LD_LIBRARY_PATH
+        export VERSION=$(git rev-parse --short HEAD) # linuxdeployqt uses this for naming the file
+        ./appimagetool-860-x86_64.AppImage appdir/usr/share/applications/*.desktop -bundle-non-qt-libs
+        ./appimagetool-860-x86_64.AppImage appdir/usr/share/applications/*.desktop -appimage
+        #mv OCVWarp*.AppImage OCVWarp-4.01-x86_64.AppImage -v
+
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        # Artifact name
+        name: OpenSpace-appimage.zip
+        # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        path: OpenSpace*.AppImage
       
     
