@@ -1,4 +1,4 @@
-name: CMake build
+name: minimal-appimage-creation
 
 on: workflow_dispatch
 
