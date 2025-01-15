@@ -89,7 +89,7 @@ jobs:
         # and
         VERSION=0.20.1min ./appimagetool-*.AppImage ./appdir # turn AppDir into AppImage
 
-    - name: Upload a Build Artifact
+    - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
       with:
         # Artifact name
