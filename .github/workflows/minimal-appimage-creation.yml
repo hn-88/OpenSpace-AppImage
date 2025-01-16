@@ -87,7 +87,7 @@ jobs:
         chmod +x appimagetool-*.AppImage
         #./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
         # or 
-        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
+        ./appimagetool-*.AppImage --exclude-file exclude.txt deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
         # trying to fix issue #1
         find ./appdir -name libvulkan.so.1 
         # and
