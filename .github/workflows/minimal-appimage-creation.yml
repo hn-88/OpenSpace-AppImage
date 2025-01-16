@@ -91,7 +91,7 @@ jobs:
         # trying to fix issue #1
         find ./appdir -name libvulkan.so.1 
         # and
-        VERSION=0.20.1min ./appimagetool-*.AppImage ./appdir # turn AppDir into AppImage
+        VERSION=0.20.1m_wot_wolibv ./appimagetool-*.AppImage ./appdir # turn AppDir into AppImage
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
