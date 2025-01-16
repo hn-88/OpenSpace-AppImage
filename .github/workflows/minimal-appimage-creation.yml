@@ -78,6 +78,8 @@ jobs:
       run: |
         echo "create appimage"
         mkdir -p appdir/usr/bin ; strip $HOME/source/OpenSpace/bin/OpenSpace ; cp $HOME/source/OpenSpace/bin/* ./appdir/usr/bin
+        # trying to reduce size
+        rm ./appdir/usr/bin/*est # deletes all the *Test and *test files
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
         # https://github.com/probonopd/go-appimage/blob/master/src/appimagetool/README.md
@@ -86,6 +88,8 @@ jobs:
         #./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
         # or 
         ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
+        # trying to fix issue #1
+        find ./appdir -name libvulkan.so.1 
         # and
         VERSION=0.20.1min ./appimagetool-*.AppImage ./appdir # turn AppDir into AppImage
 
