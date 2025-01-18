@@ -87,8 +87,9 @@ jobs:
         chmod +x appimagetool-*.AppImage
         #./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
         # or 
-        ./appimagetool-*.AppImage --exclude-file exclude.txt deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
+        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
         # trying to fix issue #1
+        echo "Check if libvulkan.so.1 files have been excluded using the .appimageignore file ... "
         find ./appdir -name libvulkan.so.1 
         # and
         VERSION=0.20.1m_wot_wolibv ./appimagetool-*.AppImage ./appdir # turn AppDir into AppImage
