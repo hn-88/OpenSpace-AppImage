@@ -84,7 +84,9 @@ jobs:
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
         # The OpenSpace executable expects these files in the parent directory of its bin directory
         cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders/,openspace.cfg} ./appdir/usr/
-        # https://stackoverflow.com/questions/43412885/fastest-way-to-delete-files-from-a-directory-tree-whose-names-contain-a-certain
+        # patch file created with diff -u openspace.cfg openspace.edited
+        patch -u $HOME/source/OpenSpace/openspace.cfg ./appdir/openspacecfg.patch
+        # https://stackoverflow.com/questionopenspace.cfgs/43412885/fastest-way-to-delete-files-from-a-directory-tree-whose-names-contain-a-certain
         # delete source files from modules directory
         find ./appdir/usr/ -name '*.cpp' -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm
@@ -101,7 +103,7 @@ jobs:
         echo "Check if libvulkan.so.1 files have been excluded  ... "
         find ./appdir -name libvulkan.so.1 
         # and
-        VERSION=0.20.1m_wot_wolibv ./appimagetool-*.AppImage ./appdir # turn AppDir into AppImage
+        VERSION=0.20.1p_wot_wolibv ./appimagetool-*.AppImage ./appdir # turn AppDir into AppImage
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
