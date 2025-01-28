@@ -77,7 +77,7 @@ jobs:
       # trying with go-appimage
       run: |
         echo "create appimage"
-        mkdir -p appdir/usr/bin ; strip $HOME/source/OpenSpace/bin/OpenSpace ; cp $HOME/source/OpenSpace/bin/* ./appdir/usr/bin
+        mkdir -p appdir/usr/bin ; cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin ; strip ./appdir/usr/bin/*
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
         # The OpenSpace executable expects these files in the parent directory of its bin directory
