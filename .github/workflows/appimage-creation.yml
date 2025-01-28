@@ -68,6 +68,9 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
+        # Use the system's libvulkan, not the vendored one, otherwise they might conflict
+        cef_orig_dir=$(find $HOME/source/OpenSpace/build -name libcef.so | xargs dirname)
+        rm -v $cef_orig_dir/libvulkan.so.1
         make -j 3
         
     - name: Create appimage
@@ -101,11 +104,6 @@ jobs:
         # ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
         # or 
         ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
-
-        # trying to fix issue #1
-        rm -v appdir/home/runner/source/OpenSpace/build/modules/webbrowser/ext/cef/cef_binary_102.0.10+gf249b2e+chromium-102.0.5005.115_linux64/Release/libvulkan.so.1
-        echo "Check if libvulkan.so.1 files have been excluded  ... "
-        find ./appdir -name libvulkan.so.1 
 
         # turn AppDir into AppImage
         VERSION=0.20.1p_wot_wolibv ./appimagetool-*.AppImage ./appdir
