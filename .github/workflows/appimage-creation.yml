@@ -85,7 +85,7 @@ jobs:
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
 
         # The OpenSpace executable expects these files in the parent directory of its bin directory
-        cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders/,openspace.cfg} ./appdir/usr/
+        cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders,/documentation/,openspace.cfg} ./appdir/usr/
 
         # patch file created with diff -u openspace.cfg openspace.edited
         patch ./appdir/usr/openspace.cfg < ./appdir/openspacecfg.patch
