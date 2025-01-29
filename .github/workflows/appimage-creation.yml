@@ -101,6 +101,8 @@ jobs:
         wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
         chmod +x appimagetool-*.AppImage
 
+        # If you ever get an issue with appimage bundling the wrong Qt version,
+        # try setting the  QTDIR env var (cf. https://github.com/probonopd/go-appimage/issues/268)
         # ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
         # or 
         ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
