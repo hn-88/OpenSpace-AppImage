@@ -61,14 +61,17 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
-        cmake -DCMAKE_BUILD_TYPE:STRING="Release" -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++-13 -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF "$openSpaceHome"
+        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"
 
     - name: Build
       # Build your program with the given configuration
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
-        make -j 3
+        # Use the system's libvulkan, not the vendored one, otherwise they might conflict
+        cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
+        rm -v $cef_orig_dir/libvulkan.so.1
+        make -j $(nproc)
         
     - name: Create appimage
       working-directory: ${{github.workspace}}
@@ -80,28 +83,38 @@ jobs:
         mkdir -p appdir/usr/bin ; cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin ; strip ./appdir/usr/bin/*
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
+
         # The OpenSpace executable expects these files in the parent directory of its bin directory
-        cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders/,openspace.cfg} ./appdir/usr/
+        cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders,/documentation/,openspace.cfg} ./appdir/usr/
+
         # patch file created with diff -u openspace.cfg openspace.edited
-        patch -u $HOME/source/OpenSpace/openspace.cfg ./appdir/openspacecfg.patch
+        patch ./appdir/usr/openspace.cfg < ./appdir/openspacecfg.patch
+
         # https://stackoverflow.com/questionopenspace.cfgs/43412885/fastest-way-to-delete-files-from-a-directory-tree-whose-names-contain-a-certain
         # delete source files from modules directory
         find ./appdir/usr/ -name '*.cpp' -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
+
         # https://github.com/probonopd/go-appimage/blob/master/src/appimagetool/README.md
         wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
         chmod +x appimagetool-*.AppImage
-        ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
+
+        # If you ever get an issue with appimage bundling the wrong Qt version,
+        # try setting the  QTDIR env var (cf. https://github.com/probonopd/go-appimage/issues/268)
+        # ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
         # or 
-        #./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
-        # trying to fix issue #1
-        rm -v appdir/home/runner/source/OpenSpace/build/modules/webbrowser/ext/cef/cef_binary_102.0.10+gf249b2e+chromium-102.0.5005.115_linux64/Release/libvulkan.so.1
-        echo "Check if libvulkan.so.1 files have been excluded  ... "
-        find ./appdir -name libvulkan.so.1 
-        # and
-        VERSION=0.20.1p_wot_wolibv ./appimagetool-*.AppImage ./appdir # turn AppDir into AppImage
+        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
+
+        # Install libcef runtime dependencies (the "deploy" step has automatically found libcef.so
+        # thanks to dynamic linking information but can't guess some other dependencies)
+        cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
+        cef_install_dir=$(find ./appdir -name libcef.so | xargs dirname)
+        cp -r $cef_orig_dir/* $cef_install_dir
+
+        # turn AppDir into AppImage
+        VERSION=0.20.1p_wot_wolibv ./appimagetool-*.AppImage ./appdir
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
