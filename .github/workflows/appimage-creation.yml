@@ -121,6 +121,9 @@ jobs:
         cef_install_dir=$(find ./appdir -name libcef.so | xargs dirname)
         cp -r $cef_orig_dir/* $cef_install_dir
 
+        # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
+        strip --strip-unneeded $cef_install_dir/*.so
+
         # turn AppDir into AppImage
         VERSION=0.20.1p_wot_wolibv ./appimagetool-*.AppImage ./appdir
 
