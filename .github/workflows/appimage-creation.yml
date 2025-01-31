@@ -9,7 +9,6 @@ env:
   BUILD_TYPE: Release
   # As recommended here: https://github.com/marketplace/actions/sccache-action
   SCCACHE_GHA_ENABLED: "true"
-  SCCACHE_CACHE_SIZE: 5G
   CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
   
