@@ -124,6 +124,13 @@ jobs:
         # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
         strip --strip-unneeded $cef_install_dir/*.so
 
+        # We install gcc-13 in the build env and it also pulls a libstdc++ that's newer than the
+        # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
+        # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
+        # well
+        libstdcxx=/lib/x86_64-linux-gnu/libstdc++.so.6
+        cp ${libstdcxx} ./appdir/${libstdcxx}
+
         # turn AppDir into AppImage
         VERSION=0.20.1p_wot_wolibv ./appimagetool-*.AppImage ./appdir
 
