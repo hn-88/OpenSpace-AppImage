@@ -12,6 +12,8 @@ env:
   SCCACHE_CACHE_SIZE: 5G
   CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
+  OPENSPACE_VERSION: "0.20.1"
+  APPIMAGE_VERSION: "1"
   
 jobs:
   build:
@@ -45,7 +47,7 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
-        git checkout "releases/v0.20.1" --recurse-submodules
+        git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
         mkdir build
         cd build
         
@@ -132,7 +134,7 @@ jobs:
         cp ${libstdcxx} ./appdir/${libstdcxx}
 
         # turn AppDir into AppImage
-        VERSION=0.20.1p_wot_wolibv ./appimagetool-*.AppImage ./appdir
+        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./appimagetool-*.AppImage ./appdir
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
