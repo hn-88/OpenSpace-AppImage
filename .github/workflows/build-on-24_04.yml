@@ -57,9 +57,10 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         sudo apt update
-        sudo apt install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost-all-dev qt6-base-dev libmpv-dev libvulkan-dev
-        sudo apt install software-properties-common
-        sudo apt-get install libasound2 libasound2-data libasound2-plugins
+        sudo apt-get -y install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost-all-dev qt6-base-dev libmpv-dev libvulkan-dev
+        sudo apt-get -y install software-properties-common
+        sudo apt-get -y install libasound2t64 
+        # libasound2-data libasound2-plugins
 
     # - name: Enable sccache
     #  uses: mozilla-actions/sccache-action@v0.0.7
