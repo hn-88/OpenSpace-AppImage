@@ -1,4 +1,4 @@
-name: appimage-latest
+name: appimage-latest-on-24.04
 
 on: workflow_dispatch
 
