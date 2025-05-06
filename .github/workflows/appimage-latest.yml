@@ -12,8 +12,9 @@ env:
   #SCCACHE_CACHE_SIZE: 5G
   #CMAKE_C_COMPILER_LAUNCHER: sccache
   #CMAKE_CXX_COMPILER_LAUNCHER: sccache
-  OPENSPACE_VERSION: "0.21.pre"
+  OPENSPACE_VERSION: "0.21.preAlpha"
   APPIMAGE_VERSION: "1"
+  COMMIT_HASH: "2c77efbde1cd77ca2b06bfc1efbee12d0368538e"
   
 jobs:
   build:
@@ -47,8 +48,8 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
-        # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
-        # try the latest main branch
+        git checkout "${COMMIT_HASH}" --recurse-submodules
+        # try the latest main branch, one of the newest commits
         mkdir build
         cd build
         
@@ -99,7 +100,7 @@ jobs:
         cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders,/documentation/,openspace.cfg} ./appdir/usr/
 
         # patch file created with diff -u openspace.cfg openspace.edited
-        patch ./appdir/usr/openspace.cfg < ./appdir/openspacecfg.patch
+        patch ./appdir/usr/openspace.cfg < ./appdir/openspace2cffefb.cfg.patch
 
         # https://stackoverflow.com/questionopenspace.cfgs/43412885/fastest-way-to-delete-files-from-a-directory-tree-whose-names-contain-a-certain
         # delete source files from modules directory
