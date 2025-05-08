@@ -61,6 +61,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         mv modules-webbrowser-CMakeLists.txt "$openSpaceHome/modules/webbrowser/CMakeLists.txt" -v
+        mv modules-webbrowser-cmake-cef_support.cmake "$openSpaceHome/modules/webbrowser/cmake/cef_support.cmake" -v
         
     
     - name: Install dependencies
