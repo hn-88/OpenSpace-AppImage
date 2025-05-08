@@ -52,6 +52,11 @@ jobs:
         git checkout "${COMMIT_HASH}" --recurse-submodules
         mkdir build
         cd build
+
+    - name: patch for non-x86-64 architectures
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        mv modules-webbrowser-CMakeLists.txt "$openSpaceHome/modules/webbrowser/CMakeLists.txt" -v
         
     
     - name: Install dependencies
