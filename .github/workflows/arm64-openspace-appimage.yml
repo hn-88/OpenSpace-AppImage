@@ -46,6 +46,10 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
+        df -h
+        uname -p
+        uname -m
+        echo "Now git clone ..."
         git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
         # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
