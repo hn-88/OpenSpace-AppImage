@@ -75,7 +75,7 @@ jobs:
         sudo apt-get install libasound2t64 libasound2-data libasound2-plugins
 
     - name: Enable sccache
-      uses: mozilla-actions/sccache-action@v0.0.7
+      uses: mozilla-actions/sccache-action@v0.0.9
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
