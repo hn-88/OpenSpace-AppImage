@@ -12,7 +12,7 @@ env:
   SCCACHE_CACHE_SIZE: 5G
   CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
-  OPENSPACE_VERSION: "0.21.preAlpha-0bec798"
+  OPENSPACE_VERSION: "0.21.preAlpha-5588395"
   APPIMAGE_VERSION: "1"
   COMMIT_HASH: "5588395b2af4c56a02daa6b50f456c9413636d84"
   # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
@@ -117,23 +117,23 @@ jobs:
         find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
 
         # https://github.com/probonopd/go-appimage/blob/master/src/appimagetool/README.md
-        #wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
-        #chmod +x appimagetool-*.AppImage
+        wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-aarch64.AppImage" | head -n 1 | cut -d '"' -f 2)
+        chmod +x appimagetool-*.AppImage
 
         # If you ever get an issue with appimage bundling the wrong Qt version,
         # try setting the  QTDIR env var (cf. https://github.com/probonopd/go-appimage/issues/268)
         # ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
         # or 
-        #./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
+        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
 
         # Install libcef runtime dependencies (the "deploy" step has automatically found libcef.so
         # thanks to dynamic linking information but can't guess some other dependencies)
-        #cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
-        #cef_install_dir=$(find ./appdir -name libcef.so | xargs dirname)
-        #cp -r $cef_orig_dir/* $cef_install_dir
+        cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
+        cef_install_dir=$(find ./appdir -name libcef.so | xargs dirname)
+        cp -r $cef_orig_dir/* $cef_install_dir
 
         # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
-        #strip --strip-unneeded $cef_install_dir/*.so
+        strip --strip-unneeded $cef_install_dir/*.so
 
         # We install gcc-13 in the build env and it also pulls a libstdc++ that's newer than the
         # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
@@ -143,7 +143,7 @@ jobs:
         #cp ${libstdcxx} ./appdir/${libstdcxx}
 
         # turn AppDir into AppImage
-        # VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./appimagetool-*.AppImage ./appdir
+        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./appimagetool-*.AppImage ./appdir
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
@@ -152,6 +152,6 @@ jobs:
         name: OpenSpace-AppImage
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-x86_64.AppImage
+        path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-aarch64.AppImage
       
     
