@@ -8,10 +8,10 @@ env:
   # and modified.
   BUILD_TYPE: Release
   # As recommended here: https://github.com/marketplace/actions/sccache-action
-  #SCCACHE_GHA_ENABLED: "true"
-  #SCCACHE_CACHE_SIZE: 5G
-  #CMAKE_C_COMPILER_LAUNCHER: sccache
-  #CMAKE_CXX_COMPILER_LAUNCHER: sccache
+  SCCACHE_GHA_ENABLED: "true"
+  SCCACHE_CACHE_SIZE: 5G
+  CMAKE_C_COMPILER_LAUNCHER: sccache
+  CMAKE_CXX_COMPILER_LAUNCHER: sccache
   OPENSPACE_VERSION: "0.21.preAlpha-0bec798"
   APPIMAGE_VERSION: "1"
   COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
@@ -64,8 +64,8 @@ jobs:
         sudo apt install gcc-13 g++-13
         sudo apt-get install libasound2 libasound2-data libasound2-plugins
 
-    # - name: Enable sccache
-    #  uses: mozilla-actions/sccache-action@v0.0.7
+    - name: Enable sccache
+      uses: mozilla-actions/sccache-action@v0.0.9
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
