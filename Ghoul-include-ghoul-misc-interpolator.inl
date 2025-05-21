@@ -72,7 +72,7 @@ T interpolateLinear(double t, const T& p0, const T& p1) {
 template <typename T>
 T interpolateCubicBezier(double t, const T& p0, const T& p1, const T& p2, const T& p3) {
     if constexpr (isGlmMatrix<T> || isGlmVector<T>) {
-        return internalCubicBezier(T::value_type(t), p0, p1, p2, p3);
+        return internalCubicBezier(typename T::value_type(t), p0, p1, p2, p3);
     }
     else {
         return internalCubicBezier(t, p0, p1, p2, p3);
@@ -82,7 +82,7 @@ T interpolateCubicBezier(double t, const T& p0, const T& p1, const T& p2, const 
 template <typename T>
 T interpolateCatmullRom(double t, const T& p0, const T& p1, const T& p2, const T& p3) {
     if constexpr (isGlmMatrix<T> || isGlmVector<T>) {
-        return internalCatmullRom(T::value_type(t), p0, p1, p2, p3);
+        return internalCatmullRom(typename T::value_type(t), p0, p1, p2, p3);
     }
     else {
         return internalCatmullRom(t, p0, p1, p2, p3);
