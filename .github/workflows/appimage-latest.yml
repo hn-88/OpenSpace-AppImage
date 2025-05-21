@@ -50,10 +50,13 @@ jobs:
         cd "$openSpaceHome"
         git checkout "${COMMIT_HASH}" --recurse-submodules
         # try the latest main branch, one of the newest commits
-        # patch for issue #23
-        mv Ghoul-include-ghoul-misc-interpolator.inl ext/ghoul/include/ghoul/misc/interpolator.inl -v        
         mkdir build
         cd build
+
+    - name: patch for ghoul issue 23
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        mv Ghoul-include-ghoul-misc-interpolator.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/interpolator.inl" -v
         
     
     - name: Install dependencies
