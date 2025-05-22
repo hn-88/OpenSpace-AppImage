@@ -12,9 +12,9 @@ env:
   SCCACHE_CACHE_SIZE: 5G
   CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
-  OPENSPACE_VERSION: "0.21.preAlpha-5588395"
+  OPENSPACE_VERSION: "0.21.0rc1"
   APPIMAGE_VERSION: "1"
-  COMMIT_HASH: "5588395b2af4c56a02daa6b50f456c9413636d84"
+  COMMIT_HASH: "5e3a972767fd515f725f97cfa280da79b1968047"
   # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
   SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-24.04-arm"
   
@@ -59,11 +59,10 @@ jobs:
         mkdir build
         cd build
 
-    - name: patch for non-x86-64 architectures
+    - name: patch for ghoul issue
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        mv modules-webbrowser-CMakeLists.txt "$openSpaceHome/modules/webbrowser/CMakeLists.txt" -v
-        mv modules-webbrowser-cmake-cef_support.cmake "$openSpaceHome/modules/webbrowser/cmake/cef_support.cmake" -v
+        mv Ghoul-include-ghoul-misc-interpolator.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/interpolator.inl" -v
         
     
     - name: Install dependencies
