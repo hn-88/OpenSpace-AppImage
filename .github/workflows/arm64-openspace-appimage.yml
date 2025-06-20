@@ -12,9 +12,9 @@ env:
   SCCACHE_CACHE_SIZE: 5G
   CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
-  OPENSPACE_VERSION: "0.21.0rc1"
+  OPENSPACE_VERSION: "0.21.0"
   APPIMAGE_VERSION: "1"
-  COMMIT_HASH: "5e3a972767fd515f725f97cfa280da79b1968047"
+  COMMIT_HASH: "releases/v0.21.0"
   # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
   SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-24.04-arm"
   
