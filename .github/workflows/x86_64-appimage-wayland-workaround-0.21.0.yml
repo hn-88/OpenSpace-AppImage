@@ -14,7 +14,7 @@ env:
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
   OPENSPACE_VERSION: "0.21.0-wayland-workaround"
   APPIMAGE_VERSION: "1"
-  COMMIT_HASH: "0.21.0"
+  COMMIT_HASH: "releases/v0.21.0"
   
 jobs:
   build:
