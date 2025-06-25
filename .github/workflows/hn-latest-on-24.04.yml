@@ -1,0 +1,159 @@
+name: hn-latest-on-24.04
+
+on: workflow_dispatch
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
+  # and modified.
+  BUILD_TYPE: Release
+  # As recommended here: https://github.com/marketplace/actions/sccache-action
+  SCCACHE_GHA_ENABLED: "true"
+  SCCACHE_CACHE_SIZE: 5G
+  CMAKE_C_COMPILER_LAUNCHER: sccache
+  CMAKE_CXX_COMPILER_LAUNCHER: sccache
+  OPENSPACE_VERSION: "0.21.0poston24.04"
+  APPIMAGE_VERSION: "1"
+  COMMIT_HASH: "ToCompileOnMacOS"
+  # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
+  SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-24.04"
+  
+jobs:
+  build:
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    # You can convert this to a matrix build if you need cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: false
+        
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: false
+        docker-images: true
+        swap-storage: false
+    
+    - name: get openspace code for a particular release
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
+        cd "$openSpaceHome"
+        git checkout "${COMMIT_HASH}" --recurse-submodules
+        # try the latest main branch, one of the latest commits
+        mkdir build
+        cd build
+
+    - name: get patched Ghoul
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/ext"
+        rm -rf ghoul
+        git clone https://github.com/hn-88/Ghoul.git --branch MacOSfixes --recursive
+        
+    
+    - name: Install dependencies
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
+      run: |
+        sudo apt update
+        sudo apt-get -y install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost-all-dev qt6-base-dev libmpv-dev libvulkan-dev
+        sudo apt-get -y install software-properties-common
+        sudo apt-get -y install libasound2t64 
+        # libasound2-data libasound2-plugins
+
+    - name: Enable sccache
+      uses: mozilla-actions/sccache-action@v0.0.9
+
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"
+
+    - name: Build
+      # Build your program with the given configuration
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        # Use the system's libvulkan, not the vendored one, otherwise they might conflict
+        cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
+        rm -v $cef_orig_dir/libvulkan.so.1
+        make -j $(nproc)
+        
+    - name: Create appimage
+      working-directory: ${{github.workspace}}
+      # https://appimage-builder.readthedocs.io/en/latest/hosted-services/github-actions.html
+      # But instead of linuxdeployqt as in https://github.com/hn-88/OCVWarp/blob/master/.travis.yml
+      # trying with go-appimage
+      run: |
+        echo "create appimage"
+        mkdir -p appdir/usr/bin ; cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin ; strip ./appdir/usr/bin/*
+        mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
+        mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
+
+        # The OpenSpace executable expects these files in the parent directory of its bin directory
+        cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders,/documentation/,openspace.cfg} ./appdir/usr/
+
+        # patch file created with diff -u openspace.cfg openspace.edited
+        # patch file needs to be updated if openspace.cfg is modified in the main repo
+        patch ./appdir/usr/openspace.cfg < ./appdir/openspace2cffefb.cfg.patch
+
+        # https://stackoverflow.com/questionopenspace.cfgs/43412885/fastest-way-to-delete-files-from-a-directory-tree-whose-names-contain-a-certain
+        # delete source files from modules directory
+        find ./appdir/usr/ -name '*.cpp' -print0 | xargs -0 -P2 rm
+        find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm
+        find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm
+        find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
+
+        # https://github.com/probonopd/go-appimage/blob/master/src/appimagetool/README.md
+        wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
+        chmod +x appimagetool-*.AppImage
+
+        # If you ever get an issue with appimage bundling the wrong Qt version,
+        # try setting the  QTDIR env var (cf. https://github.com/probonopd/go-appimage/issues/268)
+        # ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
+        # or 
+        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
+
+        # Install libcef runtime dependencies (the "deploy" step has automatically found libcef.so
+        # thanks to dynamic linking information but can't guess some other dependencies)
+        cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
+        cef_install_dir=$(find ./appdir -name libcef.so | xargs dirname)
+        cp -r $cef_orig_dir/* $cef_install_dir
+
+        # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
+        strip --strip-unneeded $cef_install_dir/*.so
+
+        # We install gcc-13 in the build env and it also pulls a libstdc++ that's newer than the
+        # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
+        # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
+        # well
+        # libstdcxx=/lib/x86_64-linux-gnu/libstdc++.so.6
+        # cp ${libstdcxx} ./appdir/${libstdcxx}
+
+        # turn AppDir into AppImage
+        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./appimagetool-*.AppImage ./appdir
+
+    - name: Upload AppImage Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        # Artifact name
+        name: OpenSpace-AppImage
+        # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-x86_64.AppImage
+      
+    
