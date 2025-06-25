@@ -60,7 +60,7 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/ext"
         rm -rf ghoul
-        git clone https://github.com/hn-88/Ghoul.git --branch MacOSfixes --recursive
+        git clone https://github.com/hn-88/Ghoul.git --branch MacOSfixes --recursive "ghoul"
         
     
     - name: Install dependencies
