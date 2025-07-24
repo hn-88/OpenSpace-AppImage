@@ -65,14 +65,18 @@ jobs:
         sudo apt-get install libasound2 libasound2-data libasound2-plugins
         echo "libfuse is needed for appimage..."
         sudo apt-get install libfuse2
-        echo "Qt6 does not include qmake by default, need the qt6-tools package for linuxdeployqt."
-        sudo apt-get install qt6-tools
+        # https://askubuntu.com/questions/1460242/ubuntu-22-04-with-qt6-qmake-could-not-find-a-qt-installation-of
+        qtchooser -install qt6 $(which qmake6)
+        sudo mv -v ~/.config/qtchooser/qt6.conf /usr/share/qtchooser/qt6.conf
+        echo "Set Qt6 as default..."
+        sudo mkdir -p /usr/lib/$(uname -p)-linux-gnu/qt-default/qtchooser
+        sudo ln -n /usr/share/qtchooser/qt6.conf /usr/lib/$(uname -p)-linux-gnu/qt-default/qtchooser/default.conf
 
     - name: Check qmake for Qt6
       run: |
-        ls /opt/qt*/bin/qmake
-        echo "Verifying with path"
-        /usr/lib/qt6/bin/qmake -v
+        which qmake6
+        echo "Verifying with -v"
+        qmake -v
 
     - name: Enable sccache
       uses: mozilla-actions/sccache-action@v0.0.9
@@ -144,7 +148,7 @@ jobs:
         cp ${libstdcxx} ./appdir/${libstdcxx}
 
         # turn AppDir into AppImage
-        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./linuxdeployqt-continuous-aarch64.AppImage appdir/usr/share/applications/*.desktop -qmake=/usr/lib/qt6/bin/qmake -appimage
+        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./linuxdeployqt-continuous-aarch64.AppImage appdir/usr/share/applications/*.desktop -qmake=/usr/bin/qmake6 -appimage
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
