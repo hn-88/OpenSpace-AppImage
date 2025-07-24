@@ -63,6 +63,8 @@ jobs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt install gcc-13 g++-13
         sudo apt-get install libasound2 libasound2-data libasound2-plugins
+        echo "libfuse is needed for appimage..."
+        sudo apt-get install libfuse2
 
     - name: Enable sccache
       uses: mozilla-actions/sccache-action@v0.0.9
