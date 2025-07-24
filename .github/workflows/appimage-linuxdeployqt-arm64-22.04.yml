@@ -65,6 +65,14 @@ jobs:
         sudo apt-get install libasound2 libasound2-data libasound2-plugins
         echo "libfuse is needed for appimage..."
         sudo apt-get install libfuse2
+        echo "Qt6 does not include qmake by default, need the qt6-tools package for linuxdeployqt."
+        sudo apt-get install qt6-tools
+
+    - name: Check qmake for Qt6
+      run: |
+        ls /opt/qt*/bin/qmake
+        echo "Verifying with path"
+        /usr/lib/qt6/bin/qmake -v
 
     - name: Enable sccache
       uses: mozilla-actions/sccache-action@v0.0.9
@@ -136,7 +144,7 @@ jobs:
         cp ${libstdcxx} ./appdir/${libstdcxx}
 
         # turn AppDir into AppImage
-        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./linuxdeployqt-continuous-aarch64.AppImage appdir/usr/share/applications/*.desktop -appimage
+        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./linuxdeployqt-continuous-aarch64.AppImage appdir/usr/share/applications/*.desktop -qmake=/usr/lib/qt6/bin/qmake -appimage
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
