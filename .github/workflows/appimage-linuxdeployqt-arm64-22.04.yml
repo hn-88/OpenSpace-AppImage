@@ -145,8 +145,12 @@ jobs:
         # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
         # well
         whereis libstdc++.so.6
-        libstdcxx=/lib/aarch64-linux-gnu/libstdc++.so.6
+        libstdcxx=/usr/lib/aarch64-linux-gnu/libstdc++.so.6
         cp ${libstdcxx} ./appdir${libstdcxx}
+
+        # For running on Wayland, one of the workarounds suggested is to NOT bundle wayland libraries
+        # https://github.com/Ultimaker/Cura/issues/10815#issuecomment-2402112811
+        find ./appdir -name libwayland* | xargs rm -vf
 
         # turn AppDir into AppImage
         VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./linuxdeployqt-continuous-aarch64.AppImage appdir/usr/share/applications/*.desktop -qmake=/usr/bin/qmake6 -appimage
