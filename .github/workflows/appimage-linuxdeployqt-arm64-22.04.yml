@@ -150,7 +150,7 @@ jobs:
 
         # For running on Wayland, one of the workarounds suggested is to NOT bundle wayland libraries
         # https://github.com/Ultimaker/Cura/issues/10815#issuecomment-2402112811
-        find ./appdir -name libwayland* | xargs rm -vf
+        find ./appdir -name libwayland* | xargs rm -vRf
 
         # turn AppDir into AppImage
         VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./linuxdeployqt-continuous-aarch64.AppImage appdir/usr/share/applications/*.desktop -qmake=/usr/bin/qmake6 -appimage
