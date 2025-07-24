@@ -153,7 +153,7 @@ jobs:
         find ./appdir -name libwayland* | xargs rm -vRf
 
         # turn AppDir into AppImage
-        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./linuxdeployqt-continuous-aarch64.AppImage appdir/usr/share/applications/*.desktop -qmake=/usr/bin/qmake6 -appimage
+        ARCH=aarch64 VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION} ./linuxdeployqt-continuous-aarch64.AppImage appdir/usr/share/applications/*.desktop -qmake=/usr/bin/qmake6 -appimage
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
