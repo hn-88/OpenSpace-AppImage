@@ -132,7 +132,7 @@ jobs:
         # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
         # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
         # well
-        libstdcxx=/lib/x86_64-linux-gnu/libstdc++.so.6
+        libstdcxx=/lib/aarch64-linux-gnu/libstdc++.so.6
         cp ${libstdcxx} ./appdir/${libstdcxx}
 
         # turn AppDir into AppImage
