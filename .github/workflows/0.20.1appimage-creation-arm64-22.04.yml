@@ -1,4 +1,4 @@
-name: appimage-creation-arm64-22.04
+name: 0.20.1appimage-creation-arm64-22.04
 
 on: workflow_dispatch
 
@@ -12,10 +12,10 @@ env:
   SCCACHE_CACHE_SIZE: 5G
   CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
-  OPENSPACE_VERSION: "0.21.0plus-ebc6fbe"
+  OPENSPACE_VERSION: "0.20.1"
   APPIMAGE_VERSION: "1"
   SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-22.04-arm"
-  COMMIT_HASH: "ebc6fbef11060f5b3668903d5b3b446705bc698b"
+  # COMMIT_HASH: "ebc6fbef11060f5b3668903d5b3b446705bc698b"
   
 jobs:
   build:
@@ -49,7 +49,8 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
-        git checkout "${COMMIT_HASH}" --recurse-submodules
+        # git checkout "${COMMIT_HASH}" --recurse-submodules
+        git checkout "releases/v${OPENSPACE_VERSION}"
         mkdir build
         cd build
         
