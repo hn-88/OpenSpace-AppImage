@@ -110,6 +110,6 @@ jobs:
         name: OpenSpace-0.21.1rc1-minimal
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: $openSpaceHome/support/OpenSpace-0.21.1rc1
+        path: $HOME/source/OpenSpace/support/OpenSpace-0.21.1rc1
       
     
