@@ -96,6 +96,9 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/support"
+        echo "checking directories"
+        ls ../*
+        ls ../bin/*
         chmod +x ./deploy.sh
         ./deploy.sh
 
