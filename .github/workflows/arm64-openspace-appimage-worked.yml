@@ -14,7 +14,7 @@ env:
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
   OPENSPACE_VERSION: "0.21.0rc1plus"
   APPIMAGE_VERSION: "1"
-  COMMIT_HASH: "1f722571415c760c94a4edfacc1892aebef9a038" # Jun 9 2025
+  COMMIT_HASH: "eb8f621390e17894d2c0a490b0b2ba03de08ac5d" # Jun 11 2025
   # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
   SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-24.04-arm"
   
