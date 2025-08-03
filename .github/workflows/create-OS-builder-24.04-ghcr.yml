@@ -1,4 +1,4 @@
-name: Build and Push OpenSpace Builder Image to GHCR
+name: Build os builder 24.04 Image to GHCR
 
 on:
   workflow_dispatch:
