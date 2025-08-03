@@ -38,8 +38,4 @@ jobs:
         working-directory: OpenSpace/build
         run: make -j$(nproc)
 
-      - name: Upload build artifacts (optional)
-        uses: actions/upload-artifact@v4
-        with:
-          name: openspace-build
-          path: OpenSpace/build
+      
