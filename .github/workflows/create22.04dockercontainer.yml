@@ -1,0 +1,68 @@
+name: Build 22.04 Docker Image with OpenSpace Dependencies
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Dockerfile
+        run: |
+          cat <<EOF > Dockerfile
+          FROM ubuntu:22.04
+
+          ENV DEBIAN_FRONTEND=noninteractive
+
+          RUN apt-get update && \
+              apt-get install -y \
+                software-properties-common && \
+              add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
+              apt-get update && \
+              apt-get install -y \
+                build-essential \
+                cmake \
+                glew-utils \
+                libpng-dev \
+                freeglut3-dev \
+                git \
+                libxrandr-dev \
+                libxinerama-dev \
+                xorg-dev \
+                libxcursor-dev \
+                libcurl4-openssl-dev \
+                libxi-dev \
+                libasound2-dev \
+                libgdal-dev \
+                libboost1.74-dev \
+                qt6-base-dev \
+                libmpv-dev \
+                libvulkan-dev \
+                gcc-13 \
+                g++-13 \
+                libasound2 \
+                libasound2-data \
+                libasound2-plugins && \
+              apt-get clean && \
+              rm -rf /var/lib/apt/lists/*
+
+          CMD ["/bin/bash"]
+          EOF
+
+      - name: Build Docker image
+        run: |
+          docker build -t ubuntu22.04-openspacebuilder-image .
+
+      - name: Save Docker image as tar
+        run: |
+          docker save ubuntu22.04-openspacebuilder-image -o ubuntu22.04-openspacebuilder-image.tar
+
+      - name: Upload Docker image tarball as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: ubuntu22.04-openspacebuilder-image.tar
