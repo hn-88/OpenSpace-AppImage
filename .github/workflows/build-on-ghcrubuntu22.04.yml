@@ -12,8 +12,8 @@ jobs:
       options: --user root  # Ensure permissions for writing to the workspace
 
     steps:
-      - name: Install Git (needed inside container if not present)
-        run: apt-get update && apt-get install -y git
+      - name: Install Git and cmake (needed inside container if not present)
+        run: apt-get update && apt-get install -y git cmake
 
       - name: Clone OpenSpace repository
         run: |
