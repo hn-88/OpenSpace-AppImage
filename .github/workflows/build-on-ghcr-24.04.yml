@@ -1,0 +1,41 @@
+name: Build OpenSpace using GHCR 24.04 Image
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-openspace:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/hn-88/ubuntu24.04-openspacebuilder-image:latest
+      options: --user root  # Ensure permissions for writing to the workspace
+
+    steps:
+      - name: Clone OpenSpace repository
+        run: |
+          git clone --recursive https://github.com/OpenSpace/OpenSpace
+
+      - name: Create build directory
+        run: |
+          mkdir -p OpenSpace/build
+          cd OpenSpace/build
+
+      - name: Configure CMake
+        working-directory: OpenSpace/build
+        run: |
+          cmake -DCMAKE_BUILD_TYPE="Release" \
+                -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 \
+                -DCMAKE_C_COMPILER=/usr/bin/gcc-13 \
+                -DCMAKE_CXX_STANDARD=20 \
+                -DASSIMP_BUILD_MINIZIP=1 \
+                -DBUILD_TESTS=OFF \
+                -DOPENSPACE_HAVE_TESTS=OFF \
+                -DSGCT_BUILD_TESTS=OFF \
+                ..
+
+      - name: Build OpenSpace
+        working-directory: OpenSpace/build
+        run: make -j$(nproc)
+
+      
