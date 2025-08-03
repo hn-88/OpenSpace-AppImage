@@ -31,7 +31,10 @@ jobs:
           # Install dependencies
           RUN apt-get update && \
               apt-get install -y \
-                software-properties-common \
+                software-properties-common && \
+              add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
+              apt-get update && \
+              apt-get install -y \
                 wget \
                 build-essential \
                 libssl-dev \
@@ -57,9 +60,7 @@ jobs:
                 g++-13 \
                 libasound2 \
                 libasound2-data \
-                libasound2-plugins && \
-              add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
-              apt-get update
+                libasound2-plugins
 
           # Install CMake 3.26.4 from source
           RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4.tar.gz && \
