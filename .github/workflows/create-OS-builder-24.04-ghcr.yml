@@ -57,7 +57,9 @@ jobs:
                 libvulkan-dev \
                 gcc-13 \
                 g++-13 \
-                libasound2t64
+                libasound2t64 \
+                docker.io && \
+                sudo usermod -aG docker $USER
                 
           CMD ["/bin/bash"]
           EOF
