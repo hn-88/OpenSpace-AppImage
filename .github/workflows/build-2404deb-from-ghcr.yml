@@ -1,0 +1,38 @@
+name: Build .deb from Docker Image
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Pull the prebuilt Docker image
+      run: |
+        docker pull ghcr.io/${{ github.repository_owner }}/ubuntu24.04-openspacedebbuilder-image:latest
+
+    - name: Run cpack inside the container
+      run: |
+        docker create --name openspace-builder ghcr.io/${{ github.repository_owner }}/ubuntu24.04-openspacedebbuilder-image:latest bash -c "\
+          cd /home/runner/source/OpenSpace/build && \
+          cpack -G DEB"
+        docker start -a openspace-builder
+
+    - name: Copy .deb file from container
+      run: |
+        docker cp openspace-builder:/home/runner/source/OpenSpace/build/OpenSpace-*.deb .
+        docker rm openspace-builder
+
+    - name: Upload .deb file
+      uses: actions/upload-artifact@v4
+      with:
+        name: openspace-deb-package
+        path: OpenSpace-*.deb
