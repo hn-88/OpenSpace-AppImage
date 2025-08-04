@@ -38,7 +38,11 @@ jobs:
 
       - name: Build OpenSpace
         working-directory: OpenSpace/build
-        run: make -j$(nproc)
+        run: |
+          echo "Use the system's libvulkan, not the vendored one, otherwise they might conflict..."
+          cef_orig_dir=$(find ../build -path */Release/libcef.so | xargs dirname)
+          rm -v $cef_orig_dir/libvulkan.so.1
+          make -j$(nproc)
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
