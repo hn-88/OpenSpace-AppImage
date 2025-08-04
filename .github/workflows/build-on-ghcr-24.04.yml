@@ -14,12 +14,14 @@ jobs:
     steps:
       - name: Clone OpenSpace repository
         run: |
-          git clone --recursive https://github.com/OpenSpace/OpenSpace
+          git clone --recursive https://github.com/hn-88/OpenSpace
+          git checkout DebwithCPack --recurse-submodules
 
       - name: Create build directory
         run: |
           mkdir -p OpenSpace/build
           cd OpenSpace/build
+          pwd
 
       - name: Configure CMake
         working-directory: OpenSpace/build
