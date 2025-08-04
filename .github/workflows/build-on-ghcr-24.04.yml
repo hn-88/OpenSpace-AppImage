@@ -14,8 +14,8 @@ jobs:
     steps:
       - name: Clone OpenSpace repository
         run: |
-          git clone --recursive https://github.com/hn-88/OpenSpace
-          git checkout DebwithCPack --recurse-submodules
+          git clone --recursive https://github.com/hn-88/OpenSpace.git
+          git checkout DebwithCPack
 
       - name: Create build directory
         run: |
