@@ -14,7 +14,7 @@ env:
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
   OPENSPACE_VERSION: "0.21.2+"
   APPIMAGE_VERSION: "1"
-  COMMIT_HASH: "patch-1"
+  COMMIT_HASH: "389842f76cab6c7a211faa90c3c157a28df24bd6" # Aug 5 2025
   # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
   SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-22.04-arm"
   
@@ -52,7 +52,7 @@ jobs:
         uname -p
         uname -m
         echo "Now git clone ..."
-        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
         # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
         git checkout "${COMMIT_HASH}" --recurse-submodules
