@@ -52,7 +52,7 @@ jobs:
         uname -p
         uname -m
         echo "Now git clone ..."
-        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
         # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
         git checkout "${COMMIT_HASH}" --recurse-submodules
