@@ -44,21 +44,14 @@ jobs:
           cef_orig_dir=$(find ../build -path */Release/libcef.so | xargs dirname)
           rm -v $cef_orig_dir/libvulkan.so.1
           make -j$(nproc)
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+          echo "Running CPack to create TGZ installer..."
+          cpack -G TGZ
+      
+      - name: Upload TGZ package to GitHub Actions artifacts
+        uses: actions/upload-artifact@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-  
-      - name: Tag image for GHCR
-        run: |
-          docker tag <image_name> ghcr.io/${{ github.repository_owner }}/ubuntu24.04-openspacedebbuilder-image:latest
-  
-      - name: Push image to GHCR
-        run: |
-          docker push ghcr.io/${{ github.repository_owner }}/ubuntu24.04-openspacedebbuilder-image:latest
+          name: OpenSpace-TGZ-Package
+          path: OpenSpace/build/*.tar.gz
 
-
+     
       
