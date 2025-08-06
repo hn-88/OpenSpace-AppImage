@@ -58,8 +58,7 @@ jobs:
                 gcc-13 \
                 g++-13 \
                 libasound2t64 \
-                docker.io && \
-                sudo usermod -aG docker $USER
+                docker.io
                 
           CMD ["/bin/bash"]
           EOF
