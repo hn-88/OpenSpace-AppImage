@@ -58,6 +58,8 @@ jobs:
                 gcc-13 \
                 g++-13 \
                 libasound2t64 \
+                libpng-dev \
+                fakeroot \
                 docker.io
                 
           CMD ["/bin/bash"]
