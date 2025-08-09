@@ -28,11 +28,11 @@ jobs:
           path: deb_file_list.txt
 
       # Step 4: Download TGZ artifact from another workflow
-      - name: Download TGZ artifact ZIP (authenticated)
+      - name: Download TGZ artifact ZIP (authenticated, correct headers)
         run: |
-          curl -L \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -o tgz_artifact.zip \
+          wget \
+            --header="Authorization: Bearer $GITHUB_TOKEN" \
+            -O tgz_artifact.zip \
             https://api.github.com/repos/hn-88/OpenSpace-AppImage/actions/artifacts/3700406409/zip
 
       # Step 5: Unzip artifact (contains TGZ file)
