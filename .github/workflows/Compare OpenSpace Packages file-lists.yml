@@ -29,6 +29,8 @@ jobs:
 
       # Step 4: Download TGZ artifact from another workflow
       - name: Download TGZ artifact ZIP (authenticated, correct headers)
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           wget \
             --header="Authorization: Bearer $GITHUB_TOKEN" \
