@@ -1,0 +1,86 @@
+name: Compare v0.21.2 DEB with deb_file_list
+
+on:
+  workflow_dispatch:
+
+jobs:
+  compare-deb-file-lists:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download v0.21.2 DEB artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -L \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -o v0212_deb_artifact.zip \
+            https://github.com/hn-88/OpenSpace-AppImage/actions/runs/16845795828/artifacts/3725058094
+
+      - name: Unzip v0.21.2 DEB artifact
+        run: |
+          unzip -l v0212_deb_artifact.zip
+          unzip v0212_deb_artifact.zip -d v0212_deb_artifact
+          echo "Contents of artifact:"
+          ls -l v0212_deb_artifact
+
+          # Find the deb file
+          DEB_FILE=$(find v0212_deb_artifact -type f -name "*.deb")
+          if [ -z "$DEB_FILE" ]; then
+            echo "No .deb file found in artifact" >&2
+            exit 1
+          fi
+          echo "Found DEB file: $DEB_FILE"
+          echo "$DEB_FILE" > deb_filename.txt
+
+      - name: Extract v0.21.2 DEB contents and list files
+        run: |
+          mkdir deb_extract
+          dpkg-deb -x $(cat deb_filename.txt) deb_extract
+          find deb_extract -type f | sort > testv0.21.2deb-file-list.txt
+
+      - name: Upload v0.21.2 DEB file list artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: testv0.21.2deb-file-list
+          path: testv0.21.2deb-file-list.txt
+
+      - name: Download deb_file_list.txt artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -L \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -o deb_list_artifact.zip \
+            https://github.com/hn-88/OpenSpace-AppImage/actions/runs/16845461996/artifacts/3724888239
+
+      - name: Unzip deb_file_list.txt artifact
+        run: |
+          unzip -l deb_list_artifact.zip
+          unzip deb_list_artifact.zip -d deb_list_artifact
+          if [ ! -f deb_list_artifact/deb_file_list.txt ]; then
+            echo "deb_file_list.txt not found in artifact" >&2
+            exit 1
+          fi
+
+      - name: Compare file lists
+        run: |
+          # Strip paths and keep only filenames for fair comparison
+          cut -d/ -f8- testv0.21.2deb-file-list.txt > v0212_files.txt
+          cut -d/ -f8- deb_list_artifact/deb_file_list.txt > deb_list_files.txt
+
+          sort v0212_files.txt -o v0212_files.txt
+          sort deb_list_files.txt -o deb_list_files.txt
+
+          comm -23 v0212_files.txt deb_list_files.txt > missing_in_deb_file_list.txt
+          comm -13 v0212_files.txt deb_list_files.txt > missing_in_v0212.txt
+
+          echo "Files missing in deb_file_list version: $(wc -l < missing_in_deb_file_list.txt)"
+          echo "Files missing in v0.21.2: $(wc -l < missing_in_v0212.txt)"
+
+      - name: Upload diff artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-file-diffs
+          path: |
+            missing_in_deb_file_list.txt
+            missing_in_v0212.txt
