@@ -1,0 +1,70 @@
+name: Compare OpenSpace Packages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  compare-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Download the deb file
+      - name: Download OpenSpace .deb
+        run: |
+          curl -L -o OpenSpace.deb https://data.openspaceproject.com/release/0.20.1/OpenSpace-0.20.1.deb
+
+      # Step 2: List all files in deb
+      - name: Extract file list from .deb
+        run: |
+          mkdir deb_extract
+          dpkg-deb -x OpenSpace.deb deb_extract
+          find "$(pwd)/deb_extract" -type f | sort > deb_file_list.txt
+
+      # Step 3: Upload deb file list
+      - name: Upload deb file list
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb_file_list
+          path: deb_file_list.txt
+
+      # Step 4: Download TGZ artifact from another workflow
+      - name: Download TGZ artifact ZIP (authenticated)
+        run: |
+          curl -L \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -o tgz_artifact.zip \
+            https://api.github.com/repos/hn-88/OpenSpace-AppImage/actions/artifacts/3700406409/zip
+
+      # Step 5: Unzip artifact (contains TGZ file)
+      - name: Unzip TGZ artifact
+        run: |
+          mkdir tgz_zip
+          unzip tgz_artifact.zip -d tgz_zip
+
+      # Step 6: Extract TGZ contents
+      - name: Extract TGZ file
+        run: |
+          TGZ_FILE=$(find tgz_zip -type f -name '*.tgz' | head -n 1)
+          mkdir tgz_extract
+          tar -xzf "$TGZ_FILE" -C tgz_extract
+          find "$(pwd)/tgz_extract" -type f | sort > tgz_file_list.txt
+
+      # Step 7: Upload tgz file list
+      - name: Upload tgz file list
+        uses: actions/upload-artifact@v4
+        with:
+          name: tgz_file_list
+          path: tgz_file_list.txt
+
+      # Step 8: Compare lists and create diff
+      - name: Compare deb vs tgz file lists
+        run: |
+          diff -u deb_file_list.txt tgz_file_list.txt > files_diff.txt || true
+
+      # Step 9: Upload diff
+      - name: Upload diff
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb_vs_tgz_diff
+          path: files_diff.txt
