@@ -1,0 +1,83 @@
+name: Compare File Lists from Two Artifacts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  compare-artifacts:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Download first artifact (deb_file_list)
+      - name: Download deb_file_list artifact ZIP
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          curl -L \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -o deb_artifact.zip \
+            "https://api.github.com/repos/hn-88/OpenSpace-AppImage/actions/artifacts/3724888239/zip"
+          ls -lh deb_artifact.zip
+
+      # Step 2: Unzip and check deb_file_list.txt
+      - name: Unzip deb artifact and check contents
+        run: |
+          set -eu
+          mkdir deb_artifact_unzip
+          unzip -q deb_artifact.zip -d deb_artifact_unzip
+          if [ ! -f deb_artifact_unzip/deb_file_list.txt ]; then
+            echo "ERROR: deb_file_list.txt not found in deb artifact"
+            exit 1
+          fi
+          echo "deb_file_list.txt found with $(wc -l < deb_artifact_unzip/deb_file_list.txt) lines"
+
+      # Step 3: Download second artifact (tgz file list)
+      - name: Download tgz file_list artifact ZIP
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          curl -L \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -o tgz_artifact.zip \
+            "https://api.github.com/repos/hn-88/OpenSpace-AppImage/actions/artifacts/3724909652/zip"
+          ls -lh tgz_artifact.zip
+
+      # Step 4: Unzip and check file_list.txt
+      - name: Unzip tgz artifact and check contents
+        run: |
+          set -eu
+          mkdir tgz_artifact_unzip
+          unzip -q tgz_artifact.zip -d tgz_artifact_unzip
+          if [ ! -f tgz_artifact_unzip/file_list.txt ]; then
+            echo "ERROR: file_list.txt not found in tgz artifact"
+            exit 1
+          fi
+          echo "file_list.txt found with $(wc -l < tgz_artifact_unzip/file_list.txt) lines"
+
+      # Step 5: Compare only filenames (ignore paths)
+      - name: Compare filenames only
+        run: |
+          set -eu
+          mkdir compare
+          # Strip everything before the last '/' to get just filenames
+          awk -F/ '{print $NF}' deb_artifact_unzip/deb_file_list.txt | sort -u > compare/deb_filenames.txt
+          awk -F/ '{print $NF}' tgz_artifact_unzip/file_list.txt | sort -u > compare/tgz_filenames.txt
+
+          # Get filenames in deb list but not in tgz list
+          comm -23 compare/deb_filenames.txt compare/tgz_filenames.txt > compare/missing_in_tgz.txt
+          echo "===== Missing in TGZ (only filenames) ====="
+          cat compare/missing_in_tgz.txt || true
+          echo "==========================================="
+
+      # Step 6: Upload the diff
+      - name: Upload missing files diff
+        uses: actions/upload-artifact@v4
+        with:
+          name: missing_in_tgz
+          path: compare/missing_in_tgz.txt
