@@ -14,7 +14,8 @@ jobs:
           curl -L \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -o v0212_deb_artifact.zip \
-            https://github.com/hn-88/OpenSpace-AppImage/actions/runs/16845795828/artifacts/3725058094
+            https://api.github.com/repos/hn-88/OpenSpace-AppImage/actions/artifacts/3725058094/zip
+
 
       - name: Unzip v0.21.2 DEB artifact
         run: |
@@ -51,7 +52,7 @@ jobs:
           curl -L \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -o deb_list_artifact.zip \
-            https://github.com/hn-88/OpenSpace-AppImage/actions/runs/16845461996/artifacts/3724888239
+            https://api.github.com/repos/hn-88/OpenSpace-AppImage/actions/artifacts/3724888239/zip
 
       - name: Unzip deb_file_list.txt artifact
         run: |
