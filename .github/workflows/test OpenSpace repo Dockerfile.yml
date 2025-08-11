@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: hn-88/openspace-docker
-          ref: ubuntu22-updates # adjust if needed
+          ref: build-OpenSpace-on-22.04-docker # adjust if needed
 
       - name: Build Docker image
         run: |
