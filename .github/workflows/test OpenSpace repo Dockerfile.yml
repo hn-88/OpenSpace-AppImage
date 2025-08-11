@@ -1,0 +1,44 @@
+name: test OpenSpace repo Dockerfile
+
+on:
+  workflow_dispatch: # run manually
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-openspace:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo containing Dockerfile
+        uses: actions/checkout@v4
+        with:
+          repository: hn-88/openspace-docker
+          ref: ubuntu22-updates # adjust if needed
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -f run/ubuntu-2204/Dockerfile \
+            -t openspace-build:latest .
+
+      - name: Run build inside container
+        run: |
+          docker run --rm \
+            --name openspace-builder \
+            openspace-build:latest
+
+      # Optional: copy out build artifacts
+      - name: Extract built binaries from container
+        run: |
+          container_id=$(docker create openspace-build:latest)
+          docker cp "$container_id":/home/openspace/source/OpenSpace/build ./openspace-build
+          docker rm "$container_id"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openspace-build
+          path: openspace-build
