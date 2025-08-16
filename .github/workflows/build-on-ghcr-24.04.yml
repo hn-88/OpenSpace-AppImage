@@ -36,24 +36,24 @@ jobs:
                 -DOPENSPACE_HAVE_TESTS=OFF \
                 -DSGCT_BUILD_TESTS=OFF \
                 -DOPENSPACE_DISTRO=ubuntu24.04 \
+                -DCMAKE_INSTALL_PREFIX=/usr \
                 ..
 
       - name: Build OpenSpace
         working-directory: OpenSpace/build
         run: |
           echo "Use the system's libvulkan, not the vendored one, otherwise they might conflict..."
-          cef_orig_dir=$(find ../build -path */Release/libcef.so | xargs dirname)
+          cef_orig_dir=$(find . -path */Release/libcef.so | xargs dirname)
           rm -v $cef_orig_dir/libvulkan.so.1
           make -j$(nproc)
-          echo "Running CPack to create TGZ and deb installers..."
+          echo "Running CPack to create deb installer..."
           cpack
       
-      - name: Upload TGZ package to GitHub Actions artifacts
+      - name: Upload DEB package to GitHub Actions artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: OpenSpace-DEB-TGZ-Packages
+          name: OpenSpace-DEB-Package
           path:  |
-            OpenSpace/build/*.tar.gz
             OpenSpace/build/*.deb
 
      
