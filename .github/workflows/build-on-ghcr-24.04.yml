@@ -4,6 +4,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  free-disk-space:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: false
+          
+          # all of these default to true, but feel free to set to
+          # "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+          
   build-openspace:
     runs-on: ubuntu-latest
 
@@ -11,7 +30,8 @@ jobs:
       image: ghcr.io/hn-88/ubuntu24.04-openspacebuilder-image:latest
       options: --user root  # Ensure permissions for writing to the workspace
 
-    steps:
+    steps:     
+    
       - name: Clone OpenSpace repository
         run: |
           git clone --recursive https://github.com/hn-88/OpenSpace.git
@@ -46,6 +66,8 @@ jobs:
           cef_orig_dir=$(find . -path */Release/libcef.so | xargs dirname)
           rm -v $cef_orig_dir/libvulkan.so.1
           make -j$(nproc)
+          echo "Check for disk space..."
+          df -h
           echo "Running CPack to create deb installer..."
           cpack
       
