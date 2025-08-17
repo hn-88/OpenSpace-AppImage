@@ -2,10 +2,7 @@ name: test OpenSpace repo Dockerfile
 
 on:
   workflow_dispatch: # run manually
-  push:
-    branches:
-      - main
-  pull_request:
+  
 
 jobs:
   build-openspace:
