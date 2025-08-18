@@ -8,16 +8,10 @@ env:
   # and modified.
   BUILD_TYPE: Release
   # As recommended here: https://github.com/marketplace/actions/sccache-action
-  SCCACHE_GHA_ENABLED: "true"
-  SCCACHE_CACHE_SIZE: 5G
-  CMAKE_C_COMPILER_LAUNCHER: sccache
-  CMAKE_CXX_COMPILER_LAUNCHER: sccache
   OPENSPACE_VERSION: "0.21.pre0bec798on24.04"
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "DebwithCPack"
-  # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
-  SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-24.04"
   
 jobs:
   build:
@@ -66,9 +60,7 @@ jobs:
         sudo apt-get -y install libasound2t64 
         # libasound2-data libasound2-plugins
 
-    - name: Enable sccache
-      uses: mozilla-actions/sccache-action@v0.0.9
-
+  
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -88,7 +80,7 @@ jobs:
         # Use the system's libvulkan, not the vendored one, otherwise they might conflict
         cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
         rm -v $cef_orig_dir/libvulkan.so.1
-        cmake --build . --parallel
+        cmake --build . --parallel 3
         
     - name: Create deb
       working-directory: ${{github.workspace}}
