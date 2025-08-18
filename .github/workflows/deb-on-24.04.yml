@@ -14,7 +14,8 @@ env:
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
   OPENSPACE_VERSION: "0.21.pre0bec798on24.04"
   APPIMAGE_VERSION: "1"
-  COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
+  # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
+  COMMIT_HASH: "DebwithCPack"
   # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
   SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-24.04"
   
@@ -48,7 +49,7 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
+        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
         git checkout "${COMMIT_HASH}" --recurse-submodules
         # try the latest main branch, one of the latest commits
