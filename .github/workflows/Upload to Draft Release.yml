@@ -15,7 +15,7 @@ jobs:
       - name: Get artifact download URL
         id: get_artifact_url
         run: |
-          API_URL="https://api.github.com/repos/hn-88/OpenSpace-IntelMac/actions/artifacts/3785544123/zip"
+          API_URL="https://api.github.com/repos/hn-88/OpenSpace-AppImage/actions/artifacts/3785544123/zip"
           AUTH="Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"
           ACCEPT="Accept: application/vnd.github+json"
 
