@@ -88,7 +88,7 @@ jobs:
         # Use the system's libvulkan, not the vendored one, otherwise they might conflict
         cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
         rm -v $cef_orig_dir/libvulkan.so.1
-        cmake --build --parallel
+        cmake --build . --parallel
         
     - name: Create deb
       working-directory: ${{github.workspace}}
