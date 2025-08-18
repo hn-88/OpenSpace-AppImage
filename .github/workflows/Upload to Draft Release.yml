@@ -1,0 +1,52 @@
+name: Upload to Draft Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set release version
+        id: vars
+        run: echo "tag=v0.21.2-1-ubuntu24.04.1_amd64.deb" >> $GITHUB_OUTPUT
+
+      - name: Get artifact download URL
+        id: get_artifact_url
+        run: |
+          API_URL="https://api.github.com/repos/hn-88/OpenSpace-IntelMac/actions/artifacts/3785544123/zip"
+          AUTH="Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"
+          ACCEPT="Accept: application/vnd.github+json"
+
+          curl -sSL -H "$AUTH" -H "$ACCEPT" -D headers.txt -o /dev/null "$API_URL"
+          DOWNLOAD_URL=$(grep -i "^location: " headers.txt | cut -d' ' -f2 | tr -d '\r\n')
+          echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
+
+      - name: Download artifact
+        run: |
+          curl -L -o OpenSpace.deb.zip "${{ steps.get_artifact_url.outputs.download_url }}"
+
+      - name: Unzip artifact
+        run: |
+          unzip OpenSpace.deb.zip -d unpacked
+
+      - name: Find DEB file
+        id: find_deb
+        run: |
+          DEB_FILE=$(find unpacked -name "*.deb" | head -n 1)
+          echo "Found pkg: $DEB_FILE"
+          echo "deb_path=$DEB_FILE" >> $GITHUB_OUTPUT
+
+      - name: Create draft release and upload
+        uses: softprops/action-gh-release@v1
+        with:
+          name: v0.21.2-1-ubuntu24.04.1_amd64.deb
+          tag_name: v0.21.2-1-ubuntu24.04.1_amd64.deb
+          draft: true
+          files: |
+            OpenSpace.deb.zip
+            "${{ steps.find_deb.outputs.deb_path }}"
+            
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}  # Use PAT instead of default token
