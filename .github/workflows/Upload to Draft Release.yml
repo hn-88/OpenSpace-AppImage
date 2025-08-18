@@ -46,7 +46,7 @@ jobs:
           draft: true
           files: |
             OpenSpace.deb.zip
-            "${{ steps.find_deb.outputs.deb_path }}"
+            ${{ steps.find_deb.outputs.deb_path }}
             
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}  # Use PAT instead of default token
