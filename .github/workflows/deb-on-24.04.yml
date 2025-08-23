@@ -92,7 +92,7 @@ jobs:
 
         echo "=== Pruning developer files ==="
         find "$PWD/staging" \
-          \( -name '*.a' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.h' -o -name '*.cmake' -o -name 'CMakeLists.txt' \) \
+          \( -name '*.a' -o -name '*.gitignore' -o -name '*.git' -o -name '*.cpp' -o -name '*.c' -o -name '*.pc' -o -name '*.hpp' -o -name '*.h' -o -name '*.cmake' -o -name 'CMakeLists.txt' \) \
           -type f -exec rm -v {} +
 
         echo "=== Removing empty directories ==="
