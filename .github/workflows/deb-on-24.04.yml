@@ -95,6 +95,9 @@ jobs:
           \( -name '*.a' -o -name '*.gitignore' -o -name '*.git' -o -name '*.cpp' -o -name '*.c' -o -name '*.pc' -o -name '*.hpp' -o -name '*.h' -o -name '*.cmake' -o -name 'CMakeLists.txt' \) \
           -type f -exec rm -v {} +
 
+        # Delete entire .git directories if they exist
+        find "$PWD/staging" -type d -name '.git' -prune -print -exec rm -rf {} +
+
         echo "=== Removing empty directories ==="
         # Delete empty directories bottom-up
         find "$PWD/staging" -type d -empty -print -delete
