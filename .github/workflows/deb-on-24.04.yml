@@ -81,17 +81,27 @@ jobs:
         cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
         rm -v $cef_orig_dir/libvulkan.so.1
         cmake --build . --parallel 3
-        
-    - name: Create deb
-      working-directory: ${{github.workspace}}
-      # https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/build-on-ghcr-24.04.yml was running out of disk space
+
+    - name: Install to staging and prune developer files
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
-        echo "Check for disk space..."
-        df -h
-        echo "Running CPack to create deb installer..."
-        cpack
+
+        # Install into a staging directory
+        DESTDIR="$PWD/staging" cmake --install .
+
+        echo "=== Pruning developer files ==="
+        find "$PWD/staging" \
+          \( -name '*.a' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.h' -o -name '*.cmake' -o -name 'CMakeLists.txt' \) \
+          -type f -exec rm -v {} +
+
+        echo "=== Removing empty directories ==="
+        # Delete empty directories bottom-up
+        find "$PWD/staging" -type d -empty -print -delete
+
+        echo "=== Running CPack with cleaned staging tree ==="
+        DESTDIR="$PWD/staging" cpack
+
         
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
