@@ -103,7 +103,9 @@ jobs:
         find "$PWD/staging" -type d -empty -print -delete
 
         echo "=== Running CPack with cleaned staging tree ==="
-        DESTDIR="$PWD/staging" cpack
+        # DESTDIR="$PWD/staging" cpack 
+        # tell CPack to use this tree
+        cpack -D CPACK_INSTALL_CMAKE_PROJECTS="$PWD;OpenSpace;ALL;$PWD/staging"
 
         
     - name: Upload AppImage Artifact
