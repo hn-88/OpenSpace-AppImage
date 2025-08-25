@@ -102,10 +102,13 @@ jobs:
         # Delete empty directories bottom-up
         find "$PWD/staging" -type d -empty -print -delete
 
+        # Delete binary from geos-dev package
+        rm -v "$PWD/staging/usr/bin/geos-config"
+
         echo "=== Running CPack with cleaned staging tree ==="
         # DESTDIR="$PWD/staging" cpack 
         # tell CPack to use this tree
-        cpack -D CPACK_INSTALL_CMAKE_PROJECTS="$PWD;OpenSpace;ALL;$PWD/staging"
+        cpack -D CPACK_INSTALL_CMAKE_PROJECTS="$PWD;OpenSpace;ALL;/usr"
 
         
     - name: Upload AppImage Artifact
