@@ -29,10 +29,10 @@ jobs:
       - name: Extract file list from .deb
         run: |
           mkdir deb_extract
+          apt show ./deb_zip/*.deb > depends_file_list.txt
           dpkg-deb -x deb_zip/*.deb deb_extract
           find "$(pwd)/deb_extract" -type f | sort > deb_file_list.txt
-          apt show ./deb_extract/*.deb > depends_file_list.txt
-
+          
       # Step 4: Upload deb file list
       - name: Upload deb file list
         uses: actions/upload-artifact@v4
