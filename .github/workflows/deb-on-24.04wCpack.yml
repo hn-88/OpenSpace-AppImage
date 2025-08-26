@@ -1,4 +1,4 @@
-name: deb-on-24.04
+name: deb-on-24.04wCpack
 
 on: workflow_dispatch
 
