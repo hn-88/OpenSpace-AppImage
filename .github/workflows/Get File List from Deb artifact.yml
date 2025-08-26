@@ -31,12 +31,15 @@ jobs:
           mkdir deb_extract
           dpkg-deb -x deb_zip/*.deb deb_extract
           find "$(pwd)/deb_extract" -type f | sort > deb_file_list.txt
+          apt show ./deb_extract/*.deb > depends_file_list.txt
 
       # Step 4: Upload deb file list
       - name: Upload deb file list
         uses: actions/upload-artifact@v4
         with:
           name: deb_file_list
-          path: deb_file_list.txt
+          path: | 
+            deb_file_list.txt
+            depends_file_list.txt
 
       
