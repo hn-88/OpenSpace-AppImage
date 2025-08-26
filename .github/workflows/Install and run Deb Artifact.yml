@@ -30,6 +30,7 @@ jobs:
         run: |
           mkdir deb_extract
           apt show ./deb_zip/*.deb > depends_file_list.txt
+          sudo apt update
           sudo apt install ./deb_zip/*.deb
           
       # Step 4: run the executable
