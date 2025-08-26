@@ -107,6 +107,10 @@ jobs:
 
     - name: Create DEBIAN metadata
       run: |
+        
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+
         set -euo pipefail
         install -d "$PWD/staging/DEBIAN"
     
@@ -134,27 +138,91 @@ jobs:
         {
           echo "#!/bin/sh"
           echo "set -e"
-          echo "echo \"Running post-install script for OpenSpace...\""
-          echo "ldconfig || true"
+          echo ""
+          echo "PATCH_TARGET=\"/usr/share/openspace/openspace.cfg\""
+          echo "PATCH_FILE=\"/usr/share/openspace/openspacecfg.patch\""
+          echo ""
+          echo "if [ -f \"\$PATCH_TARGET\" ] && [ -f \"\$PATCH_FILE\" ]; then"
+          echo "    patch \"\$PATCH_TARGET\" < \"\$PATCH_FILE\""
+          echo "fi"
+          echo ""
           echo "exit 0"
         } > "$PWD/staging/DEBIAN/postinst"
         chmod 755 "$PWD/staging/DEBIAN/postinst"
+
+        # changelog
+        {
+          echo "openspace (0.21.2-1) unstable; urgency=medium"
+          echo ""
+          echo "  * Initial packaging for Debian/Ubuntu"
+          echo ""
+          echo " -- OpenSpace team <info@openspaceproject.com>  $(date -R)"
+        } > "$PWD/staging/DEBIAN/changelog"
+    
+        # copyright
+        {
+          echo "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/"
+          echo "Upstream-Name: OpenSpace"
+          echo "Source: https://openspaceproject.com/"
+          echo ""
+          echo "Files: *"
+          echo "Copyright: 2014-2025 OpenSpace team"
+          echo "License: MIT"
+        } > "$PWD/staging/DEBIAN/copyright"
 
 
 
     - name: Create .deb package
       run: |
-        echo "=== Running dpkg-deb with cleaned staging tree ==="
-        dpkg-deb --build staging mypackage.deb
+        
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+
+        set -euo pipefail
+        DATE=$(date +%Y%m%dT%H%M%S)
+        VERSION="0.21.2-2~ubuntu24.04.1"
+        ARCH="amd64"
+        OUTFILE="openspace_${VERSION}_${ARCH}_${DATE}.deb"
+    
+        dpkg-deb --build staging "$OUTFILE"
+    
+        echo "Built package: $OUTFILE"
+
+
 
         
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
       with:
         # Artifact name
-        name: OpenSpace-Deb
+        name: OpenSpace-dpkg-deb
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
         path: /home/runner/source/OpenSpace/build/openspace*.deb
+
+    - name: Create GitHub Release (if needed) and upload .deb
+      
+      run: |
+        
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+
+        set -euo pipefail
+        DATE=$(date +%Y%m%dT%H%M%S)
+        VERSION="0.21.2-2~ubuntu24.04.1"
+        ARCH="amd64"
+        OUTFILE="openspace_${VERSION}_${ARCH}_${DATE}.deb"
+
+        # -----------------------
+        # Upload to GitHub Release
+        RELEASE_TAG="daily-dpkg-deb-${DATE}"
+    
+        # Create release if it doesn't exist
+        gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" -t "OpenSpace Daily Build $DATE" -n "Automated daily build of OpenSpace"
+    
+        # Upload .deb asset (overwrite if exists)
+        gh release upload "$RELEASE_TAG" "$OUTFILE" --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
     
