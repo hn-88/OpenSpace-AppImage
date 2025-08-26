@@ -105,10 +105,72 @@ jobs:
         # Delete binary from geos-dev package
         rm -v "$PWD/staging/usr/bin/geos-config"
 
-        echo "=== Running CPack with cleaned staging tree ==="
-        # DESTDIR="$PWD/staging" cpack 
-        # tell CPack to use this tree
-        cpack -D CPACK_INSTALL_CMAKE_PROJECTS="$PWD;OpenSpace;ALL;/usr"
+    - name: Create DEBIAN metadata for .deb package
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        mkdir -p "$PWD/staging/DEBIAN"
+
+        # Control file
+        cat > "$PWD/staging/DEBIAN/control" <<'EOF'
+Package: openspace
+Version: 0.21.2
+Section: science
+Priority: optional
+Architecture: amd64
+Maintainer: OpenSpace team <info@openspaceproject.com>
+Depends: libglew2.2, libpng16-16t64, libglut3.12, libjack0, libxrandr2, libxinerama1, libx11-6, libxcursor1, libcurl4t64, libxi6, libasound2t64, libgdal34t64, libmpv2, libvulkan1, patch
+Description: interactive 3D visualization of space and planetary data
+ OpenSpace is an open-source, real-time 3D application for visualizing astronomy
+ and spaceflight data. It renders celestial bodies, star catalogs, and spacecraft
+ trajectories, and can be used on desktops and in dome theaters.
+
+ It supports time navigation, high-resolution tiled planetary textures, and
+ loading mission ephemerides. The application can be scripted for presentations
+ and live shows, and is suitable for education, outreach, and research
+ visualizations.
+EOF
+
+    - name: Create DEBIAN metadata for .deb package
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        cat > "$PWD/staging/DEBIAN/postinst" <<'EOF'
+#!/bin/sh
+set -e
+# Example: patch openspace.cfg or set permissions if needed
+echo "Running post-install script for OpenSpace..."
+# ldconfig if shared libs installed
+ldconfig || true
+exit 0
+EOF
+        chmod 755 "$PWD/staging/DEBIAN/postinst"
+
+        # Changelog
+        cat > "$PWD/staging/DEBIAN/changelog" <<'EOF'
+openspace (0.21.2-1) unstable; urgency=medium
+
+  * Initial packaging for Debian/Ubuntu
+
+ -- OpenSpace team <info@openspaceproject.com>  $(date -R)
+EOF
+
+        # Copyright
+        cat > "$PWD/staging/DEBIAN/copyright" <<'EOF'
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: OpenSpace
+Source: https://openspaceproject.com/
+
+Files: *
+Copyright: 2014-2025 OpenSpace team
+License: MIT
+EOF
+
+
+    - name: Create .deb package
+      run: |
+        echo "=== Running dpkg-deb with cleaned staging tree ==="
+        dpkg-deb --build staging mypackage.deb
 
         
     - name: Upload AppImage Artifact
