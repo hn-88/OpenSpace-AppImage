@@ -92,6 +92,9 @@ jobs:
         df -h
         echo "Running CPack to create deb installer..."
         cpack
+         # Test the rpaths when deb is built with
+        # readelf -d deb_extract/usr/share/openspace/bin/OpenSpace | grep RPATH
+        # ldd deb_extract/usr/share/openspace/bin/OpenSpace
         
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
