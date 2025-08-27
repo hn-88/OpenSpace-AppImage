@@ -16,8 +16,8 @@ jobs:
           curl -L \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -o deb_artifact.zip \
-            https://api.github.com/repos/hn-88/OpenSpace-AppImage/actions/artifacts/3855048821/zip
-            # https://github.com/hn-88/OpenSpace-AppImage/actions/runs/17242213807/artifacts/3855048821
+            https://api.github.com/repos/hn-88/OpenSpace-AppImage/actions/artifacts/3860344645/zip
+            # https://github.com/hn-88/OpenSpace-AppImage/actions/runs/17257584079/artifacts/3860344645
 
       # Step 2: Unzip artifact (contains DEB file)
       - name: Unzip DEB artifact
