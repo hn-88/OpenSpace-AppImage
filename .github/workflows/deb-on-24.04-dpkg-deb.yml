@@ -224,5 +224,6 @@ jobs:
         gh release upload "$RELEASE_TAG" *pe*.deb --clobber
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
+        GH_REPO: hn-88/OpenSpace-AppImage       # force gh to use this repo
       
     
