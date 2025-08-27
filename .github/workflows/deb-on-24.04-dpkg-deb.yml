@@ -218,7 +218,7 @@ jobs:
         RELEASE_TAG="daily-dpkg-deb-${DATE}"
     
         # Create release if it doesn't exist
-        gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" -t "OpenSpace Daily Build $DATE" -n "Automated daily build of OpenSpace"
+        gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" -t "OpenSpace Daily Build with dpkg-deb $DATE" -n "Automated daily build of OpenSpace"
     
         # Upload .deb asset (overwrite if exists)
         gh release upload "$RELEASE_TAG" "$OUTFILE" --clobber
