@@ -90,17 +90,17 @@ jobs:
         # Install into a staging directory
         DESTDIR="$PWD/staging" cmake --install .
 
-        echo "=== Pruning developer files ==="
-        find "$PWD/staging" \
-          \( -name '*.a' -o -name '*.gitignore' -o -name '*.git' -o -name '*.cpp' -o -name '*.c' -o -name '*.pc' -o -name '*.a' -o -name '*.hpp' -o -name '*.h' -o -name '*.cmake' -o -name 'CMakeLists.txt' \) \
-          -type f -exec rm -v {} +
+        #echo "=== Pruning developer files ==="
+        #find "$PWD/staging" \
+        #  \( -name '*.a' -o -name '*.gitignore' -o -name '*.git' -o -name '*.cpp' -o -name '*.c' -o -name '*.pc' -o -name '*.a' -o -name '*.hpp' -o -name '*.h' -o -name '*.cmake' -o -name 'CMakeLists.txt' \) \
+        #  -type f -exec rm -v {} +
 
         # Delete entire .git directories if they exist
-        find "$PWD/staging" -type d -name '.git' -prune -print -exec rm -rf {} +
+        # find "$PWD/staging" -type d -name '.git' -prune -print -exec rm -rf {} +
 
         echo "=== Removing empty directories ==="
         # Delete empty directories bottom-up
-        find "$PWD/staging" -type d -empty -print -delete
+        # find "$PWD/staging" -type d -empty -print -delete
 
         # Delete binary from geos-dev package
         # rm -v "$PWD/staging/usr/bin/geos-config"
