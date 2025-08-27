@@ -1,4 +1,4 @@
-name: deb-on-24.04
+name: deb-on-24.04-dpkg-deb
 
 on: workflow_dispatch
 
@@ -92,7 +92,7 @@ jobs:
 
         echo "=== Pruning developer files ==="
         find "$PWD/staging" \
-          \( -name '*.a' -o -name '*.gitignore' -o -name '*.git' -o -name '*.cpp' -o -name '*.c' -o -name '*.pc' -o -name '*.hpp' -o -name '*.h' -o -name '*.cmake' -o -name 'CMakeLists.txt' \) \
+          \( -name '*.a' -o -name '*.gitignore' -o -name '*.git' -o -name '*.cpp' -o -name '*.c' -o -name '*.pc' -o -name '*.a' -o -name '*.hpp' -o -name '*.h' -o -name '*.cmake' -o -name 'CMakeLists.txt' \) \
           -type f -exec rm -v {} +
 
         # Delete entire .git directories if they exist
