@@ -128,7 +128,6 @@ jobs:
           echo " OpenSpace is an open-source, real-time 3D application for visualizing astronomy"
           echo " and spaceflight data. It renders celestial bodies, star catalogs, and spacecraft"
           echo " trajectories, and can be used on desktops and in dome theaters."
-          echo " "
           echo " It supports time navigation, high-resolution tiled planetary textures, and"
           echo " loading mission ephemerides. The application can be scripted for presentations"
           echo " and live shows, and is suitable for education, outreach, and research"
