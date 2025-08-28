@@ -43,9 +43,9 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
-        git checkout "${COMMIT_HASH}" --recurse-submodules
+        # git checkout "${COMMIT_HASH}" --recurse-submodules
         # try the latest main branch, one of the latest commits
         mkdir build
         cd build
@@ -118,7 +118,7 @@ jobs:
         # control
         {
           echo "Package: openspace"
-          echo "Version: 0.21.2-1"
+          echo "Version: 0.21.2-2"
           echo "Section: science"
           echo "Priority: optional"
           echo "Architecture: amd64"
@@ -152,7 +152,7 @@ jobs:
 
         # changelog
         {
-          echo "openspace (0.21.2-1) unstable; urgency=medium"
+          echo "openspace (0.21.2-2) unstable; urgency=medium"
           echo ""
           echo "  * Initial packaging for Debian/Ubuntu"
           echo ""
