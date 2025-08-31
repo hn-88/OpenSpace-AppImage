@@ -103,7 +103,7 @@ jobs:
         cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders,/documentation/,openspace.cfg} ./appdir/usr/
 
         # patch file created with diff -u openspace.cfg openspace.edited
-        patch ./appdir/usr/openspace.cfg < ./appdir/openspace2cffefb.cfg.patch
+        patch ./appdir/usr/openspace.cfg < ./appdir/openspace6b0de70.cfg.patch
 
         # https://stackoverflow.com/questionopenspace.cfgs/43412885/fastest-way-to-delete-files-from-a-directory-tree-whose-names-contain-a-certain
         # delete source files from modules directory
