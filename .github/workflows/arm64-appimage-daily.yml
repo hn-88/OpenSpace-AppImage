@@ -165,7 +165,7 @@ jobs:
     - name: Upload .AppImage to GitHub Release
       run: |
         RELEASE_TAG="daily-AppImage"
-        APP_FILE=/home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-x86_64.AppImage
+        APP_FILE=/home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace*.AppImage
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
