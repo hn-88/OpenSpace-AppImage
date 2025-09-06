@@ -26,12 +26,6 @@ jobs:
           docker-images: true
           swap-storage: false
     
-      - name: Checkout OpenSpace source
-        uses: actions/checkout@v4
-        with:
-          repository: OpenSpace/OpenSpace
-          submodules: recursive
-      
       - name: Checkout OpenSpace/docker repo (for Dockerfile + build.sh)
         uses: actions/checkout@v4
         with:
@@ -58,6 +52,5 @@ jobs:
         with:
           name: openspace-build
           path: |
-            # build/
             bin/
-            OpenSpace.app/
+            
