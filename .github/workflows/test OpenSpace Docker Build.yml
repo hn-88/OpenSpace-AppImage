@@ -35,7 +35,8 @@ jobs:
       - name: Checkout OpenSpace/docker repo (for Dockerfile + build.sh)
         uses: actions/checkout@v4
         with:
-          repository: OpenSpace/docker
+          repository: hn-88/openspace-docker
+          ref: 'build-OS-on-24.04-docker'
           path: docker-scripts
 
       - name: Build Docker image
