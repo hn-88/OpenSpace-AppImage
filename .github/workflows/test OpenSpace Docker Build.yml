@@ -53,4 +53,7 @@ jobs:
           name: openspace-build
           path: |
             bin/
+            build/*.deb
+            *.deb
+
             
