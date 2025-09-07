@@ -43,7 +43,7 @@ jobs:
       - name: Run build inside container
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}:/OpenSpace \
+            -v ${{ github.workspace }}:/OpenSpacemount \
             openspace-build \
             /build.sh
 
