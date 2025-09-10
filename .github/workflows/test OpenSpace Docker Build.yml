@@ -35,7 +35,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build \
+          docker build --no-cache \
             -f docker-scripts/build/ubuntu-2404-gcc13.Dockerfile \
             -t openspace-build \
             docker-scripts/build
