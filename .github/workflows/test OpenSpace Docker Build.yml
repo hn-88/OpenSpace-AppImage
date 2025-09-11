@@ -34,7 +34,8 @@ jobs:
           path: docker-scripts
 
       - name: Copy build.sh to workspace root
-        run: cp -v docker-scripts/data/build.sh ${{ github.workspace }}/build.sh
+        run: |          
+          cp -v docker-scripts/build/data/build.sh ${{ github.workspace }}/build.sh
 
       - name: Build Docker image
         run: |
