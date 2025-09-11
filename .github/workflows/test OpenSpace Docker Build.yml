@@ -1,4 +1,4 @@
-name: test OpenSpace Docker Build
+Spacname: test OpenSpace Docker Build
 
 on:
   workflow_dispatch:
@@ -52,8 +52,8 @@ jobs:
         with:
           name: openspace-build
           path: |
-            bin/
-            build/*.deb
-            *.deb
+            OpenSpace/bin/
+            OpenSpace/build/*.deb
+            OpenSpace/*.deb
 
             
