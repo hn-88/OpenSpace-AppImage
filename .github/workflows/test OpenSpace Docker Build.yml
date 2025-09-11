@@ -45,7 +45,7 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}:/OpenSpacemount \
             openspace-build \
-            which cmake && which cpack && cmake --version && cpack --version && dpkg -L cmake | grep CPack.cmake && ls -ld /usr/share/cmake-* && /build.sh
+            which cmake && which cpack && cmake --version && cpack --version && /build.sh
 
       - name: Archive build artifacts
         uses: actions/upload-artifact@v4
