@@ -35,17 +35,23 @@ jobs:
 
       - name: Build Docker image
         run: |
+          echo "Disk space before building image"
+          df -a
           docker build --no-cache \
             -f docker-scripts/build/ubuntu-2404-gcc13.Dockerfile \
             -t openspace-build \
             docker-scripts/build
+          echo "Disk space after building image"
+          df -a
 
       - name: Run build inside container
         run: |
-          docker run --rm \
+          docker run  \
             -v ${{ github.workspace }}:/OpenSpacemount \
             openspace-build \
-            /build.sh
+            /build.sh && echo "df inside docker" && df -a
+          echo "Disk space after build.sh ran"
+          df -a
 
       - name: Archive build artifacts
         uses: actions/upload-artifact@v4
