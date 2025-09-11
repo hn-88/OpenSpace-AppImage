@@ -33,6 +33,9 @@ jobs:
           ref: 'build-OS-on-24.04-docker'
           path: docker-scripts
 
+      - name: Copy build.sh to workspace root
+        run: cp -v docker-scripts/data/build.sh ${{ github.workspace }}/build.sh
+
       - name: Build Docker image
         run: |
           docker build --no-cache \
@@ -45,7 +48,7 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}:/OpenSpacemount \
             openspace-build \
-            which cmake && which cpack && cmake --version && cpack --version && /build.sh
+            which cmake && which cpack && cmake --version && cpack --version && /OpenSpacemount/build.sh
 
       - name: Archive build artifacts
         uses: actions/upload-artifact@v4
