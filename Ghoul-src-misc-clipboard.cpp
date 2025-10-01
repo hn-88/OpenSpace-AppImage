@@ -29,6 +29,7 @@
 #include <ghoul/format.h>
 #include <algorithm>
 #include <sstream>
+#include <iostream>
 
 #ifdef WIN32
 #include <Windows.h>
