@@ -65,6 +65,7 @@ jobs:
 
     - name: Install patches
       run: |
+        openSpaceHome="$HOME/source/OpenSpace"
         cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp" 
         ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
 
