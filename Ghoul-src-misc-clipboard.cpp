@@ -97,7 +97,7 @@ std::string clipboardText() {
     }
     return "";
 #else
-
+   std::string text;
    std::string targets;
    exec("xclip -selection clipboard -o -target TARGETS", targets);
    if (targets.find("UTF8_STRING") != std::string::npos) {
