@@ -96,12 +96,29 @@ std::string clipboardText() {
     }
     return "";
 #else
+
+    auto sanitize = [](std::string& s) {
+    // remove CR
+    s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
+    // remove null bytes and other control chars except \n and \t
+    s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) {
+        return (c < 0x20 && c != '\n' && c != '\t');
+    }), s.end());
+};
+
     std::string text;
     // Try UTF8_STRING first
     if (exec("xclip -o -selection clipboard -target UTF8_STRING", text)) {
         if (!text.empty() && text.back() == '\n') {
             text.pop_back();
         }
+       std::cerr << "[Clipboard debug] length1=" << text.size()
+          << " hex=";
+for (unsigned char c : text) {
+    std::cerr << std::hex << (int)c << " ";
+}
+std::cerr << std::dec << std::endl;
+       sanitize(text);
         return text;
     }
 
@@ -110,6 +127,13 @@ std::string clipboardText() {
         if (!text.empty() && text.back() == '\n') {
             text.pop_back();
         }
+       std::cerr << "[Clipboard debug] length2=" << text.size()
+          << " hex=";
+for (unsigned char c : text) {
+    std::cerr << std::hex << (int)c << " ";
+}
+std::cerr << std::dec << std::endl;
+       sanitize(text);
         return text;
     }
 
@@ -118,10 +142,24 @@ std::string clipboardText() {
         if (!text.empty() && text.back() == '\n') {
             text.pop_back();
         }
+       std::cerr << "[Clipboard debug] length3=" << text.size()
+          << " hex=";
+for (unsigned char c : text) {
+    std::cerr << std::hex << (int)c << " ";
+}
+std::cerr << std::dec << std::endl;
+       sanitize(text);
         return text;
     }
 
     // If all else fails
+   std::cerr << "[Clipboard debug] length4=" << text.size()
+          << " hex=";
+for (unsigned char c : text) {
+    std::cerr << std::hex << (int)c << " ";
+}
+std::cerr << std::dec << std::endl;
+   sanitize(text);
     return "";
 #endif
 }
