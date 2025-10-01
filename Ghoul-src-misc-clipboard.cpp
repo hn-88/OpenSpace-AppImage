@@ -98,70 +98,23 @@ std::string clipboardText() {
     return "";
 #else
 
-    auto sanitize = [](std::string& s) {
-    // remove CR
-    s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
-    // remove null bytes and other control chars except \n and \t
-    s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) {
-        return (c < 0x20 && c != '\n' && c != '\t');
-    }), s.end());
-};
-
-    std::string text;
-    // Try UTF8_STRING first
-    if (exec("xclip -o -selection clipboard -target UTF8_STRING", text)) {
-        if (!text.empty() && text.back() == '\n') {
-            text.pop_back();
-        }
-       std::cerr << "[Clipboard debug] length1=" << text.size()
-          << " hex=";
-for (unsigned char c : text) {
-    std::cerr << std::hex << (int)c << " ";
-}
-std::cerr << std::dec << std::endl;
-       sanitize(text);
-        return text;
-    }
-
-    // Fallback: try text/plain;charset=utf-8
-    if (exec("xclip -o -selection clipboard -target text/plain;charset=utf-8", text)) {
-        if (!text.empty() && text.back() == '\n') {
-            text.pop_back();
-        }
-       std::cerr << "[Clipboard debug] length2=" << text.size()
-          << " hex=";
-for (unsigned char c : text) {
-    std::cerr << std::hex << (int)c << " ";
-}
-std::cerr << std::dec << std::endl;
-       sanitize(text);
-        return text;
-    }
-
-    // Final fallback: default text/plain
-    if (exec("xclip -o -selection clipboard -target text/plain", text)) {
-        if (!text.empty() && text.back() == '\n') {
-            text.pop_back();
-        }
-       std::cerr << "[Clipboard debug] length3=" << text.size()
-          << " hex=";
-for (unsigned char c : text) {
-    std::cerr << std::hex << (int)c << " ";
-}
-std::cerr << std::dec << std::endl;
-       sanitize(text);
-        return text;
-    }
-
-    // If all else fails
-   std::cerr << "[Clipboard debug] length4=" << text.size()
-          << " hex=";
-for (unsigned char c : text) {
-    std::cerr << std::hex << (int)c << " ";
-}
-std::cerr << std::dec << std::endl;
-   sanitize(text);
+   std::string targets;
+   exec("xclip -selection clipboard -o -target TARGETS", targets);
+   if (targets.find("UTF8_STRING") != std::string::npos) {
+       exec("xclip -selection clipboard -o -target UTF8_STRING", text);
+       return text;
+   }
+   else if (targets.find("text/plain;charset=utf-8") != std::string::npos) {
+       exec("xclip -selection clipboard -o -target text/plain;charset=utf-8", text);
+       return text;
+   }
+   else if (targets.find("text/plain") != std::string::npos) {
+       exec("xclip -selection clipboard -o -target text/plain", text);
+       return text;
+   }    
+   // If all else fails   
     return "";
+   
 #endif
 }
 
