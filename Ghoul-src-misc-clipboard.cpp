@@ -100,30 +100,41 @@ std::string clipboardText() {
     return "";
 #else
    std::string text;
-   std::string targets;
+   auto sanitize = [](std::string& s) {
+        s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
+        s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) {
+            return (c < 0x20 && c != '\n' && c != '\t');
+        }), s.end());
+    };
    // debug
    std::cerr << "Entered # else in clipboardText()" << std::endl;
    
-   exec("xclip -selection clipboard -o -target TARGETS", targets);
+   auto safeExec = [](const std::string& cmd, std::string& out) -> bool {
+       try {
+           return exec(cmd, out);  // your existing exec()
+       }
+       catch (const std::exception& e) {
+           std::cerr << "[Clipboard] exec failed: " << cmd
+                     << " error=" << e.what() << std::endl;
+           return false;
+       }
+   };
+
 
    // debug
-   std::cerr << "exec ... TARGETS executed." << std::endl;
+   std::cerr << "trying safeexec ... ." << std::endl;
+
+   if (safeExec("xclip -selection clipboard -t UTF8_STRING -o", text) ||
+    safeExec("xclip -selection clipboard -t text/plain;charset=utf-8 -o", text) ||
+    safeExec("xclip -selection clipboard -t text/plain -o", text))  {
+       if (!text.empty() && text.back() == '\n') {
+           text.pop_back();
+       }
+       sanitize(text);
+       return text;
+   }
    
-   if (targets.find("UTF8_STRING") != std::string::npos) {
-       std::cerr << "if ... UTF8..." << std::endl;
-       exec("xclip -selection clipboard -o -target UTF8_STRING", text);
-       return text;
-   }
-   else if (targets.find("text/plain;charset=utf-8") != std::string::npos) {
-        std::cerr << "if ...text/plain;charset=utf-8 ..." << std::endl;
-       exec("xclip -selection clipboard -o -target text/plain;charset=utf-8", text);
-       return text;
-   }
-   else if (targets.find("text/plain") != std::string::npos) {
-       std::cerr << "if ...text/plain ..." << std::endl;
-       exec("xclip -selection clipboard -o -target text/plain", text);
-       return text;
-   }    
+   
    // If all else fails   
     std::cerr << "returning null..." << std::endl;
     return "";
