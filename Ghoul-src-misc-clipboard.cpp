@@ -61,6 +61,8 @@ namespace {
 namespace ghoul {
 
 std::string clipboardText() {
+   // debug
+   std::cerr << "Entered clipboardText()" << std::endl;
 #ifdef WIN32
     // Try opening the clipboard
     if (!OpenClipboard(nullptr)) {
@@ -99,20 +101,31 @@ std::string clipboardText() {
 #else
    std::string text;
    std::string targets;
+   // debug
+   std::cerr << "Entered # else in clipboardText()" << std::endl;
+   
    exec("xclip -selection clipboard -o -target TARGETS", targets);
+
+   // debug
+   std::cerr << "exec ... TARGETS executed." << std::endl;
+   
    if (targets.find("UTF8_STRING") != std::string::npos) {
+       std::cerr << "if ... UTF8..." << std::endl;
        exec("xclip -selection clipboard -o -target UTF8_STRING", text);
        return text;
    }
    else if (targets.find("text/plain;charset=utf-8") != std::string::npos) {
+        std::cerr << "if ...text/plain;charset=utf-8 ..." << std::endl;
        exec("xclip -selection clipboard -o -target text/plain;charset=utf-8", text);
        return text;
    }
    else if (targets.find("text/plain") != std::string::npos) {
+       std::cerr << "if ...text/plain ..." << std::endl;
        exec("xclip -selection clipboard -o -target text/plain", text);
        return text;
    }    
    // If all else fails   
+    std::cerr << "returning null..." << std::endl;
     return "";
    
 #endif
