@@ -123,13 +123,18 @@ std::string clipboardText() {
 
    // debug
    std::cerr << "trying safeexec ... ." << std::endl;
+   safeExec("xclip -selection clipboard -t UTF8_STRING -o", text);
+   std::cerr << "Safeexec worked." << std::endl;
 
    if (safeExec("xclip -selection clipboard -t UTF8_STRING -o", text) ||
     safeExec("xclip -selection clipboard -t text/plain;charset=utf-8 -o", text) ||
     safeExec("xclip -selection clipboard -t text/plain -o", text))  {
+      std::cerr << "Before text.pop_back." << std::endl;
        if (!text.empty() && text.back() == '\n') {
            text.pop_back();
+          std::cerr << "After text.pop_back." << std::endl;
        }
+      std::cerr << "After if text.pop_back." << std::endl;
        sanitize(text);
        return text;
    }
