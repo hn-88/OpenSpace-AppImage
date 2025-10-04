@@ -106,50 +106,39 @@ std::string clipboardText() {
     }
     return "";
 #else
-   std::string text;
-   auto sanitize = [](std::string& s) {
-        s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
-        s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) {
-            return (c < 0x20 && c != '\n' && c != '\t');
-        }), s.end());
-    };
-   // debug
-   std::cerr << "Entered # else in clipboardText()" << std::endl;
-   
-   auto safeExec = [](const std::string& cmd, std::string& out) -> bool {
-       try {
-           return exec(cmd, out);  // your existing exec()
-       }
-       catch (const std::exception& e) {
-           std::cerr << "[Clipboard] exec failed: " << cmd
-                     << " error=" << e.what() << std::endl;
-           return false;
-       }
-   };
 
+   try {
 
-   // debug
-   std::cerr << "trying safeexec ... ." << std::endl;
-   safeExec("xclip -selection clipboard -t UTF8_STRING -o", text);
-   std::cerr << "Safeexec worked." << std::endl;
+        if (!QGuiApplication::instance()) {
+            std::cerr << "[Clipboard] No QGuiApplication instance available\n";
+            return "";
+        }
+       
+        QClipboard* clipboard = QGuiApplication::clipboard();
+        if (!clipboard) {
+            std::cerr << "[Clipboard] QClipboard unavailable\n";
+            return "";
+        }
 
-   if (safeExec("xclip -selection clipboard -t UTF8_STRING -o", text) ||
-    safeExec("xclip -selection clipboard -t text/plain;charset=utf-8 -o", text) ||
-    safeExec("xclip -selection clipboard -t text/plain -o", text))  {
-      std::cerr << "Before text.pop_back." << std::endl;
-       if (!text.empty() && text.back() == '\n') {
-           text.pop_back();
-          std::cerr << "After text.pop_back." << std::endl;
-       }
-      std::cerr << "After if text.pop_back." << std::endl;
-       sanitize(text);
-       return text;
-   }
-   
-   
-   // If all else fails   
-    std::cerr << "returning null..." << std::endl;
-    return "";
+        QString qtext = clipboard->text(QClipboard::Clipboard);
+        if (qtext.isEmpty()) {
+            // Fallback: try selection buffer
+            qtext = clipboard->text(QClipboard::Selection);
+        }
+
+        std::string text = qtext.toStdString();
+
+        // Trim trailing newlines / carriage returns
+        while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) {
+            text.pop_back();
+        }
+
+        return text;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[Clipboard] Exception: " << e.what() << std::endl;
+        return "";
+    }
    
 #endif
 }
