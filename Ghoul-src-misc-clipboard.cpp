@@ -33,7 +33,14 @@
 
 #ifdef WIN32
 #include <Windows.h>
-#endif // WIN32
+#elif defined(__APPLE__)
+    // (your existing pbpaste version)
+#else
+    // Linux + Qt-based
+#include <QGuiApplication>
+#include <QClipboard>
+#include <QString>
+#endif
 
 namespace {
 #ifndef WIN32
