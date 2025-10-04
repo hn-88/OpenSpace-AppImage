@@ -105,7 +105,7 @@ std::string clipboardText() {
     bool ok = exec("timeout --kill-after=0.2s 0.3s xclip -selection clipboard -t UTF8_STRING -o 2>/dev/null", text);    
     if (!ok || text.empty()) {
         std::cerr << "[Clipboard] Cannot paste from Chromium (no response)\n";
-        exec("timeout 0.3s xclip -selection clipboard -t text/plain;charset=utf-8 -o 2>/dev/null", text);
+        exec("timeout --kill-after=0.2s 0.3s xclip -selection clipboard -t text/plain;charset=utf-8 -o 2>/dev/null", text);
     }    
     // Trim trailing newline
     if (!text.empty() && text.back() == '\n') {
