@@ -29,17 +29,17 @@
 #include <ghoul/format.h>
 #include <algorithm>
 #include <sstream>
-#include <iostream>
 
 #ifdef WIN32
 #include <Windows.h>
 #elif defined(__APPLE__)
     // (your existing pbpaste version)
 #else
-    // Linux + Qt-based
-#include <QGuiApplication>
-#include <QClipboard>
-#include <QString>
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <unistd.h>
+#include <string>
+#include <iostream>
 #endif
 
 namespace {
@@ -66,6 +66,77 @@ namespace {
 } // namespace
 
 namespace ghoul {
+
+#ifdef __linux__
+
+static std::string getSelectionText(Display* d, Atom selection, int timeout_ms = 500) {
+    std::string result;
+
+    if (!d) return result;
+
+    Window w = XCreateSimpleWindow(d, DefaultRootWindow(d), 0, 0, 1, 1, 0, 0, 0);
+    if (!w) return result;
+
+    Atom utf8 = XInternAtom(d, "UTF8_STRING", False);
+
+    XConvertSelection(d, selection, utf8, selection, w, CurrentTime);
+
+    XEvent event;
+    bool done = false;
+    int iterations = timeout_ms / 10; // 10 ms per check
+
+    for (int i = 0; i < iterations; ++i) {
+        if (XCheckTypedWindowEvent(d, w, SelectionNotify, &event)) {
+            if (event.xselection.property) {
+                Atom actualType;
+                int actualFormat;
+                unsigned long nitems, bytesAfter;
+                unsigned char* prop = nullptr;
+
+                XGetWindowProperty(
+                    d, w, selection, 0, (~0L), False, AnyPropertyType,
+                    &actualType, &actualFormat, &nitems, &bytesAfter, &prop
+                );
+
+                if (prop) {
+                    result.assign(reinterpret_cast<char*>(prop), nitems);
+                    XFree(prop);
+                }
+            }
+            done = true;
+            break;
+        }
+        usleep(10000); // 10 ms
+    }
+
+    XDestroyWindow(d, w);
+    return result;
+}
+
+std::string getClipboardText_X11() {
+    Display* d = XOpenDisplay(nullptr);
+    if (!d) {
+        std::cerr << "[Clipboard] Cannot open X display\n";
+        return "";
+    }
+
+    // Try CLIPBOARD first
+    Atom clipboard = XInternAtom(d, "CLIPBOARD", False);
+    std::string text = getSelectionText(d, clipboard);
+    if (!text.empty()) {
+        XCloseDisplay(d);
+        return text;
+    }
+
+    // Fallback: PRIMARY selection (middle-click copy)
+    Atom primary = XInternAtom(d, "PRIMARY", False);
+    text = getSelectionText(d, primary);
+
+    XCloseDisplay(d);
+    return text; // may be empty if nothing available
+}
+#endif
+
 
 std::string clipboardText() {
    // debug
@@ -106,40 +177,7 @@ std::string clipboardText() {
     }
     return "";
 #else
-
-   try {
-
-        if (!QGuiApplication::instance()) {
-            std::cerr << "[Clipboard] No QGuiApplication instance available\n";
-            return "";
-        }
-       
-        QClipboard* clipboard = QGuiApplication::clipboard();
-        if (!clipboard) {
-            std::cerr << "[Clipboard] QClipboard unavailable\n";
-            return "";
-        }
-
-        QString qtext = clipboard->text(QClipboard::Clipboard);
-        if (qtext.isEmpty()) {
-            // Fallback: try selection buffer
-            qtext = clipboard->text(QClipboard::Selection);
-        }
-
-        std::string text = qtext.toStdString();
-
-        // Trim trailing newlines / carriage returns
-        while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) {
-            text.pop_back();
-        }
-
-        return text;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "[Clipboard] Exception: " << e.what() << std::endl;
-        return "";
-    }
-   
+    return getClipboardText_X11();
 #endif
 }
 
