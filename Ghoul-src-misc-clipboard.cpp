@@ -33,13 +33,7 @@
 #ifdef WIN32
 #include <Windows.h>
 #elif defined(__APPLE__)
-    // (your existing pbpaste version)
 #else
-#include <X11/Xlib.h>
-#include <X11/Xatom.h>
-#include <unistd.h>
-#include <string>
-#include <chrono>
 #include <iostream>
 #endif
 
@@ -67,88 +61,6 @@ namespace {
 } // namespace
 
 namespace ghoul {
-
-#ifdef __linux__
-
-static std::string getSelectionText(Display* d, Atom selection, int timeout_ms = 500) {
-    std::string result;
-    if (!d) return result;
-
-    Window w = XCreateSimpleWindow(d, DefaultRootWindow(d), 0, 0, 1, 1, 0, 0, 0);
-    if (!w) return result;
-
-    // Try UTF8_STRING first
-    Atom utf8 = XInternAtom(d, "UTF8_STRING", False);
-    Atom target = utf8;
-
-    XConvertSelection(d, selection, target, selection, w, CurrentTime);
-
-    XEvent event;
-    auto start = std::chrono::steady_clock::now();
-
-    while (true) {
-        while (XPending(d) > 0) {
-            XNextEvent(d, &event);
-
-            if (event.type == SelectionNotify && event.xselection.property) {
-                Atom actualType;
-                int actualFormat;
-                unsigned long nitems, bytesAfter;
-                unsigned char* prop = nullptr;
-
-                XGetWindowProperty(
-                    d, w, selection, 0, (~0L), False, AnyPropertyType,
-                    &actualType, &actualFormat, &nitems, &bytesAfter, &prop
-                );
-
-                if (prop) {
-                    result.assign(reinterpret_cast<char*>(prop), nitems);
-                    XFree(prop);
-                    goto done;
-                }
-            }
-        }
-
-        auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() > timeout_ms) {
-            // Timeout
-            break;
-        }
-        usleep(10000); // 10 ms
-    }
-
-done:
-    XDestroyWindow(d, w);
-    return result;
-}
-
-std::string getClipboardText_X11() {
-    Display* d = XOpenDisplay(nullptr);
-    if (!d) {
-        std::cerr << "[Clipboard] Cannot open X display\n";
-        return "";
-    }
-
-    // First try CLIPBOARD
-    Atom clipboard = XInternAtom(d, "CLIPBOARD", False);
-    std::string text = getSelectionText(d, clipboard);
-
-    // If empty, try PRIMARY selection
-    if (text.empty()) {
-        Atom primary = XInternAtom(d, "PRIMARY", False);
-        text = getSelectionText(d, primary);
-    }
-
-    XCloseDisplay(d);
-
-    // Trim trailing newlines / carriage returns
-    while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) {
-        text.pop_back();
-    }
-
-    return text; // may be empty if clipboard unavailable
-}
-#endif
 
 std::string clipboardText() {
    // debug
@@ -189,7 +101,17 @@ std::string clipboardText() {
     }
     return "";
 #else
-    return getClipboardText_X11();
+    std::string text;
+    bool ok = exec("timeout --kill-after=0.2s 0.3s xclip -selection clipboard -t UTF8_STRING -o 2>/dev/null", text);    
+    if (!ok || text.empty()) {
+        std::cerr << "[Clipboard] Cannot paste from Chromium (no response)\n";
+        exec("timeout 0.3s xclip -selection clipboard -t text/plain;charset=utf-8 -o 2>/dev/null", text);
+    }    
+    // Trim trailing newline
+    if (!text.empty() && text.back() == '\n') {
+        text.pop_back();
+    }    
+    return text;
 #endif
 }
 
