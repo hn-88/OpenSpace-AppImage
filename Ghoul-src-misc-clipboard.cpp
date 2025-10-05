@@ -102,7 +102,7 @@ std::string clipboardText() {
     return "";
 #else
     std::string text;
-    if (exec("xclip -o -sel c -f", text)) {
+    if (exec("timeout --kill-after=0.2s 0.3s xclip -o -sel c -f", text)) {
         return text.substr(0, text.length());  // remove a line ending
     }
     return "";
