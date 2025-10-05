@@ -102,16 +102,10 @@ std::string clipboardText() {
     return "";
 #else
     std::string text;
-    bool ok = exec("timeout --kill-after=0.2s 0.3s xclip -selection clipboard -t UTF8_STRING -o 2>/dev/null", text);    
-    if (!ok || text.empty()) {
-        std::cerr << "[Clipboard] Cannot paste from Chromium (no response)\n";
-        exec("timeout --kill-after=0.2s 0.3s xclip -selection clipboard -t text/plain;charset=utf-8 -o 2>/dev/null", text);
-    }    
-    // Trim trailing newline
-    if (!text.empty() && text.back() == '\n') {
-        text.pop_back();
-    }    
-    return text;
+    if (exec("xclip -o -sel c -f", text)) {
+        return text.substr(0, text.length());  // remove a line ending
+    }
+    return "";
 #endif
 }
 
