@@ -34,6 +34,9 @@
 #include <Windows.h>
 #elif defined(__APPLE__)
 #else
+#include <X11/Xlib.h>
+#include <string>
+#include <limits.h>
 #include <iostream>
 #endif
 
@@ -58,6 +61,77 @@ namespace {
         return true;
     }
 #endif
+
+#ifdef __linux__
+static bool GetSelection(Display *display, Window window, const char *bufname, const char *fmtname, std::string &out)
+{
+    unsigned char *result;
+    unsigned long ressize, restail;
+    int resbits;
+    Atom bufid = XInternAtom(display, bufname, False);
+    Atom fmtid = XInternAtom(display, fmtname, False);
+    Atom propid = XInternAtom(display, "XSEL_DATA", False);
+    Atom incrid = XInternAtom(display, "INCR", False);
+    XEvent event;
+
+    XSelectInput(display, window, PropertyChangeMask);
+    XConvertSelection(display, bufid, fmtid, propid, window, CurrentTime);
+
+    // Wait for SelectionNotify event
+    do {
+        XNextEvent(display, &event);
+    } while (event.type != SelectionNotify || event.xselection.selection != bufid);
+
+    if (event.xselection.property)
+    {
+        XGetWindowProperty(display, window, propid, 0, LONG_MAX / 4, True,
+                           AnyPropertyType, &fmtid, &resbits, &ressize, &restail, &result);
+
+        if (fmtid != incrid)
+            out.append(reinterpret_cast<char*>(result), ressize);
+
+        XFree(result);
+
+        if (fmtid == incrid)
+        {
+            do {
+                do {
+                    XNextEvent(display, &event);
+                } while (event.type != PropertyNotify || event.xproperty.atom != propid || event.xproperty.state != PropertyNewValue);
+
+                XGetWindowProperty(display, window, propid, 0, LONG_MAX / 4, True,
+                                   AnyPropertyType, &fmtid, &resbits, &ressize, &restail, &result);
+
+                out.append(reinterpret_cast<char*>(result), ressize);
+                XFree(result);
+            } while (ressize > 0);
+        }
+        return true;
+    }
+    return false;
+}
+
+std::string getClipboardTextX11()
+{
+    std::string text;
+    Display *display = XOpenDisplay(nullptr);
+    if (!display)
+        return text;
+
+    unsigned long color = BlackPixel(display, DefaultScreen(display));
+    Window window = XCreateSimpleWindow(display, DefaultRootWindow(display),
+                                        0, 0, 1, 1, 0, color, color);
+
+    bool success = GetSelection(display, window, "CLIPBOARD", "UTF8_STRING", text) ||
+                   GetSelection(display, window, "CLIPBOARD", "STRING", text);
+
+    XDestroyWindow(display, window);
+    XCloseDisplay(display);
+
+    return success ? text : std::string();
+}
+#endif
+
 } // namespace
 
 namespace ghoul {
@@ -101,11 +175,7 @@ std::string clipboardText() {
     }
     return "";
 #else
-    std::string text;
-    if (exec("timeout --kill-after=0.2s 0.3s xclip -o -sel c -f", text)) {
-        return text.substr(0, text.length());  // remove a line ending
-    }
-    return "";
+    return getClipboardTextX11();
 #endif
 }
 
