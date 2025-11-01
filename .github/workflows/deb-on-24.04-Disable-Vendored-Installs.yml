@@ -1,4 +1,4 @@
-name: deb-on-24.04wCpack
+name: deb-on-24.04DisableVendoredInstalls
 
 on: 
   workflow_dispatch:      # allows manual trigger
