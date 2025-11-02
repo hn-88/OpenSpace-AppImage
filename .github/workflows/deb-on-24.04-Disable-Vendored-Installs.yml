@@ -70,6 +70,7 @@ jobs:
         ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
         cp -vf sgct-ext-lpng-CMakeLists.txt "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/lpng/CMakeLists.txt"
         cp -vf sgct-ext-CMakeLists.txt "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/CMakeLists.txt"
+        cp -vf sgct-src-CMakeLists.txt "$openSpaceHome/apps/OpenSpace/ext/sgct/src/CMakeLists.txt"
 
   
     - name: Configure CMake
