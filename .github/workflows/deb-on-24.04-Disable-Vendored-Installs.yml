@@ -68,6 +68,7 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp" 
         ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
+        cp -vf sgct-ext-lpng-CMakeLists.txt "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/lpng/CMakeLists.txt"
 
   
     - name: Configure CMake
