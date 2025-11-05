@@ -102,9 +102,27 @@ std::string clipboardText() {
     return "";
 #else
     std::string text;
-    if (exec("timeout --kill-after=0.2s 0.3s xclip -o -sel c -f", text)) {
-        return text.substr(0, text.length());  // remove a line ending
+
+    // Wayland first
+    const char* sessionType = std::getenv("XDG_SESSION_TYPE");
+    if (sessionType && std::string(sessionType) == "wayland") {
+        if (exec("wl-paste --no-newline", text) && !text.empty()) {
+            return text;
+        }
     }
+
+    // X11 (non-blocking alternative)
+    if (exec("xsel --clipboard --output", text) && !text.empty()) {
+        if (text.back() == '\n') text.pop_back();
+        return text;
+    }
+
+    // Fallback to primary selection
+    if (exec("xsel --output", text) && !text.empty()) {
+        if (text.back() == '\n') text.pop_back();
+        return text;
+    }
+
     return "";
 #endif
 }
