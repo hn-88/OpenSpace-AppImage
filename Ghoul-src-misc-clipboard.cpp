@@ -42,7 +42,6 @@
 #include <unistd.h>
 #include <cstring>
 #include <string>
-#endif
 
 namespace {
 
@@ -59,6 +58,8 @@ std::string getClipboardTextX11() {
     
     Atom clipboard = XInternAtom(display, "CLIPBOARD", False);
     Atom utf8 = XInternAtom(display, "UTF8_STRING", False);
+    Atom text = XInternAtom(display, "TEXT", False);
+    Atom stringAtom = XInternAtom(display, "STRING", False);
     Atom incr = XInternAtom(display, "INCR", False);
     Atom property = XInternAtom(display, "GHOUL_CLIP_TEMP", False);
     
@@ -125,6 +126,16 @@ std::string getClipboardTextX11() {
                 continue;
             }
             
+            // Check if the data type is text
+            if (actualType != utf8 && actualType != text && actualType != stringAtom) {
+                char* typeName = XGetAtomName(display, actualType);
+                std::cerr << "Clipboard contains non-text data: " 
+                          << (typeName ? typeName : "unknown") << std::endl;
+                if (typeName) XFree(typeName);
+                if (data) XFree(data);
+                break;
+            }
+            
             if (data) {
                 std::cerr << "Got data directly (non-INCR)" << std::endl;
                 result.assign(reinterpret_cast<char*>(data), nitems);
@@ -145,6 +156,18 @@ std::string getClipboardTextX11() {
             XGetWindowProperty(display, window, property, 0, (~0L), True,
                              AnyPropertyType, &actualType, &actualFormat,
                              &nitems, &bytesAfter, &data);
+            
+            // For the first INCR chunk, verify it's text data
+            if (incrData.empty() && nitems > 0) {
+                if (actualType != utf8 && actualType != text && actualType != stringAtom) {
+                    char* typeName = XGetAtomName(display, actualType);
+                    std::cerr << "INCR clipboard contains non-text data: " 
+                              << (typeName ? typeName : "unknown") << std::endl;
+                    if (typeName) XFree(typeName);
+                    if (data) XFree(data);
+                    break;
+                }
+            }
             
             if (nitems == 0) {
                 // Empty property signals end of INCR transfer
@@ -170,8 +193,11 @@ std::string getClipboardTextX11() {
     
     return result;
 }
+
 } // namespace
 
+#endif 
+// end if not Win32 and not APPLE
 
 namespace {
 #ifndef WIN32
