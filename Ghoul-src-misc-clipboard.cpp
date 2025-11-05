@@ -47,8 +47,12 @@
 namespace {
 
 std::string getClipboardTextX11() {
+    // Debug
+    std::cerr << "Entered getClipboardTextX11()" << std::endl;
     Display* display = XOpenDisplay(nullptr);
     if (!display) {
+        // Debug
+        std::cerr << "Entered if (!display)" << std::endl;
         return "";
     }
 
@@ -68,10 +72,16 @@ std::string getClipboardTextX11() {
     std::string result;
     struct pollfd pfd = { ConnectionNumber(display), POLLIN, 0 };
     int pollResult = poll(&pfd, 1, 300);  // 300 ms timeout
+    // Debug
+    std::cerr << "After poll()" << std::endl;
     if (pollResult > 0 && (pfd.revents & POLLIN)) {
+        // Debug
+        std::cerr << "Entered if pollResult > 0" << std::endl;
         XEvent event;
         XNextEvent(display, &event);
         if (event.type == SelectionNotify && event.xselection.property) {
+            // Debug
+            std::cerr << "Entered if event.type == SelectionNotify" << std::endl;
             Atom actualType;
             int actualFormat;
             unsigned long nitems, bytesAfter;
@@ -80,6 +90,8 @@ std::string getClipboardTextX11() {
                                AnyPropertyType, &actualType, &actualFormat,
                                &nitems, &bytesAfter, &data);
             if (data) {
+                // Debug
+                std::cerr << "Entered if data" << std::endl;
                 result.assign(reinterpret_cast<char*>(data), nitems);
                 XFree(data);
             }
