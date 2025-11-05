@@ -47,64 +47,129 @@
 namespace {
 
 std::string getClipboardTextX11() {
-    // Debug
     std::cerr << "Entered getClipboardTextX11()" << std::endl;
     Display* display = XOpenDisplay(nullptr);
     if (!display) {
-        // Debug
-        std::cerr << "Entered if (!display)" << std::endl;
+        std::cerr << "Failed to open display" << std::endl;
         return "";
     }
-
+    
     Window window = XCreateSimpleWindow(display, DefaultRootWindow(display),
                                         0, 0, 1, 1, 0, 0, 0);
-
+    
     Atom clipboard = XInternAtom(display, "CLIPBOARD", False);
     Atom utf8 = XInternAtom(display, "UTF8_STRING", False);
-    Atom targets = XInternAtom(display, "TARGETS", False);
+    Atom incr = XInternAtom(display, "INCR", False);
     Atom property = XInternAtom(display, "GHOUL_CLIP_TEMP", False);
-
-    // Ask for clipboard conversion
+    
+    // Select PropertyNotify events for INCR transfers
+    XSelectInput(display, window, PropertyChangeMask);
+    
+    // Request clipboard conversion
     XConvertSelection(display, clipboard, utf8, property, window, CurrentTime);
     XFlush(display);
-
-    // Wait for SelectionNotify, but with timeout (~300ms)
+    
     std::string result;
-    struct pollfd pfd = { ConnectionNumber(display), POLLIN, 0 };
-    int pollResult = poll(&pfd, 1, 300);  // 300 ms timeout
-    // Debug
-    std::cerr << "After poll()" << std::endl;
-    if (pollResult > 0 && (pfd.revents & POLLIN)) {
-        // Debug
-        std::cerr << "Entered if pollResult > 0" << std::endl;
+    bool incrMode = false;
+    std::vector<unsigned char> incrData;
+    
+    // Wait for events with timeout
+    auto startTime = std::chrono::steady_clock::now();
+    const int totalTimeout = 1000; // 1 second total timeout
+    
+    while (true) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - startTime).count();
+        int remainingTimeout = totalTimeout - elapsed;
+        
+        if (remainingTimeout <= 0) {
+            std::cerr << "Clipboard read timeout" << std::endl;
+            break;
+        }
+        
+        struct pollfd pfd = { ConnectionNumber(display), POLLIN, 0 };
+        int pollResult = poll(&pfd, 1, remainingTimeout);
+        
+        if (pollResult <= 0) {
+            std::cerr << "Poll timeout or error" << std::endl;
+            break;
+        }
+        
         XEvent event;
         XNextEvent(display, &event);
-        if (event.type == SelectionNotify && event.xselection.property) {
-            // Debug
-            std::cerr << "Entered if event.type == SelectionNotify" << std::endl;
+        
+        if (event.type == SelectionNotify) {
+            std::cerr << "Received SelectionNotify" << std::endl;
+            
+            if (event.xselection.property == None) {
+                std::cerr << "Conversion failed" << std::endl;
+                break;
+            }
+            
             Atom actualType;
             int actualFormat;
             unsigned long nitems, bytesAfter;
             unsigned char* data = nullptr;
+            
             XGetWindowProperty(display, window, property, 0, (~0L), False,
-                               AnyPropertyType, &actualType, &actualFormat,
-                               &nitems, &bytesAfter, &data);
+                             AnyPropertyType, &actualType, &actualFormat,
+                             &nitems, &bytesAfter, &data);
+            
+            if (actualType == incr) {
+                // INCR protocol - data will come via PropertyNotify events
+                std::cerr << "Using INCR protocol" << std::endl;
+                incrMode = true;
+                XDeleteProperty(display, window, property);
+                if (data) XFree(data);
+                XFlush(display);
+                continue;
+            }
+            
             if (data) {
-                // Debug
-                std::cerr << "Entered if data" << std::endl;
+                std::cerr << "Got data directly (non-INCR)" << std::endl;
                 result.assign(reinterpret_cast<char*>(data), nitems);
+                XFree(data);
+                break;
+            }
+        }
+        else if (event.type == PropertyNotify && incrMode) {
+            if (event.xproperty.state != PropertyNewValue) {
+                continue;
+            }
+            
+            Atom actualType;
+            int actualFormat;
+            unsigned long nitems, bytesAfter;
+            unsigned char* data = nullptr;
+            
+            XGetWindowProperty(display, window, property, 0, (~0L), True,
+                             AnyPropertyType, &actualType, &actualFormat,
+                             &nitems, &bytesAfter, &data);
+            
+            if (nitems == 0) {
+                // Empty property signals end of INCR transfer
+                std::cerr << "INCR transfer complete, " << incrData.size() 
+                          << " bytes" << std::endl;
+                result.assign(reinterpret_cast<char*>(incrData.data()), 
+                            incrData.size());
+                if (data) XFree(data);
+                break;
+            }
+            
+            if (data) {
+                // Append chunk to our buffer
+                incrData.insert(incrData.end(), data, data + nitems);
                 XFree(data);
             }
         }
     }
-
+    
     XDeleteProperty(display, window, property);
     XDestroyWindow(display, window);
     XCloseDisplay(display);
-
+    
     return result;
 }
-
 } // namespace
 
 
