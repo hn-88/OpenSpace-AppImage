@@ -35,7 +35,66 @@
 #elif defined(__APPLE__)
 #else
 #include <iostream>
+// for getClipboardTextX11()
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <poll.h>
+#include <unistd.h>
+#include <cstring>
+#include <string>
 #endif
+
+namespace {
+
+std::string getClipboardTextX11() {
+    Display* display = XOpenDisplay(nullptr);
+    if (!display) {
+        return "";
+    }
+
+    Window window = XCreateSimpleWindow(display, DefaultRootWindow(display),
+                                        0, 0, 1, 1, 0, 0, 0);
+
+    Atom clipboard = XInternAtom(display, "CLIPBOARD", False);
+    Atom utf8 = XInternAtom(display, "UTF8_STRING", False);
+    Atom targets = XInternAtom(display, "TARGETS", False);
+    Atom property = XInternAtom(display, "GHOUL_CLIP_TEMP", False);
+
+    // Ask for clipboard conversion
+    XConvertSelection(display, clipboard, utf8, property, window, CurrentTime);
+    XFlush(display);
+
+    // Wait for SelectionNotify, but with timeout (~300ms)
+    std::string result;
+    struct pollfd pfd = { ConnectionNumber(display), POLLIN, 0 };
+    int pollResult = poll(&pfd, 1, 300);  // 300 ms timeout
+    if (pollResult > 0 && (pfd.revents & POLLIN)) {
+        XEvent event;
+        XNextEvent(display, &event);
+        if (event.type == SelectionNotify && event.xselection.property) {
+            Atom actualType;
+            int actualFormat;
+            unsigned long nitems, bytesAfter;
+            unsigned char* data = nullptr;
+            XGetWindowProperty(display, window, property, 0, (~0L), False,
+                               AnyPropertyType, &actualType, &actualFormat,
+                               &nitems, &bytesAfter, &data);
+            if (data) {
+                result.assign(reinterpret_cast<char*>(data), nitems);
+                XFree(data);
+            }
+        }
+    }
+
+    XDeleteProperty(display, window, property);
+    XDestroyWindow(display, window);
+    XCloseDisplay(display);
+
+    return result;
+}
+
+} // namespace
+
 
 namespace {
 #ifndef WIN32
@@ -102,28 +161,18 @@ std::string clipboardText() {
     return "";
 #else
     std::string text;
+    const bool isWayland = (std::getenv("WAYLAND_DISPLAY") != nullptr);
 
-    // Wayland first
-    const char* sessionType = std::getenv("XDG_SESSION_TYPE");
-    if (sessionType && std::string(sessionType) == "wayland") {
+    if (isWayland) {
         if (exec("wl-paste --no-newline", text) && !text.empty()) {
             return text;
         }
     }
 
-    // X11 (non-blocking alternative)
-    if (exec("xsel --clipboard --output", text) && !text.empty()) {
-        if (text.back() == '\n') text.pop_back();
-        return text;
-    }
-
-    // Fallback to primary selection
-    if (exec("xsel --output", text) && !text.empty()) {
-        if (text.back() == '\n') text.pop_back();
-        return text;
-    }
-
-    return "";
+    // fallback to X11
+    text = getClipboardTextX11();
+    if (!text.empty() && text.back() == '\n') text.pop_back();
+    return text;
 #endif
 }
 
