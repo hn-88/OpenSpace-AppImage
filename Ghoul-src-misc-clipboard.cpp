@@ -46,10 +46,10 @@
 namespace {
 
 std::string getClipboardTextX11() {
-    std::cerr << "Entered getClipboardTextX11()" << std::endl;
+    std::cerr << "=== Entered getClipboardTextX11() ===" << std::endl;
     Display* display = XOpenDisplay(nullptr);
     if (!display) {
-        std::cerr << "Failed to open display" << std::endl;
+        std::cerr << "ERROR: Failed to open display" << std::endl;
         return "";
     }
     
@@ -63,12 +63,18 @@ std::string getClipboardTextX11() {
     Atom incr = XInternAtom(display, "INCR", False);
     Atom property = XInternAtom(display, "GHOUL_CLIP_TEMP", False);
     
+    std::cerr << "Atoms - CLIPBOARD: " << clipboard 
+              << ", UTF8_STRING: " << utf8 
+              << ", INCR: " << incr << std::endl;
+    
     // Select PropertyNotify events for INCR transfers
     XSelectInput(display, window, PropertyChangeMask);
     
     // Request clipboard conversion
+    std::cerr << "Calling XConvertSelection..." << std::endl;
     XConvertSelection(display, clipboard, utf8, property, window, CurrentTime);
     XFlush(display);
+    std::cerr << "XConvertSelection called and flushed" << std::endl;
     
     std::string result;
     bool incrMode = false;
@@ -76,7 +82,8 @@ std::string getClipboardTextX11() {
     
     // Wait for events with timeout
     auto startTime = std::chrono::steady_clock::now();
-    const int totalTimeout = 1000; // 1 second total timeout
+    const int totalTimeout = 1000;
+    int eventCount = 0;
     
     while (true) {
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -84,26 +91,45 @@ std::string getClipboardTextX11() {
         int remainingTimeout = totalTimeout - elapsed;
         
         if (remainingTimeout <= 0) {
-            std::cerr << "Clipboard read timeout" << std::endl;
+            std::cerr << "ERROR: Timeout after " << eventCount << " events" << std::endl;
             break;
         }
         
         struct pollfd pfd = { ConnectionNumber(display), POLLIN, 0 };
         int pollResult = poll(&pfd, 1, remainingTimeout);
         
+        std::cerr << "poll() returned: " << pollResult 
+                  << ", remaining timeout: " << remainingTimeout << "ms" << std::endl;
+        
         if (pollResult <= 0) {
-            std::cerr << "Poll timeout or error" << std::endl;
+            std::cerr << "ERROR: Poll timeout or error, result=" << pollResult << std::endl;
             break;
+        }
+        
+        if (!(pfd.revents & POLLIN)) {
+            std::cerr << "WARNING: poll returned but POLLIN not set, revents=" 
+                      << pfd.revents << std::endl;
+            continue;
         }
         
         XEvent event;
         XNextEvent(display, &event);
+        eventCount++;
+        
+        std::cerr << "Event #" << eventCount << " type: " << event.type;
+        if (event.type == SelectionNotify) {
+            std::cerr << " (SelectionNotify)";
+        } else if (event.type == PropertyNotify) {
+            std::cerr << " (PropertyNotify)";
+        }
+        std::cerr << std::endl;
         
         if (event.type == SelectionNotify) {
-            std::cerr << "Received SelectionNotify" << std::endl;
+            std::cerr << "  SelectionNotify - property: " << event.xselection.property 
+                      << " (None=" << None << ")" << std::endl;
             
             if (event.xselection.property == None) {
-                std::cerr << "Conversion failed" << std::endl;
+                std::cerr << "  ERROR: Conversion failed (property is None)" << std::endl;
                 break;
             }
             
@@ -112,38 +138,57 @@ std::string getClipboardTextX11() {
             unsigned long nitems, bytesAfter;
             unsigned char* data = nullptr;
             
-            XGetWindowProperty(display, window, property, 0, (~0L), False,
+            int status = XGetWindowProperty(display, window, property, 0, (~0L), False,
                              AnyPropertyType, &actualType, &actualFormat,
                              &nitems, &bytesAfter, &data);
             
+            char* typeName = actualType ? XGetAtomName(display, actualType) : nullptr;
+            std::cerr << "  XGetWindowProperty status: " << status << std::endl;
+            std::cerr << "  actualType: " << actualType << " (" 
+                      << (typeName ? typeName : "null") << ")" << std::endl;
+            std::cerr << "  actualFormat: " << actualFormat << std::endl;
+            std::cerr << "  nitems: " << nitems << std::endl;
+            std::cerr << "  bytesAfter: " << bytesAfter << std::endl;
+            std::cerr << "  data pointer: " << (void*)data << std::endl;
+            
             if (actualType == incr) {
-                // INCR protocol - data will come via PropertyNotify events
-                std::cerr << "Using INCR protocol" << std::endl;
+                std::cerr << "  Using INCR protocol" << std::endl;
                 incrMode = true;
                 XDeleteProperty(display, window, property);
                 if (data) XFree(data);
+                if (typeName) XFree(typeName);
                 XFlush(display);
                 continue;
             }
             
             // Check if the data type is text
-            if (actualType != utf8 && actualType != text && actualType != stringAtom) {
-                char* typeName = XGetAtomName(display, actualType);
-                std::cerr << "Clipboard contains non-text data: " 
-                          << (typeName ? typeName : "unknown") << std::endl;
+            bool isTextType = (actualType == utf8 || actualType == text || actualType == stringAtom);
+            std::cerr << "  Is text type: " << (isTextType ? "YES" : "NO") << std::endl;
+            
+            if (!isTextType) {
+                std::cerr << "  Clipboard contains non-text data" << std::endl;
                 if (typeName) XFree(typeName);
                 if (data) XFree(data);
                 break;
             }
             
-            if (data) {
-                std::cerr << "Got data directly (non-INCR)" << std::endl;
+            if (data && nitems > 0) {
+                std::cerr << "  Got data directly (non-INCR), " << nitems << " items" << std::endl;
                 result.assign(reinterpret_cast<char*>(data), nitems);
+                std::cerr << "  First 50 chars: " 
+                          << result.substr(0, std::min<size_t>(50, result.size())) << std::endl;
                 XFree(data);
+                if (typeName) XFree(typeName);
                 break;
             }
+            
+            if (typeName) XFree(typeName);
+            if (data) XFree(data);
         }
         else if (event.type == PropertyNotify && incrMode) {
+            std::cerr << "  PropertyNotify - state: " << event.xproperty.state 
+                      << " (NewValue=" << PropertyNewValue << ")" << std::endl;
+            
             if (event.xproperty.state != PropertyNewValue) {
                 continue;
             }
@@ -157,21 +202,26 @@ std::string getClipboardTextX11() {
                              AnyPropertyType, &actualType, &actualFormat,
                              &nitems, &bytesAfter, &data);
             
+            std::cerr << "  INCR chunk - nitems: " << nitems << std::endl;
+            
             // For the first INCR chunk, verify it's text data
             if (incrData.empty() && nitems > 0) {
-                if (actualType != utf8 && actualType != text && actualType != stringAtom) {
-                    char* typeName = XGetAtomName(display, actualType);
-                    std::cerr << "INCR clipboard contains non-text data: " 
-                              << (typeName ? typeName : "unknown") << std::endl;
+                char* typeName = XGetAtomName(display, actualType);
+                bool isTextType = (actualType == utf8 || actualType == text || actualType == stringAtom);
+                std::cerr << "  First INCR chunk type: " << (typeName ? typeName : "unknown") 
+                          << ", is text: " << (isTextType ? "YES" : "NO") << std::endl;
+                
+                if (!isTextType) {
+                    std::cerr << "  INCR clipboard contains non-text data" << std::endl;
                     if (typeName) XFree(typeName);
                     if (data) XFree(data);
                     break;
                 }
+                if (typeName) XFree(typeName);
             }
             
             if (nitems == 0) {
-                // Empty property signals end of INCR transfer
-                std::cerr << "INCR transfer complete, " << incrData.size() 
+                std::cerr << "  INCR transfer complete, total: " << incrData.size() 
                           << " bytes" << std::endl;
                 result.assign(reinterpret_cast<char*>(incrData.data()), 
                             incrData.size());
@@ -180,8 +230,8 @@ std::string getClipboardTextX11() {
             }
             
             if (data) {
-                // Append chunk to our buffer
                 incrData.insert(incrData.end(), data, data + nitems);
+                std::cerr << "  Accumulated " << incrData.size() << " bytes so far" << std::endl;
                 XFree(data);
             }
         }
@@ -191,8 +241,9 @@ std::string getClipboardTextX11() {
     XDestroyWindow(display, window);
     XCloseDisplay(display);
     
+    std::cerr << "=== Returning result of length " << result.size() << " ===" << std::endl;
     return result;
-}
+} // getClipboardTextX11()
 
 } // namespace
 
