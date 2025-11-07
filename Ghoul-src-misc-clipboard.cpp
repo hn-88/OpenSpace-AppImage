@@ -54,11 +54,26 @@ std::string getClipboardTextX11() {
         return "";
     }
     
-    // Create and map window (some apps need a mapped window)
+    // Create window
     Window window = XCreateSimpleWindow(display, DefaultRootWindow(display),
-                                        0, 0, 1, 1, 0, 0, 0);
-    XSelectInput(display, window, PropertyChangeMask);
+                                        -10, -10, 1, 1, 0, 0, 0);  // Off-screen
     
+    // CRITICAL: Map the window BEFORE making the clipboard request
+    // Chrome/CEF requires the requestor window to be mapped
+    XSelectInput(display, window, PropertyChangeMask | StructureNotifyMask);
+    XMapWindow(display, window);
+    
+    // Wait for MapNotify to ensure window is actually mapped
+    XEvent mapEvent;
+    while (true) {
+        XNextEvent(display, &mapEvent);
+        if (mapEvent.type == MapNotify) {
+            std::cerr << "Window mapped" << std::endl;
+            break;
+        }
+    }
+    
+    // Now request clipboard after window is mapped
     Atom clipboard = XInternAtom(display, "CLIPBOARD", False);
     Atom utf8 = XInternAtom(display, "UTF8_STRING", False);
     Atom text = XInternAtom(display, "TEXT", False);
@@ -66,9 +81,9 @@ std::string getClipboardTextX11() {
     Atom incr = XInternAtom(display, "INCR", False);
     Atom property = XInternAtom(display, "GHOUL_CLIP_TEMP", False);
     
-    // Request clipboard content
+    std::cerr << "Requesting clipboard..." << std::endl;
     XConvertSelection(display, clipboard, utf8, property, window, CurrentTime);
-    XSync(display, False);  // Use XSync instead of XFlush for better reliability
+    XSync(display, False);
     
     std::string result;
     bool incrMode = false;
@@ -76,7 +91,7 @@ std::string getClipboardTextX11() {
     bool gotSelectionNotify = false;
     
     auto startTime = std::chrono::steady_clock::now();
-    const int totalTimeout = 2000;  // Increased to 2 seconds
+    const int totalTimeout = 2000;
     
     while (true) {
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -220,7 +235,6 @@ cleanup:
     
     std::cerr << "=== Returning " << result.size() << " bytes ===" << std::endl;
     return result;
-    
 } // getClipboardTextX11()
 
 } // namespace
