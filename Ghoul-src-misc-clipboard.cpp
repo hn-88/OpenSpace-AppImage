@@ -56,14 +56,13 @@ std::string getClipboardTextX11() {
     
     // Create window
     Window window = XCreateSimpleWindow(display, DefaultRootWindow(display),
-                                        -10, -10, 1, 1, 0, 0, 0);  // Off-screen
+                                        -10, -10, 1, 1, 0, 0, 0);
     
-    // CRITICAL: Map the window BEFORE making the clipboard request
-    // Chrome/CEF requires the requestor window to be mapped
+    // Map the window - Chrome requires this
     XSelectInput(display, window, PropertyChangeMask | StructureNotifyMask);
     XMapWindow(display, window);
     
-    // Wait for MapNotify to ensure window is actually mapped
+    // Wait for MapNotify
     XEvent mapEvent;
     while (true) {
         XNextEvent(display, &mapEvent);
@@ -73,7 +72,6 @@ std::string getClipboardTextX11() {
         }
     }
     
-    // Now request clipboard after window is mapped
     Atom clipboard = XInternAtom(display, "CLIPBOARD", False);
     Atom utf8 = XInternAtom(display, "UTF8_STRING", False);
     Atom text = XInternAtom(display, "TEXT", False);
@@ -108,14 +106,18 @@ std::string getClipboardTextX11() {
             XEvent event;
             XNextEvent(display, &event);
             
-            std::cerr << "Event type: " << event.type << std::endl;
+            std::cerr << "Event type: " << event.type;
             
             if (event.type == SelectionNotify) {
+                std::cerr << " (SelectionNotify)" << std::endl;
                 gotSelectionNotify = true;
-                std::cerr << "Got SelectionNotify, property=" << event.xselection.property << std::endl;
+                std::cerr << "  window=" << event.xselection.requestor 
+                         << " (ours=" << window << ")" << std::endl;
+                std::cerr << "  property=" << event.xselection.property 
+                         << " (expected=" << property << ")" << std::endl;
                 
                 if (event.xselection.property == None) {
-                    std::cerr << "Conversion failed - clipboard empty or wrong format" << std::endl;
+                    std::cerr << "  Conversion failed" << std::endl;
                     goto cleanup;
                 }
                 
@@ -124,16 +126,16 @@ std::string getClipboardTextX11() {
                 unsigned long nitems, bytesAfter;
                 unsigned char* data = nullptr;
                 
-                XGetWindowProperty(display, window, property, 0, (~0L), False,
+                int status = XGetWindowProperty(display, window, property, 0, (~0L), False,
                                  AnyPropertyType, &actualType, &actualFormat,
                                  &nitems, &bytesAfter, &data);
                 
                 char* typeName = XGetAtomName(display, actualType);
-                std::cerr << "Type: " << (typeName ? typeName : "null") 
-                         << ", nitems: " << nitems << std::endl;
+                std::cerr << "  status=" << status << ", type=" << (typeName ? typeName : "null") 
+                         << ", nitems=" << nitems << ", bytesAfter=" << bytesAfter << std::endl;
                 
                 if (actualType == incr) {
-                    std::cerr << "INCR mode activated" << std::endl;
+                    std::cerr << "  INCR mode activated" << std::endl;
                     incrMode = true;
                     XDeleteProperty(display, window, property);
                     XFlush(display);
@@ -146,7 +148,7 @@ std::string getClipboardTextX11() {
                                   actualType == stringAtom);
                 
                 if (!isTextType) {
-                    std::cerr << "Non-text data in clipboard" << std::endl;
+                    std::cerr << "  Non-text data" << std::endl;
                     if (typeName) XFree(typeName);
                     if (data) XFree(data);
                     goto cleanup;
@@ -154,7 +156,7 @@ std::string getClipboardTextX11() {
                 
                 if (data && nitems > 0) {
                     result.assign(reinterpret_cast<char*>(data), nitems);
-                    std::cerr << "Got " << result.size() << " bytes" << std::endl;
+                    std::cerr << "  Got " << result.size() << " bytes directly" << std::endl;
                     XFree(data);
                     if (typeName) XFree(typeName);
                     goto cleanup;
@@ -164,9 +166,52 @@ std::string getClipboardTextX11() {
                 if (data) XFree(data);
             }
             else if (event.type == PropertyNotify) {
+                std::cerr << " (PropertyNotify)";
+                std::cerr << " window=" << event.xproperty.window 
+                         << " (ours=" << window << ")";
+                std::cerr << " atom=" << event.xproperty.atom 
+                         << " (property=" << property << ")";
+                std::cerr << " state=" << event.xproperty.state 
+                         << " (NewValue=" << PropertyNewValue << ")" << std::endl;
+                
+                // CHECK: Is this PropertyNotify for our property?
+                if (event.xproperty.window != window || event.xproperty.atom != property) {
+                    std::cerr << "  Not our property, ignoring" << std::endl;
+                    continue;
+                }
+                
                 // Only process PropertyNotify if we're in INCR mode
                 if (!incrMode) {
-                    std::cerr << "PropertyNotify ignored (not in INCR mode)" << std::endl;
+                    std::cerr << "  Not in INCR mode yet - checking property anyway" << std::endl;
+                    
+                    // Maybe Chrome set the property without SelectionNotify?
+                    // Let's check what's there
+                    Atom actualType;
+                    int actualFormat;
+                    unsigned long nitems, bytesAfter;
+                    unsigned char* data = nullptr;
+                    
+                    int status = XGetWindowProperty(display, window, property, 0, (~0L), False,
+                                     AnyPropertyType, &actualType, &actualFormat,
+                                     &nitems, &bytesAfter, &data);
+                    
+                    char* typeName = XGetAtomName(display, actualType);
+                    std::cerr << "  Property contains: type=" << (typeName ? typeName : "null")
+                             << ", nitems=" << nitems << std::endl;
+                    
+                    if (actualType == incr) {
+                        std::cerr << "  Found INCR without SelectionNotify! Activating INCR mode" << std::endl;
+                        incrMode = true;
+                        gotSelectionNotify = true;  // Pretend we got it
+                        XDeleteProperty(display, window, property);
+                        XFlush(display);
+                        if (data) XFree(data);
+                        if (typeName) XFree(typeName);
+                        continue;
+                    }
+                    
+                    if (typeName) XFree(typeName);
+                    if (data) XFree(data);
                     continue;
                 }
                 
@@ -174,7 +219,7 @@ std::string getClipboardTextX11() {
                     continue;
                 }
                 
-                std::cerr << "PropertyNotify in INCR mode" << std::endl;
+                std::cerr << "  PropertyNotify in INCR mode" << std::endl;
                 
                 Atom actualType;
                 int actualFormat;
@@ -189,14 +234,16 @@ std::string getClipboardTextX11() {
                     bool isTextType = (actualType == utf8 || actualType == text || 
                                       actualType == stringAtom);
                     if (!isTextType) {
-                        std::cerr << "Non-text INCR data" << std::endl;
+                        char* typeName = XGetAtomName(display, actualType);
+                        std::cerr << "  Non-text INCR data: " << (typeName ? typeName : "null") << std::endl;
+                        if (typeName) XFree(typeName);
                         if (data) XFree(data);
                         goto cleanup;
                     }
                 }
                 
                 if (nitems == 0) {
-                    std::cerr << "INCR complete: " << incrData.size() << " bytes" << std::endl;
+                    std::cerr << "  INCR complete: " << incrData.size() << " bytes" << std::endl;
                     result.assign(reinterpret_cast<char*>(incrData.data()), 
                                 incrData.size());
                     if (data) XFree(data);
@@ -205,17 +252,14 @@ std::string getClipboardTextX11() {
                 
                 if (data) {
                     incrData.insert(incrData.end(), data, data + nitems);
-                    std::cerr << "INCR chunk: " << nitems << " bytes (total: " 
+                    std::cerr << "  INCR chunk: " << nitems << " bytes (total: " 
                              << incrData.size() << ")" << std::endl;
                     XFree(data);
                 }
             }
-        }
-        
-        // If we got SelectionNotify but no data, something went wrong
-        if (gotSelectionNotify && !incrMode && result.empty()) {
-            std::cerr << "Got SelectionNotify but no data retrieved" << std::endl;
-            break;
+            else {
+                std::cerr << " (other)" << std::endl;
+            }
         }
         
         // Wait for more events
