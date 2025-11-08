@@ -1709,7 +1709,7 @@ int main(int argc, char* argv[]) {
 #ifdef __linux__
 // for getClipboardTextX11() in Ghoul
 Display* display = glfwGetX11Display();
-std::cerr << "Stored Display: " << g_OpenSpaceDisplay << std::endl;
+std::cerr << "Stored Display: " << display << std::endl;
 // Store it globally (hack for testing)
 g_display = display;
 #endif
