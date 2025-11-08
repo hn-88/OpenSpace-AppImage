@@ -42,22 +42,8 @@
 #include <unistd.h>
 #include <cstring>
 #include <string>
-#define GLFW_EXPOSE_NATIVE_X11
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
 
-Display* getOpenSpaceDisplay() {
-    // Try to get GLFW's display
-    Display* display = glfwGetX11Display();
-    if (display) {
-        std::cerr << "Found GLFW Display" << std::endl;
-        return display;
-    }
-    
-    // Fallback: open new connection
-    std::cerr << "Opening new Display" << std::endl;
-    return XOpenDisplay(nullptr);
-}
+extern "C" Display* getOpenSpaceDisplay();
 
 namespace {
 
