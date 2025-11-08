@@ -1166,6 +1166,14 @@ void setSgctDelegateFunctions() {
 
 } // namespace
 
+#ifdef __linux__
+// for testing getClipboardTextX11() in Ghoul
+static Display* g_display = nullptr;
+
+extern "C" Display* getOpenSpaceDisplay() {
+    return g_display;
+}
+#endif
 
 int main(int argc, char* argv[]) {
     ZoneScoped;
@@ -1703,11 +1711,7 @@ int main(int argc, char* argv[]) {
 Display* display = glfwGetX11Display();
 std::cerr << "Stored Display: " << g_OpenSpaceDisplay << std::endl;
 // Store it globally (hack for testing)
-static Display* g_display = display;
-
-extern "C" Display* getOpenSpaceDisplay() {
-    return g_display;
-}
+g_display = display;
 #endif
 
     LINFO("Starting rendering loop");
