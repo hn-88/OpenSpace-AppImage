@@ -47,7 +47,7 @@
 #ifdef WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
 #endif
-#ifdef __unix__ and not __APPLE__
+#ifdef __linux__
 #define GLFW_EXPOSE_NATIVE_X11
 #endif
 #include <GLFW/glfw3.h>
@@ -1698,7 +1698,7 @@ int main(int argc, char* argv[]) {
     }
 #endif // __APPLE__
 
-#ifdef __unix__ and not __APPLE__
+#ifdef __linux__
 // for getClipboardTextX11() in Ghoul
 Display* display = glfwGetX11Display();
 std::cerr << "Stored Display: " << g_OpenSpaceDisplay << std::endl;
