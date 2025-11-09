@@ -115,7 +115,7 @@ glm::mat4 currentModelMatrix;
 glm::ivec2 currentDrawResolution;
 
 #ifdef OPENVR_SUPPORT
-Window* FirstOpenVRWindow = nullptr;
+sgct::Window* FirstOpenVRWindow = nullptr;
 #endif
 
 // This value is specified from the commandline options and kept around to be run after
@@ -344,7 +344,7 @@ void mainInitFunc(GLFWwindow*) {
         icon.width = x;
         icon.height = y;
 
-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+        for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
             glfwSetWindowIcon(window->windowHandle(), 1, &icon);
         }
 
@@ -363,7 +363,7 @@ void mainInitFunc(GLFWwindow*) {
 
     // Find if we have at least one OpenVR window
     // Save reference to first OpenVR window, which is the one we will copy to the HMD.
-    for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+    for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
         if (window->hasTag(OpenVRTag)) {
 #ifdef OPENVR_SUPPORT
             FirstOpenVRWindow = window.get();
@@ -382,7 +382,7 @@ void mainInitFunc(GLFWwindow*) {
     }
 
     for (size_t i = 0; i < Engine::instance().windows().size(); i++) {
-        const Window& window = *Engine::instance().windows()[i];
+        const sgct::Window& window = *Engine::instance().windows()[i];
         if (!window.hasTag(SpoutTag)) {
             continue;
         }
@@ -392,7 +392,7 @@ void mainInitFunc(GLFWwindow*) {
         bool retValue = true;
         std::string mainWindowName = window.name();
 
-        const Window::StereoMode sm = window.stereoMode();
+        const sgct::Window::StereoMode sm = window.stereoMode();
         const bool hasStereo = (sm != Window::StereoMode::NoStereo) &&
                                (sm < Window::StereoMode::SideBySide);
 
