@@ -22,6 +22,10 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#include <QApplication>
+#include <QMessageBox>
+#include <launcherwindow.h>
+
 #include <openspace/documentation/documentation.h>
 #include <openspace/engine/configuration.h>
 #include <openspace/engine/globals.h>
@@ -81,10 +85,6 @@
 #ifdef OPENSPACE_BREAK_ON_FLOATING_POINT_EXCEPTION
 #include <float.h>
 #endif // OPENSPACE_BREAK_ON_FLOATING_POINT_EXCEPTION
-
-#include <launcherwindow.h>
-#include <QApplication>
-#include <QMessageBox>
 
 #ifdef WIN32
 extern "C" {
