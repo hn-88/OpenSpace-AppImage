@@ -108,7 +108,7 @@ constexpr std::string_view SpoutTag = "Spout";
 constexpr std::string_view OpenVRTag = "OpenVR";
 
 // @TODO (abock, 2020-04-09): These state variables should disappear
-const Window* currentWindow = nullptr;
+const sgct::Window* currentWindow = nullptr;
 const BaseViewport* currentViewport = nullptr;
 FrustumMode currentFrustumMode;
 glm::mat4 currentModelMatrix;
