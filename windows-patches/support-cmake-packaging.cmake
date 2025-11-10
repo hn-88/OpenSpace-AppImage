@@ -23,6 +23,10 @@
 ##########################################################################################
 
 set(CPACK_MONOLITHIC_INSTALL TRUE)
+set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
+
+# Don't use the default install - we'll specify exactly what to package
+set(CPACK_INSTALL_CMAKE_PROJECTS "")
 
 include(InstallRequiredSystemLibraries)
 
@@ -35,14 +39,9 @@ set(CPACK_PACKAGE_VERSION_PATCH "${OPENSPACE_VERSION_PATCH}")
 set(OPENSPACE_VERSION_NUMBER
   "${OPENSPACE_VERSION_MAJOR}.${OPENSPACE_VERSION_MINOR}.${OPENSPACE_VERSION_PATCH}"
 )
-# 
-# version number is not set for these daily builds, so we hard-code this
-set(OPENSPACE_VERSION_NUMBER "0.21.2plus"
-#
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "OpenSpace-${OPENSPACE_VERSION_NUMBER}")
-
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "OpenSpace ${OPENSPACE_VERSION_NUMBER}")
 set(CPACK_PACKAGE_FILE_NAME
-  "${CPACK_PACKAGE_NAME}-${OPENSPACE_VERSION_NUMBER}"
+  "${CPACK_PACKAGE_NAME} ${OPENSPACE_VERSION_NUMBER}"
 )
 set(CPACK_STRIP_FILES 1)
 
@@ -112,7 +111,7 @@ if (OPENSPACE_CREATE_INSTALLER)
     # The url of the application in the Add/Remove programs section
     set(CPACK_NSIS_URL_INFO_ABOUT "http://openspaceproject.com/")
     # Help URL
-    set(CPACK_NSIS_HELP_LINK "http://openspaceproject.com/")    
+    set(CPACK_NSIS_HELP_LINK "http://openspaceproject.com/")
   endif ()
 endif ()
 
