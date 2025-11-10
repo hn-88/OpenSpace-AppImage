@@ -1,6 +1,10 @@
 name: windows-latest
 
-on: workflow_dispatch
+on: 
+  workflow_dispatch:
+  
+  schedule:
+    - cron: "0 1 * * *"   # runs daily at 01:00 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
