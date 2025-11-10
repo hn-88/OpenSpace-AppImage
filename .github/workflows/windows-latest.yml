@@ -109,7 +109,7 @@ jobs:
     - name: Upload .zip to GitHub Release - Windows
       run: |
         $RELEASE_TAG = "daily-WIN-ZIP"
-        $ZIP_FILE = "${{ env.openSpaceHome }}\OpenSpace-0.21.2+_minimal_daily.zip"
+        $ZIP_FILE = "${{ env.openSpaceHome }}/build/OpenSpace-0.21.2+_minimal_daily.zip"
     
         # Check if release exists
         gh release view $RELEASE_TAG > $null 2>&1
