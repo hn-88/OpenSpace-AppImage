@@ -45,7 +45,7 @@
 
 namespace {
 
-std::string getClipboardTextX11(Display* existingDisplay) {
+std::string getClipboardTextX11() {
     std::cerr << "=== Querying clipboard ===" << std::endl;
     
     // ALWAYS use our own Display to avoid event loop conflicts
