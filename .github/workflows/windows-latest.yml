@@ -76,7 +76,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         # Artifact name
-        name: OpenSpace-singleprec-zip
+        name: OpenSpace-bindirectory-zip
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
         path: ${{ env.openSpaceHome }}/bin/**
@@ -86,8 +86,6 @@ jobs:
       run: |
         cd $env:openSpaceHome
         # ./deploy.bat This fails, probably due to warnings which are treated as errors, and CMake flags
-
-    
     
     - name: Prepare and deploy
       shell: cmd
@@ -156,6 +154,25 @@ jobs:
         name: OpenSpace-daily-minimal
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: ${{ env.openSpaceHome }}/Ope*.zip
+        path: ${{ env.openSpaceHome }}/Openspace.zip
+
+    - name: Upload .zip to GitHub Release
+      run: |
+        RELEASE_TAG="daily-WIN-ZIP"
+        ZIP_FILE="${{ env.openSpaceHome }}/Openspace.zip"
+    
+        # Create release if it doesn't exist
+        gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+          gh release create "$RELEASE_TAG" -t "OpenSpace Windows Daily Build" -n "Automated daily build of OpenSpace."
+    
+        # (Optional) update title/notes each run
+        gh release edit "$RELEASE_TAG" \
+          -t "OpenSpace Windows Daily Build" \
+          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC). "
+    
+        # Upload .zip asset (overwrite if exists)
+        gh release upload "$RELEASE_TAG" "$ZIP_FILE" --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
       
     
