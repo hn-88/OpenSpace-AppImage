@@ -11,7 +11,10 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: RelWithDebInfo
-  OPENSPACE_VERSION: "0.21.2+"
+  OPENSPACE_VERSION: "0.21.2plus"
+  OPENSPACE_VERSION_MAJOR: "0"
+  OPENSPACE_VERSION_MINOR: "21"
+  OPENSPACE_VERSION_PATCH: "2plus"  
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
   QT_DIR: C:/Qt/6.2.0/msvc2019_64
   QT6_DIR: C:/Qt/6.2.0/msvc2019_64
@@ -60,7 +63,7 @@ jobs:
 
     - name: Patches
       run : |
-        Copy-Item -Verbose "windows-patches/support-cmake-packaging.cmake" "$env:openSpaceHome/support/cmake/packaging.cmake"
+        # Copy-Item -Verbose "windows-patches/support-cmake-packaging.cmake" "$env:openSpaceHome/support/cmake/packaging.cmake"
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
