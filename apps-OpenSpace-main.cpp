@@ -393,8 +393,8 @@ void mainInitFunc(GLFWwindow*) {
         std::string mainWindowName = window.name();
 
         const sgct::Window::StereoMode sm = window.stereoMode();
-        const bool hasStereo = (sm != Window::StereoMode::NoStereo) &&
-                               (sm < Window::StereoMode::SideBySide);
+        const bool hasStereo = (sm != sgct::Window::StereoMode::NoStereo) &&
+                               (sm < sgct::Window::StereoMode::SideBySide);
 
         if (hasStereo) {
             mainWindowName = window.name() + "_left";
