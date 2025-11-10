@@ -70,7 +70,10 @@ jobs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         cd "$env:openSpaceHome/build"
-        cmake -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF $env:openSpaceHome
+        cmake -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DOPENSPACE_VERSION_MAJOR=${{ env.OPENSPACE_VERSION_MAJOR }} `
+          -DOPENSPACE_VERSION_MINOR=${{ env.OPENSPACE_VERSION_MINOR }} `
+          -DOPENSPACE_VERSION_PATCH=${{ env.OPENSPACE_VERSION_PATCH }} -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF `
+          -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF $env:openSpaceHome
         # -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20
 
     - name: Build
