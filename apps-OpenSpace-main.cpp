@@ -765,7 +765,7 @@ void setSgctDelegateFunctions() {
     sgctDelegate.anyWindowHasResized = []() {
         ZoneScoped;
 
-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+        for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
             if (window->isWindowResized()) {
                 return true;
             }
