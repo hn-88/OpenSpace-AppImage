@@ -809,14 +809,14 @@ void setSgctDelegateFunctions() {
         ZoneScoped;
 
         switch (currentWindow->stereoMode()) {
-            case Window::StereoMode::SideBySide:
-            case Window::StereoMode::SideBySideInverted:
+            case sgct::Window::StereoMode::SideBySide:
+            case sgct::Window::StereoMode::SideBySideInverted:
                 return glm::ivec2(
                     currentWindow->windowResolution().x / 2,
                     currentWindow->windowResolution().y
                 );
-            case Window::StereoMode::TopBottom:
-            case Window::StereoMode::TopBottomInverted:
+            case sgct::Window::StereoMode::TopBottom:
+            case sgct::Window::StereoMode::TopBottomInverted:
                 return glm::ivec2(
                     currentWindow->windowResolution().x,
                     currentWindow->windowResolution().y / 2
@@ -878,8 +878,8 @@ void setSgctDelegateFunctions() {
     };
     sgctDelegate.guiWindowResolution = []() {
         ZoneScoped;
-        const Window* guiWin = nullptr;
-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+        const sgct::Window* guiWin = nullptr;
+        for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
             if (window->hasTag("GUI")) {
                 guiWin = window.get();
                 break;
@@ -897,8 +897,8 @@ void setSgctDelegateFunctions() {
 
         // Detect which DPI scaling to use
         // 1. If there is a GUI window, use the GUI window's content scale value
-        const Window* dpiWindow = nullptr;
-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+        const sgct::Window* dpiWindow = nullptr;
+        for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
             if (window->hasTag("GUI")) {
                 dpiWindow = window.get();
                 break;
@@ -925,7 +925,7 @@ void setSgctDelegateFunctions() {
     sgctDelegate.hasGuiWindow = []() {
         ZoneScoped;
 
-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+        for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
             if (window->hasTag("GUI")) {
                 return true;
             }
@@ -1028,7 +1028,7 @@ void setSgctDelegateFunctions() {
     sgctDelegate.getNativeWindowHandle = [](size_t windowIndex) -> void* {
         ZoneScoped;
 
-        Window* w = Engine::instance().windows()[windowIndex].get();
+        sgct::Window* w = Engine::instance().windows()[windowIndex].get();
         if (w) {
             HWND hWnd = glfwGetWin32Window(w->windowHandle());
             return reinterpret_cast<void*>(hWnd);
@@ -1063,7 +1063,7 @@ void setSgctDelegateFunctions() {
         return ClusterManager::instance().thisNodeId();
     };
     sgctDelegate.mousePositionViewportRelative = [](const glm::vec2& mousePosition) {
-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+        for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
             if (!isGuiWindow(window.get())) {
                 continue;
             }
@@ -1693,7 +1693,7 @@ int main(int argc, char* argv[]) {
     // machine. If the loading screen shows up without doing anything to the window, it
     // is fixed. With the bug, the rendering stays gray even well after the main render
     // loop has started     -- 2018-10-28   abock
-    for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+    for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
         GLFWwindow* w = window->windowHandle();
         int x, y;
         glfwGetWindowPos(w, &x, &y);
