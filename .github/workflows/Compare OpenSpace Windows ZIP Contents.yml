@@ -1,0 +1,167 @@
+name: Compare OpenSpace Windows ZIP Contents
+
+on:
+  workflow_dispatch:
+  #schedule:
+  #  - cron: '0 0 * * *'  # Run daily at midnight UTC
+
+jobs:
+  compare-zips:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create working directories
+        run: |
+          mkdir -p downloads
+          mkdir -p extracted/release
+          mkdir -p extracted/daily-versioned
+          mkdir -p extracted/daily-minimal
+          mkdir -p reports
+      
+      - name: Download ZIP files
+        run: |
+          echo "Downloading official release..."
+          curl -L -o downloads/release.zip \
+            "https://data.openspaceproject.com/release/0.21.2/OpenSpace-0.21.2_minimal.zip"
+          
+          echo "Downloading daily versioned build..."
+          curl -L -o downloads/daily-versioned.zip \
+            "https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-0.21.2+_minimal_daily.zip"
+          
+          echo "Downloading daily minimal build..."
+          curl -L -o downloads/daily-minimal.zip \
+            "https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily.zip"
+      
+      - name: Extract ZIP files
+        run: |
+          echo "Extracting release..."
+          unzip -q downloads/release.zip -d extracted/release
+          
+          echo "Extracting daily versioned..."
+          unzip -q downloads/daily-versioned.zip -d extracted/daily-versioned
+          
+          echo "Extracting daily minimal..."
+          unzip -q downloads/daily-minimal.zip -d extracted/daily-minimal
+      
+      - name: Generate file lists
+        run: |
+          echo "Generating file lists..."
+          
+          # Release files
+          (cd extracted/release && find . -type f | sort) > reports/release_files.txt
+          
+          # Daily versioned files
+          (cd extracted/daily-versioned && find . -type f | sort) > reports/daily_versioned_files.txt
+          
+          # Daily minimal files
+          (cd extracted/daily-minimal && find . -type f | sort) > reports/daily_minimal_files.txt
+          
+          # Count files
+          echo "Release file count: $(wc -l < reports/release_files.txt)"
+          echo "Daily versioned file count: $(wc -l < reports/daily_versioned_files.txt)"
+          echo "Daily minimal file count: $(wc -l < reports/daily_minimal_files.txt)"
+      
+      - name: Compare file lists
+        run: |
+          echo "=== COMPARISON REPORT ===" > reports/comparison_summary.txt
+          echo "Generated on: $(date -u)" >> reports/comparison_summary.txt
+          echo "" >> reports/comparison_summary.txt
+          
+          # File counts
+          echo "FILE COUNTS:" >> reports/comparison_summary.txt
+          echo "Release: $(wc -l < reports/release_files.txt) files" >> reports/comparison_summary.txt
+          echo "Daily Versioned: $(wc -l < reports/daily_versioned_files.txt) files" >> reports/comparison_summary.txt
+          echo "Daily Minimal: $(wc -l < reports/daily_minimal_files.txt) files" >> reports/comparison_summary.txt
+          echo "" >> reports/comparison_summary.txt
+          
+          # Release vs Daily Versioned
+          echo "=== FILES IN RELEASE BUT NOT IN DAILY VERSIONED ===" > reports/release_only_vs_daily_versioned.txt
+          comm -23 reports/release_files.txt reports/daily_versioned_files.txt >> reports/release_only_vs_daily_versioned.txt
+          echo "Count: $(comm -23 reports/release_files.txt reports/daily_versioned_files.txt | wc -l)" >> reports/release_only_vs_daily_versioned.txt
+          
+          echo "=== FILES IN DAILY VERSIONED BUT NOT IN RELEASE ===" > reports/daily_versioned_only_vs_release.txt
+          comm -13 reports/release_files.txt reports/daily_versioned_files.txt >> reports/daily_versioned_only_vs_release.txt
+          echo "Count: $(comm -13 reports/release_files.txt reports/daily_versioned_files.txt | wc -l)" >> reports/daily_versioned_only_vs_release.txt
+          
+          # Release vs Daily Minimal
+          echo "=== FILES IN RELEASE BUT NOT IN DAILY MINIMAL ===" > reports/release_only_vs_daily_minimal.txt
+          comm -23 reports/release_files.txt reports/daily_minimal_files.txt >> reports/release_only_vs_daily_minimal.txt
+          echo "Count: $(comm -23 reports/release_files.txt reports/daily_minimal_files.txt | wc -l)" >> reports/release_only_vs_daily_minimal.txt
+          
+          echo "=== FILES IN DAILY MINIMAL BUT NOT IN RELEASE ===" > reports/daily_minimal_only_vs_release.txt
+          comm -13 reports/release_files.txt reports/daily_minimal_files.txt >> reports/daily_minimal_only_vs_release.txt
+          echo "Count: $(comm -13 reports/release_files.txt reports/daily_minimal_files.txt | wc -l)" >> reports/daily_minimal_only_vs_release.txt
+          
+          # Daily Versioned vs Daily Minimal
+          echo "=== FILES IN DAILY VERSIONED BUT NOT IN DAILY MINIMAL ===" > reports/daily_versioned_only_vs_minimal.txt
+          comm -23 reports/daily_versioned_files.txt reports/daily_minimal_files.txt >> reports/daily_versioned_only_vs_minimal.txt
+          echo "Count: $(comm -23 reports/daily_versioned_files.txt reports/daily_minimal_files.txt | wc -l)" >> reports/daily_versioned_only_vs_minimal.txt
+          
+          echo "=== FILES IN DAILY MINIMAL BUT NOT IN DAILY VERSIONED ===" > reports/daily_minimal_only_vs_versioned.txt
+          comm -13 reports/daily_versioned_files.txt reports/daily_minimal_files.txt >> reports/daily_minimal_only_vs_versioned.txt
+          echo "Count: $(comm -13 reports/daily_versioned_files.txt reports/daily_minimal_files.txt | wc -l)" >> reports/daily_minimal_only_vs_versioned.txt
+          
+          # Add summary statistics
+          echo "COMPARISON STATISTICS:" >> reports/comparison_summary.txt
+          echo "Release vs Daily Versioned - unique to Release: $(comm -23 reports/release_files.txt reports/daily_versioned_files.txt | wc -l)" >> reports/comparison_summary.txt
+          echo "Release vs Daily Versioned - unique to Daily Versioned: $(comm -13 reports/release_files.txt reports/daily_versioned_files.txt | wc -l)" >> reports/comparison_summary.txt
+          echo "Release vs Daily Minimal - unique to Release: $(comm -23 reports/release_files.txt reports/daily_minimal_files.txt | wc -l)" >> reports/comparison_summary.txt
+          echo "Release vs Daily Minimal - unique to Daily Minimal: $(comm -13 reports/release_files.txt reports/daily_minimal_files.txt | wc -l)" >> reports/comparison_summary.txt
+          echo "Daily Versioned vs Daily Minimal - unique to Versioned: $(comm -23 reports/daily_versioned_files.txt reports/daily_minimal_files.txt | wc -l)" >> reports/comparison_summary.txt
+          echo "Daily Versioned vs Daily Minimal - unique to Minimal: $(comm -13 reports/daily_versioned_files.txt reports/daily_minimal_files.txt | wc -l)" >> reports/comparison_summary.txt
+      
+      - name: Display summary
+        run: |
+          echo "=== Comparison Summary ==="
+          cat reports/comparison_summary.txt
+      
+      - name: Upload comparison reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: openspace-comparison-reports
+          path: reports/
+          retention-days: 30
+      
+      - name: Create consolidated report
+        run: |
+          echo "# OpenSpace ZIP Comparison Report" > reports/FULL_REPORT.md
+          echo "" >> reports/FULL_REPORT.md
+          echo "Generated: $(date -u)" >> reports/FULL_REPORT.md
+          echo "" >> reports/FULL_REPORT.md
+          
+          echo "## Summary" >> reports/FULL_REPORT.md
+          echo '```' >> reports/FULL_REPORT.md
+          cat reports/comparison_summary.txt >> reports/FULL_REPORT.md
+          echo '```' >> reports/FULL_REPORT.md
+          echo "" >> reports/FULL_REPORT.md
+          
+          echo "## Available Reports" >> reports/FULL_REPORT.md
+          echo "- release_files.txt - All files in official release" >> reports/FULL_REPORT.md
+          echo "- daily_versioned_files.txt - All files in daily versioned build" >> reports/FULL_REPORT.md
+          echo "- daily_minimal_files.txt - All files in daily minimal build" >> reports/FULL_REPORT.md
+          echo "- release_only_vs_daily_versioned.txt - Files unique to release vs daily versioned" >> reports/FULL_REPORT.md
+          echo "- daily_versioned_only_vs_release.txt - Files unique to daily versioned vs release" >> reports/FULL_REPORT.md
+          echo "- release_only_vs_daily_minimal.txt - Files unique to release vs daily minimal" >> reports/FULL_REPORT.md
+          echo "- daily_minimal_only_vs_release.txt - Files unique to daily minimal vs release" >> reports/FULL_REPORT.md
+          echo "- daily_versioned_only_vs_minimal.txt - Files unique to daily versioned vs daily minimal" >> reports/FULL_REPORT.md
+          echo "- daily_minimal_only_vs_versioned.txt - Files unique to daily minimal vs daily versioned" >> reports/FULL_REPORT.md
+          
+          cat reports/FULL_REPORT.md
+      
+      - name: Comment on commit (if triggered by push)
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('reports/comparison_summary.txt', 'utf8');
+            
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: '## OpenSpace ZIP Comparison Results\n\n```\n' + summary + '\n```\n\nFull reports available in workflow artifacts.'
+            });
