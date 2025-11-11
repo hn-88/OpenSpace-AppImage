@@ -118,66 +118,55 @@ jobs:
 
         :: Comparing with official release, found that QT dlls need to be bundled.
            
-        # Path variables
-        $QtBin = "${{ env.QT_DIR }}/bin"
-        $QtPlugins = "${{ env.QT_DIR }}/plugins"
-        $TargetBin = "${{ env.openSpaceHome }}/bin"
-    
-        Write-Host "Copying required Qt runtime DLLs from $QtBin to $TargetBin..."
-    
-        # Ensure directories exist
-        New-Item -ItemType Directory -Force -Path "$TargetBin/platforms" | Out-Null
-        New-Item -ItemType Directory -Force -Path "$TargetBin/styles" | Out-Null
-        New-Item -ItemType Directory -Force -Path "$TargetBin/tls" | Out-Null
-        New-Item -ItemType Directory -Force -Path "$TargetBin/generic" | Out-Null
-    
-        # Copy essential DLLs (OpenGL + DirectX)
-        $qtDlls = @(
-          "dxcompiler.dll",
-          "dxil.dll",
-          "opengl32sw.dll"
+        @echo off
+        REM Path variables
+        set "QtBin=${{ env.QT_DIR }}\bin"
+        set "QtPlugins=${{ env.QT_DIR }}\plugins"
+        set "TargetBin=${{ env.openSpaceHome }}\bin"
+        
+        echo Copying required Qt runtime DLLs from %QtBin% to %TargetBin%...
+        
+        REM Ensure directories exist
+        if not exist "%TargetBin%\platforms" mkdir "%TargetBin%\platforms"
+        if not exist "%TargetBin%\styles" mkdir "%TargetBin%\styles"
+        if not exist "%TargetBin%\tls" mkdir "%TargetBin%\tls"
+        if not exist "%TargetBin%\generic" mkdir "%TargetBin%\generic"
+        
+        REM Copy essential DLLs (OpenGL + DirectX)
+        for %%d in (dxcompiler.dll dxil.dll opengl32sw.dll) do (
+          if exist "%QtBin%\%%d" (
+            copy /Y "%QtBin%\%%d" "%TargetBin%\" >nul
+            echo Copied %%d
+          ) else (
+            echo WARNING: Missing %%d in %QtBin%
+          )
         )
-        foreach ($dll in $qtDlls) {
-          $src = Join-Path $QtBin $dll
-          if (Test-Path $src) {
-            Copy-Item $src $TargetBin -Force
-            Write-Host "Copied $dll"
-          } else {
-            Write-Host "WARNING: Missing $dll in $QtBin"
-          }
-        }
-    
-        # Copy platform plugin (mandatory)
-        Copy-Item "$QtPlugins/platforms/qwindows.dll" "$TargetBin/platforms/" -Force
-        Write-Host "Copied qwindows.dll"
-    
-        # Copy optional style plugin (UI style)
-        if (Test-Path "$QtPlugins/styles/qmodernwindowsstyle.dll") {
-          Copy-Item "$QtPlugins/styles/qmodernwindowsstyle.dll" "$TargetBin/styles/" -Force
-          Write-Host "Copied qmodernwindowsstyle.dll"
-        }
-    
-        # Copy optional TLS backends (network/SSL)
-        $tlsPlugins = @(
-          "qcertonlybackend.dll",
-          "qopensslbackend.dll",
-          "qschannelbackend.dll"
+        
+        REM Copy platform plugin (mandatory)
+        copy /Y "%QtPlugins%\platforms\qwindows.dll" "%TargetBin%\platforms\" >nul
+        echo Copied qwindows.dll
+        
+        REM Copy optional style plugin (UI style)
+        if exist "%QtPlugins%\styles\qmodernwindowsstyle.dll" (
+          copy /Y "%QtPlugins%\styles\qmodernwindowsstyle.dll" "%TargetBin%\styles\" >nul
+          echo Copied qmodernwindowsstyle.dll
         )
-        foreach ($dll in $tlsPlugins) {
-          $src = "$QtPlugins/tls/$dll"
-          if (Test-Path $src) {
-            Copy-Item $src "$TargetBin/tls/" -Force
-            Write-Host "Copied $dll"
-          }
-        }
-    
-        # Copy optional generic plugin (TUIO touch)
-        if (Test-Path "$QtPlugins/generic/qtuiotouchplugin.dll") {
-          Copy-Item "$QtPlugins/generic/qtuiotouchplugin.dll" "$TargetBin/generic/" -Force
-          Write-Host "Copied qtuiotouchplugin.dll"
-        }
-    
-        Write-Host "Qt runtime DLLs copy completed."
+        
+        REM Copy optional TLS backends (network/SSL)
+        for %%d in (qcertonlybackend.dll qopensslbackend.dll qschannelbackend.dll) do (
+          if exist "%QtPlugins%\tls\%%d" (
+            copy /Y "%QtPlugins%\tls\%%d" "%TargetBin%\tls\" >nul
+            echo Copied %%d
+          )
+        )
+        
+        REM Copy optional generic plugin (TUIO touch)
+        if exist "%QtPlugins%\generic\qtuiotouchplugin.dll" (
+          copy /Y "%QtPlugins%\generic\qtuiotouchplugin.dll" "%TargetBin%\generic\" >nul
+          echo Copied qtuiotouchplugin.dll
+        )
+        
+        echo Qt runtime DLLs copy completed.
         
         :: Download the Microsoft redistributable
         curl "https://aka.ms/vs/17/release/vc_redist.x64.exe" --output vc_redist.x64.exe -L
