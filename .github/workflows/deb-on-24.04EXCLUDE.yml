@@ -12,7 +12,9 @@ env:
   BUILD_TYPE: Release
   # As recommended here: https://github.com/marketplace/actions/sccache-action
   OPENSPACE_VERSION: "0.21.3pre"
-  APPIMAGE_VERSION: "1"
+  OPENSPACE_VERSION_MAJOR: "0"
+  OPENSPACE_VERSION_MINOR: "21"
+  OPENSPACE_VERSION_PATCH: "2plus"  
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "use-EXCLUDE_FROM_ALL"
   
@@ -68,9 +70,10 @@ jobs:
     - name: Install patches
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp"
+        # cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp"
         # cp -vf apps-OpenSpace-main.cpp "$openSpaceHome/apps/OpenSpace/main.cpp"
-        ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
+        # ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
+        cp -vf exclude-patches/apps-OpenSpace-ext-sgct-CMakeLists.txt "$openSpaceHome/apps/OpenSpace/ext/sgct/CMakeLists.txt
 
   
     - name: Configure CMake
@@ -82,7 +85,10 @@ jobs:
         echo "Please note the extra variables passed for making the deb package ..."
         cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 \
           -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
-          -DOPENSPACE_DISTRO=ubuntu24.04 -DCMAKE_INSTALL_PREFIX=/usr "$openSpaceHome"
+          -DOPENSPACE_DISTRO=ubuntu24.04 -DCMAKE_INSTALL_PREFIX=/usr \
+          -DOPENSPACE_VERSION_MAJOR=${{ env.OPENSPACE_VERSION_MAJOR }} \
+          -DOPENSPACE_VERSION_MINOR=${{ env.OPENSPACE_VERSION_MINOR }} \
+          -DOPENSPACE_VERSION_PATCH=${{ env.OPENSPACE_VERSION_PATCH }} "$openSpaceHome"
 
     - name: Build
       # Build your program with the given configuration
