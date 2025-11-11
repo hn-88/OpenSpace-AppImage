@@ -3,8 +3,8 @@ name: windows-latest
 on: 
   workflow_dispatch:
   
-  schedule:
-    - cron: "0 1 * * *"   # runs daily at 01:00 UTC
+  #schedule:
+  #  - cron: "0 1 * * *"   # runs daily at 01:00 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -20,6 +20,7 @@ env:
   QT6_DIR: C:/Qt/6.2.0/msvc2019_64
   CMAKE_PREFIX_PATH: C:/Qt/6.2.0/msvc2019_64/lib/cmake
   buildConfig: RelWithDebInfo
+  COMMIT_HASH: "use-EXCLUDE_FROM_ALL"
   
 jobs:
   build:
@@ -35,9 +36,9 @@ jobs:
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
-        git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
+        git clone --recursive https://github.com/hn-88/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
-        git checkout "master" --recurse-submodules
+        git checkout "${{ env.COMMIT_HASH }}" --recurse-submodules
         git submodule update --init --recursive
         mkdir build
         cd build
@@ -63,7 +64,7 @@ jobs:
 
     - name: Patches
       run : |
-        Copy-Item -Verbose "windows-patches/support-cmake-packaging.cmake" "$env:openSpaceHome/support/cmake/packaging.cmake"
+        # Copy-Item -Verbose "windows-patches/support-cmake-packaging.cmake" "$env:openSpaceHome/support/cmake/packaging.cmake"
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
