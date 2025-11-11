@@ -67,7 +67,10 @@ jobs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         cd "$env:openSpaceHome/build"
-        cmake -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF $env:openSpaceHome
+        cmake -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
+        -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
+        -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
+        -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
         # -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20
 
     - name: Build
@@ -95,11 +98,9 @@ jobs:
       shell: cmd
       run: |
         cd /d "%openSpaceHome%"
-        echo ### copied from deploy.bat
-        echo ### Save the PDB files
-        7z.exe a pdbs.zip bin/RelWithDebInfo/*.pdb
-        
-        
+        echo ### copied from deploy.bat commit 4bf8124
+ 
+        :PostBuildCleanup
         echo ### Dealing with some files
         :: Remove unnecessary files of our own making
         del bin\RelWithDebInfo\*.pdb
@@ -111,11 +112,6 @@ jobs:
         rmdir /S /Q bin\RelWithDebInfo\imageformats
         rmdir /S /Q bin\RelWithDebInfo\networkinformation
         
-        :: Reset the documentation back to the master as it will have been updated locally
-        cd documentation
-        copy documentationData.js ..
-        cd ..
-        
         :: The binary files are created in the RelWithDebInfo subdirectory and we want them in bin
         robocopy bin\\RelWithDebInfo bin /E /MOV
         rmdir /S /Q bin\\RelWithDebInfo
@@ -123,10 +119,9 @@ jobs:
         :: Download the Microsoft redistributable
         curl "https://aka.ms/vs/17/release/vc_redist.x64.exe" --output vc_redist.x64.exe -L
         
-        
         echo ### Create main zip file
         :: Need to manually add any new weird paths that don't match the wildcards below
-        7z.exe a -tzip -mx=9 -mfb=257 -mpass=15 OpenSpace.zip^
+        7z.exe a -tzip -mx=9 -mfb=257 -mpass=15 OpenSpace-minimal-daily.zip^
           bin/*^
           config/*^
           data/*^
@@ -148,6 +143,7 @@ jobs:
           modules/globebrowsing/gdal_data/*^
           modules/webgui/ext/nodejs/node.exe^
           ^
+          %sync%^
           -x!documentation/.git
               
     
@@ -158,12 +154,12 @@ jobs:
         name: OpenSpace-daily-minimal
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: ${{ env.openSpaceHome }}/Openspace.zip
+        path: ${{ env.openSpaceHome }}/OpenSpace-minimal-daily.zip
 
     - name: Upload .zip to GitHub Release - Windows
       run: |
         $RELEASE_TAG = "daily-WIN-ZIP"
-        $ZIP_FILE = "${{ env.openSpaceHome }}\Openspace.zip"
+        $ZIP_FILE = "${{ env.openSpaceHome }}\OpenSpace-minimal-daily.zip"
     
         # Check if release exists
         gh release view $RELEASE_TAG > $null 2>&1
