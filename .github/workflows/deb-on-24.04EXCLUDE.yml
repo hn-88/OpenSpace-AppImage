@@ -73,7 +73,7 @@ jobs:
         # cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp"
         # cp -vf apps-OpenSpace-main.cpp "$openSpaceHome/apps/OpenSpace/main.cpp"
         # ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
-        cp -vf exclude-patches/apps-OpenSpace-ext-sgct-CMakeLists.txt "$openSpaceHome/apps/OpenSpace/ext/sgct/CMakeLists.txt
+        cp -vf exclude-patches/apps-OpenSpace-ext-sgct-CMakeLists.txt "$openSpaceHome/apps/OpenSpace/ext/sgct/CMakeLists.txt"
 
   
     - name: Configure CMake
