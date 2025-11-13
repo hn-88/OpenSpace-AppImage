@@ -69,6 +69,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp"
+        cp -vf modules-webbrowser-src-webbrowserapp.cpp "$openSpaceHome/modules/webbrowser/src/webbrowserapp.cpp"
         # cp -vf apps-OpenSpace-main.cpp "$openSpaceHome/apps/OpenSpace/main.cpp"
         ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
 
