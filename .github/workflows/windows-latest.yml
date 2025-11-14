@@ -62,6 +62,14 @@ jobs:
         echo "BOOST_INCLUDEDIR=C:\tools\boost_1_85_0" >> $env:GITHUB_ENV
         echo "BOOST_LIBRARYDIR=C:\tools\boost_1_85_0\lib64-msvc-14.3" >> $env:GITHUB_ENV
 
+    - name: Debug DLL locations
+      shell: bash
+      run: |
+        echo "=== Finding all DLLs ==="
+        find . -name "*.dll" -type f
+        echo "=== Qt installation ==="
+        qmake -query
+
     - name: Patches
       run : |
         # Copy-Item -Verbose "windows-patches/support-cmake-packaging.cmake" "$env:openSpaceHome/support/cmake/packaging.cmake"
