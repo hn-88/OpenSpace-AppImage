@@ -62,13 +62,19 @@ jobs:
         echo "BOOST_INCLUDEDIR=C:\tools\boost_1_85_0" >> $env:GITHUB_ENV
         echo "BOOST_LIBRARYDIR=C:\tools\boost_1_85_0\lib64-msvc-14.3" >> $env:GITHUB_ENV
 
-    - name: Debug DLL locations
+    - name: Find missing DLLs
       shell: bash
       run: |
-        echo "=== Finding all DLLs ==="
-        find . -name "*.dll" -type f
-        echo "=== Qt installation ==="
-        qmake -query
+        echo "=== Searching for DLLs ==="
+        for dll in dxcompiler.dll dxil.dll qtuiotouchplugin.dll opengl32sw.dll qwindows.dll qmodernwindowsstyle.dll qcertonlybackend.dll qopensslbackend.dll qschannelbackend.dll; do
+          echo ""
+          echo "--- Searching for $dll ---"
+          find /c -name "$dll" -type f 2>/dev/null || echo "NOT FOUND: $dll"
+        done
+        
+        echo ""
+        echo "=== All DLLs in workspace ==="
+        find "${{ github.workspace }}" -name "*.dll" -type f 2>/dev/null
 
     - name: Patches
       run : |
