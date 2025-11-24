@@ -61,6 +61,8 @@ jobs:
     - name: Patches
       run : |
         # Copy-Item -Verbose "windows-patches/cefhost.cpp" "$env:openSpaceHome/modules/webbrowser/src/cefhost.cpp"
+        Copy-Item -Verbose "video-patch/videoplayer.h" "$env:openSpaceHome/modules/video/include/videoplayer.h"
+        Copy-Item -Verbose "video-patch/videoplayer.cpp" "$env:openSpaceHome/modules/video/src/videoplayer.cpp"
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
