@@ -629,10 +629,6 @@ index 0000000000..148ef4c5e1
 +# Launch OpenSpace
 +exec ./OpenSpace "$@"
 +
-diff --git a/support/deb/openspace.png b/support/deb/openspace.png
-new file mode 100644
-index 0000000000..60b70b20a6
-Binary files /dev/null and b/support/deb/openspace.png differ
 diff --git a/support/deb/postinst.in b/support/deb/postinst.in
 new file mode 100644
 index 0000000000..7b34c3558e
