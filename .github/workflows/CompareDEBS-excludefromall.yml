@@ -1,0 +1,59 @@
+name: CompareDEBs-excludefromall
+
+on:
+  workflow_dispatch:
+  
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install required tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget dpkg-dev
+
+    - name: Download DEB files
+      run: |
+        wget -O daily.deb https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.2+.ubuntu24.04_amd64_daily.deb
+        wget -O testpatches.deb https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.2+.ubuntu24.04_amd64_testpatches.deb
+
+    - name: Extract DEBs
+      run: |
+        mkdir daily testpatches
+        dpkg-deb -x daily.deb daily/
+        dpkg-deb -x testpatches.deb testpatches/
+
+    - name: List files
+      run: |
+        find daily/ -type f | sed 's|daily/||' | sort > daily_files.txt
+        find testpatches/ -type f | sed 's|testpatches/||' | sort > testpatches_files.txt
+
+    - name: Generate diff lists
+      run: |
+        # Files only in daily
+        comm -23 daily_files.txt testpatches_files.txt > diff_only_in_daily.txt
+
+        # Files only in testpatches
+        comm -13 daily_files.txt testpatches_files.txt > diff_only_in_testpatches.txt
+
+        # Full diff (output to stdout)
+        diff -ru daily/ testpatches/ | tee full_diff.txt || true
+
+        echo "------- FILES ONLY IN DAILY -------"
+        cat diff_only_in_daily.txt
+
+        echo "------- FILES ONLY IN TESTPATCHES -------"
+        cat diff_only_in_testpatches.txt
+
+    - name: Upload diff artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: deb-diff-results
+        path: |
+          diff_only_in_daily.txt
+          diff_only_in_testpatches.txt
+          full_diff.txt
