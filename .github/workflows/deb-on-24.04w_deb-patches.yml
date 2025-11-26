@@ -67,8 +67,6 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/*.diff "$openSpaceHome"
-        cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
-        # ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
         cd $openSpaceHome
         git apply --verbose fix-Windows-Cpack-zip.diff
         
@@ -77,6 +75,11 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cd $openSpaceHome
         git apply --verbose DebwithCPack.diff
+
+    - name: Install png for deb
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
   
     - name: Configure CMake
