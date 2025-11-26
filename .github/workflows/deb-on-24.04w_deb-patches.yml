@@ -63,7 +63,7 @@ jobs:
         sudo apt-get -y install libasound2t64 
         # libasound2-data libasound2-plugins
 
-    - name: Install patches
+    - name: Install cmakelists patches
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/*.diff "$openSpaceHome"
@@ -71,6 +71,11 @@ jobs:
         # ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
         cd $openSpaceHome
         git apply --verbose fix-Windows-Cpack-zip.diff
+        
+    - name: Install deb patches
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd $openSpaceHome
         git apply --verbose DebwithCPack.diff
 
   
