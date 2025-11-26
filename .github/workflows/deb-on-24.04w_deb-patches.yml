@@ -66,7 +66,8 @@ jobs:
     - name: Install patches
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cp -vf deb-patches/*.diff "$openSpaceHome" 
+        cp -vf deb-patches/*.diff "$openSpaceHome"
+        cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
         # ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
         cd $openSpaceHome
         git apply --verbose fix-Windows-Cpack-zip.diff
