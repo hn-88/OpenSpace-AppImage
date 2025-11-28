@@ -2,8 +2,8 @@ name: deb-on-22.04wCpack
 
 on: 
   workflow_dispatch:      # allows manual trigger
-  #schedule:
-  #  - cron: "50 6 * * *"   # runs daily at 06:50 UTC
+  schedule:
+    - cron: "50 6 * * *"   # runs daily at 06:50 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -11,10 +11,10 @@ env:
   # and modified.
   BUILD_TYPE: Release
   # As recommended here: https://github.com/marketplace/actions/sccache-action
-  OPENSPACE_VERSION: "0.21.3pre"
+  OPENSPACE_VERSION: "0.21.3plus"
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
-  COMMIT_HASH: "DebwithCPack"
+  COMMIT_HASH: "master"
   
 jobs:
   build:
@@ -46,7 +46,7 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
         git checkout "${COMMIT_HASH}" --recurse-submodules
         # try the latest main branch, one of the latest commits
@@ -66,11 +66,30 @@ jobs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt install gcc-13 g++-13
 
-    - name: Install patches
+    - name: Install clipboard patches
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         # cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp" 
         ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
+
+    - name: Install cmakelists patches
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -vf deb-patches/*.diff "$openSpaceHome"
+        cd $openSpaceHome
+        git apply --verbose fix-Windows-Cpack-zip.diff
+        
+    - name: Install deb patches
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd $openSpaceHome
+        git apply --verbose DebwithCPack.diff
+
+    - name: Install png for deb
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
+  
 
   
     - name: Configure CMake
