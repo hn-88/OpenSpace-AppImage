@@ -81,10 +81,11 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
-    - name: Overwrite packaging.cmake with version without REMOVE_RECURSE
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cp -vf deb-patches/packaging.cmake "$openSpaceHome/support/cmake/packaging.cmake"
+    #- name: Overwrite packaging.cmake with version without REMOVE_RECURSE
+    #  run: |
+    #    openSpaceHome="$HOME/source/OpenSpace"
+        # as of now, REMOVE_RECURSE is still needed
+        # cp -vf deb-patches/packaging.cmake "$openSpaceHome/support/cmake/packaging.cmake"
 
   
     - name: Configure CMake
