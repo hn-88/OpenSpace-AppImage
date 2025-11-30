@@ -26,10 +26,10 @@ jobs:
       run: |
         df -h
         openSpaceHome="$HOME/source/OpenSpace"
-        git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
+        git clone --recursive https://github.com/hn-88/OpenSpace.git "$openSpaceHome"
         cd "$openSpaceHome"
         # use the main branch instead # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
-        git checkout master --recurse-submodules
+        git checkout CMake4-requirements --recurse-submodules
         mkdir build
         cd build
 
