@@ -54,7 +54,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -v MacOS-patches/sgct-ext-zlib-zutil.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h"
-        cp -v MacOS-patches/sgct-ext-lpng-pngpriv.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/libpng/pngpriv.h"
+        cp -v MacOS-patches/sgct-ext-lpng-pngpriv.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h"
 
     - name: patch verifier.inl and other files
       run: |
