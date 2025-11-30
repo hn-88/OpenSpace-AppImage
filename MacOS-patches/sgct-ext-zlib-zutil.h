@@ -118,6 +118,9 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #  endif
 #endif
 
+#if defined(MACOS) || defined(TARGET_OS_MAC)
+#  define OS_CODE  0x07
+#endif
 
 #ifdef TOPS20
 #  define OS_CODE  0x0a
