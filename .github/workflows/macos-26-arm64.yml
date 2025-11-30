@@ -24,6 +24,7 @@ jobs:
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
       run: |
+        df -h
         openSpaceHome="$HOME/source/OpenSpace"
         git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
         cd "$openSpaceHome"
@@ -65,6 +66,7 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6
+        df -h
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -84,6 +86,7 @@ jobs:
         # echo "Check to see if we have enough disk space ... " only 8 GB used out of 120+ GB
         # df -h
         cmake --build . --config ${{env.BUILD_TYPE}} -- -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
+        df -h
 
     - name: Sign macOS App with CEF (Ad-hoc)
       if: runner.os == 'macOS'
