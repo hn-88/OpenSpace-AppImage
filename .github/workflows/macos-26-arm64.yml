@@ -53,7 +53,7 @@ jobs:
     - name: patches for MacOS
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cp -v MacOS-patches/sgct-ext-zlib-zutil.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h
+        cp -v MacOS-patches/sgct-ext-zlib-zutil.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h"
 
     - name: patch verifier.inl and other files
       run: |
