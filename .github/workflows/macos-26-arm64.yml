@@ -82,8 +82,25 @@ jobs:
         cd "$openSpaceHome/build"
         # https://stackoverflow.com/questions/16700415/cmake-generate-xcode-project-from-existing-sources
         # CMAKE_PREFIX_PATH to /opt/homebrew - https://stackoverflow.com/questions/68105648/configure-cmake-to-work-with-homebrew-libraries-instead-system-provided-librarie
-        cmake -G Xcode -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_CXX_STANDARD=20 -DONLY_ACTIVE_ARCH=YES -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 -DCMAKE_CXX_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" -DCMAKE_C_FLAGS="-Wno-error -Wno-dev -D_FILE_OFFSET_BITS=64" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_PREFIX_PATH=/opt/homebrew -DBUILD_TESTS=OFF -DCOMPILE_WARNING_AS_ERROR=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"       
-
+        cmake -G Xcode \
+                  -Wno-dev \
+                  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+                  -DCMAKE_CXX_STANDARD=20 \
+                  -DONLY_ACTIVE_ARCH=YES \
+                  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+                  -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 \
+                  -DCMAKE_CXX_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
+                  -DCMAKE_C_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
+                  -DCMAKE_BUILD_TYPE="Release" \
+                  -DCMAKE_PREFIX_PATH=/opt/homebrew \
+                  -DBUILD_TESTS=OFF \
+                  -DCOMPILE_WARNING_AS_ERROR=OFF \
+                  -DOPENSPACE_HAVE_TESTS=OFF \
+                  -DSGCT_BUILD_TESTS=OFF \
+                  -DSGCT_DEP_INCLUDE_LIBPNG=OFF \
+                  -DPNG_PNG_INCLUDE_DIR=$(brew --prefix libpng)/include \
+                  "$openSpaceHome"
+    
     - name: Build
       # Build your program with the given configuration
       run: |
@@ -91,7 +108,7 @@ jobs:
         cd "$openSpaceHome/build"
         # echo "Check to see if we have enough disk space ... " only 8 GB used out of 120+ GB
         # df -h
-        cmake --build . --config ${{env.BUILD_TYPE}} -- -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
+        cmake --build . --config ${{env.BUILD_TYPE}} -- 
         df -h
 
     - name: Sign macOS App with CEF (Ad-hoc)
