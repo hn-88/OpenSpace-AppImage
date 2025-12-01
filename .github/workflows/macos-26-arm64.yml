@@ -57,6 +57,8 @@ jobs:
         cp -v MacOS-patches/sgct-ext-lpng-pngpriv.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h"
         cp -v MacOS-patches/modules-globebrowsing-src-renderableglobe.cpp "$openSpaceHome/modules/globebrowsing/src/renderableglobe.cpp"
         cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.h "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.h"
+        cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.inl"
+
 
     - name: patch verifier.inl and other files
       run: |
