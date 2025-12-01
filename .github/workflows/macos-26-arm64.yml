@@ -58,6 +58,7 @@ jobs:
         cp -v MacOS-patches/modules-globebrowsing-src-renderableglobe.cpp "$openSpaceHome/modules/globebrowsing/src/renderableglobe.cpp"
         cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.h "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.h"
         cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.inl"
+        cp -v MacOS-patches/Ghoul-src-misc-sharedmemory.cpp "$openSpaceHome/ext/ghoul/src/misc/sharedmemory.cpp"
 
 
     - name: patch verifier.inl and other files
