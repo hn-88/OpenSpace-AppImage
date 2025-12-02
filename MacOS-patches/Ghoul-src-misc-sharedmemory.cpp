@@ -36,7 +36,7 @@
 #include <cstring>
 #include <sys/shm.h>
 // Common access type bits, used with ipcperm()
-#ifdef APPLE
+#ifdef __APPLE__
 // Undefine conflicting macros
 #undef IPC_R
 #undef IPC_W
