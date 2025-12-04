@@ -176,8 +176,8 @@ NSArray* focusIdentifiers;
         // to the connected nodes and peers
         global::scriptEngine->queueScript(
             "openspace.time.togglePause();",
-            scripting::ScriptEngine::ShouldBeSynchronized::No,
-            scripting::ScriptEngine::ShouldSendToRemote::No
+            openspace::scripting::ScriptEngine::Script::ShouldBeSynchronized::No,
+            openspace::scripting::ScriptEngine::Script::ShouldSendToRemote::No
         );
 
         NSButton* button = static_cast<NSButton*>(sender);
@@ -200,8 +200,8 @@ NSArray* focusIdentifiers;
         );
         global::scriptEngine->queueScript(
             str,
-            scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-            scripting::ScriptEngine::ShouldSendToRemote::Yes
+            openspace::scripting::ScriptEngine::Script::ShouldBeSynchronized::Yes,
+            openspace::scripting::ScriptEngine::Script::ShouldSendToRemote::Yes
         );
     }
 
@@ -215,8 +215,8 @@ NSArray* focusIdentifiers;
              openspace.setPropertyValueSingle('RenderEngine.ShowLog', not isEnabled);\
              openspace.setPropertyValueSingle('RenderEngine.ShowVersion', not isEnabled);\
              openspace.setPropertyValueSingle('RenderEngine.ShowCamera', not isEnabled)",
-            scripting::ScriptEngine::ShouldBeSynchronized::No,
-            scripting::ScriptEngine::ShouldSendToRemote::No
+            openspace::scripting::ScriptEngine::Script::ShouldBeSynchronized::No,
+            openspace::scripting::ScriptEngine::Script::ShouldSendToRemote::No
         );
     }
 
@@ -226,8 +226,8 @@ NSArray* focusIdentifiers;
         global::scriptEngine->queueScript(
             "local isEnabled = openspace.propertyValue('Modules.CefWebGui.Visible');\
              openspace.setPropertyValueSingle('Modules.CefWebGui.Visible', not isEnabled);",
-            scripting::ScriptEngine::ShouldBeSynchronized::No,
-            scripting::ScriptEngine::ShouldSendToRemote::No
+            openspace::scripting::ScriptEngine::Script::ShouldBeSynchronized::No,
+            openspace::scripting::ScriptEngine::Script::ShouldSendToRemote::No
         );
     }
 @end
