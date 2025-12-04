@@ -90,7 +90,7 @@ jobs:
     - name: patch touchbar
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        # cp -v src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"
+        cp -v MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"
 
     - name: patches for MacOS
       run: |
