@@ -161,14 +161,14 @@ void ConsoleLog::log(LogLevel level, std::string_view category, std::string_view
 
     res += message;
     if (level >= LogLevel::Error) {
-#if __has_include(<syncstream>)
+#ifndef __APPLE__
         std::osyncstream(std::cerr) << res << '\n';
 #else
        sync_print_cerr(res); 
 #endif
     }
     else {
-#if __has_include(<syncstream>)
+#ifndef __APPLE__
         std::osyncstream(std::cout) << res << '\n';
 #else
        sync_print_cout(res);
@@ -181,7 +181,7 @@ void ConsoleLog::log(LogLevel level, std::string_view category, std::string_view
     }
 }
 
-#if !__has_include(<syncstream>)
+#ifdef __APPLE__
 void ConsoleLog::flush() {
     std::lock_guard<std::mutex> lock(sync_mutex);
     std::cout.flush();
