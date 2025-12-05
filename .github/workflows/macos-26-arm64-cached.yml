@@ -9,9 +9,11 @@ env:
   # OPTIMIZATION: Prevent Homebrew from updating every time (saves ~3 mins)
   HOMEBREW_NO_AUTO_UPDATE: 1
   HOMEBREW_NO_INSTALL_CLEANUP: 1
-  # OPTIMIZATION: Configure sccache
-  SCCACHE_DIR: "/Users/runner/.cache/sccache"
-  SCCACHE_CACHE_SIZE: "2G"
+  # OPTIMIZATION: Configure ccache for GitHub Actions
+  CCACHE_DIR: "/Users/runner/.ccache"
+  CCACHE_MAXSIZE: "2G"
+  CCACHE_COMPRESS: "true"
+  CCACHE_COMPRESSLEVEL: "6"
 
 jobs:
   build:
@@ -29,6 +31,15 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-brew-v1-
 
+    # --- OPTIMIZATION: Cache Homebrew Packages ---
+    - name: Cache Homebrew Packages
+      uses: actions/cache@v4
+      with:
+        path: /opt/homebrew/Cellar
+        key: ${{ runner.os }}-homebrew-packages-v1-${{ hashFiles('.github/workflows/*.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-homebrew-packages-v1-
+
     # --- OPTIMIZATION: Cache OpenSpace Git Repo ---
     - name: Cache OpenSpace Repo
       uses: actions/cache@v4
@@ -38,15 +49,25 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-openspace-git-
 
-    # --- OPTIMIZATION: Cache Sccache (Compiler Cache) ---
-    - name: Cache Sccache
+    # --- OPTIMIZATION: Cache ccache (Compiler Cache) ---
+    - name: Cache ccache
       uses: actions/cache@v4
       with:
-        path: ${{ env.SCCACHE_DIR }}
-        key: ${{ runner.os }}-sccache-${{ github.ref_name }}-${{ github.run_id }}
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ runner.os }}-ccache-${{ github.ref_name }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.os }}-sccache-${{ github.ref_name }}-
-          ${{ runner.os }}-sccache-
+          ${{ runner.os }}-ccache-${{ github.ref_name }}-
+          ${{ runner.os }}-ccache-
+
+    # --- OPTIMIZATION: Cache CMake Build Directory ---
+    - name: Cache CMake Build
+      uses: actions/cache@v4
+      with:
+        path: ~/source/OpenSpace/build
+        key: ${{ runner.os }}-cmake-build-${{ hashFiles('**/CMakeLists.txt') }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-cmake-build-${{ hashFiles('**/CMakeLists.txt') }}-
+          ${{ runner.os }}-cmake-build-
 
     - name: get openspace code for a particular release
       run: |
@@ -72,13 +93,17 @@ jobs:
         fi
 
         mkdir -p build
-        cd build
 
-    - name: Update Homebrew and Install GLM
+    - name: Update Homebrew and Install Dependencies
       run: |
-        # Only update if absolutely necessary, otherwise rely on cache
-        # brew update # Commented out to save time, unless specific versions required
-        brew install glm
+        # Check if packages are already installed (from cache)
+        if ! brew list glm &>/dev/null || ! brew list ccache &>/dev/null; then
+          echo "Installing missing packages..."
+          brew install glm glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6 ccache
+        else
+          echo "All packages already installed from cache"
+        fi
+        df -h
 
     - name: get patched Ghoul
       run: |
@@ -107,22 +132,22 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         # (Commented out lines preserved from original)
-            
-    - name: Install dependencies
-      # Added sccache to the list
+
+    - name: Setup ccache
       run: |
-        brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6 sccache
-        df -h
+        # Initialize ccache if needed
+        ccache --version
+        ccache --zero-stats
+        ccache --show-stats
 
     - name: Configure CMake
       run: |
-        # Start sccache server
-        sccache --start-server
-        
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
         
-        # Added COMPILER_LAUNCHER flags for sccache
+        # Use ccache as compiler launcher
+        export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
+        
         cmake -G Xcode \
                   -Wno-dev \
                   -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
@@ -132,8 +157,8 @@ jobs:
                   -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 \
                   -DCMAKE_CXX_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
                   -DCMAKE_C_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
-                  -DCMAKE_C_COMPILER_LAUNCHER=sccache \
-                  -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+                  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
                   -DCMAKE_BUILD_TYPE="Release" \
                   -DCMAKE_PREFIX_PATH=/opt/homebrew \
                   -DBUILD_TESTS=OFF \
@@ -148,12 +173,20 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
+        
+        # Ensure ccache is in PATH
+        export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
+        
         cmake --build . --config ${{env.BUILD_TYPE}} -- 
         df -h
         
-        # Print sccache stats to verify it worked
-        echo "--- Sccache Statistics ---"
-        sccache --show-stats
+        # Print ccache stats to verify it worked
+        echo "--- ccache Statistics ---"
+        ccache --show-stats
+        
+        # Show cache size
+        echo "--- ccache Size ---"
+        du -sh $CCACHE_DIR
 
     - name: Sign macOS App with CEF (Ad-hoc)
       if: runner.os == 'macOS'
