@@ -1,0 +1,232 @@
+name: macos-26-arm64-daily-cached
+
+on: 
+  workflow_dispatch:
+  #schedule:
+  #  - cron: '0 2 * * *'  # Daily at 2 AM UTC
+
+env:
+  BUILD_TYPE: Release
+  OPENSPACE_VERSION: "0.21.3plus"
+  THIS_REPO_PATH: "/Users/runner/work/OpenSpace-AppImage/OpenSpace-AppImage"
+  # OPTIMIZATION: Prevent Homebrew from updating every time (saves ~3 mins)
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  # OPTIMIZATION: Configure ccache for GitHub Actions
+  CCACHE_DIR: "/Users/runner/.ccache"
+  CCACHE_MAXSIZE: "2G"
+  CCACHE_COMPRESS: "true"
+  CCACHE_COMPRESSLEVEL: "6"
+
+jobs:
+  build:
+    runs-on: macos-26
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    # --- OPTIMIZATION: Cache Homebrew Downloads ---
+    - name: Cache Homebrew Downloads
+      uses: actions/cache@v4
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: ${{ runner.os }}-brew-v1-${{ hashFiles('.github/workflows/*.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-brew-v1-
+
+    # --- OPTIMIZATION: Cache Homebrew Packages ---
+    - name: Cache Homebrew Packages
+      uses: actions/cache@v4
+      with:
+        path: /opt/homebrew/Cellar
+        key: ${{ runner.os }}-homebrew-packages-v1-${{ hashFiles('.github/workflows/*.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-homebrew-packages-v1-
+
+    # --- OPTIMIZATION: Cache ccache (Compiler Cache) ---
+    # This is the most valuable cache - keeps compiled object files
+    - name: Cache ccache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ runner.os }}-ccache-${{ github.ref_name }}-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-ccache-${{ github.ref_name }}-
+          ${{ runner.os }}-ccache-
+
+    # --- NO SOURCE CACHING: Always get fresh code for daily builds ---
+    - name: Clone OpenSpace repository
+      run: |
+        df -h
+        openSpaceHome="$HOME/source/OpenSpace"
+        
+        echo "Cloning OpenSpace repository..."
+        mkdir -p "$HOME/source"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
+        cd "$openSpaceHome"
+        git checkout master --recurse-submodules
+        
+        # Show what we're building
+        echo "Building commit: $(git rev-parse HEAD)"
+        echo "Branch: $(git branch --show-current)"
+        git log -1 --oneline
+        
+        mkdir -p build
+
+    - name: Update Homebrew and Install Dependencies
+      run: |
+        # Check if packages are already installed (from cache)
+        if ! brew list glm &>/dev/null || ! brew list ccache &>/dev/null; then
+          echo "Installing missing packages..."
+          brew install glm glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6 ccache
+        else
+          echo "All packages already installed from cache"
+        fi
+        df -h
+
+    - name: get patched Ghoul
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/ext"
+        # rm -rf ghoul
+        # git clone https://github.com/hn-88/Ghoul.git --branch XCode16.4fixes --recursive
+
+    - name: patch touchbar
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -v MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"
+
+    - name: patches for MacOS
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -v MacOS-patches/sgct-ext-zlib-zutil.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h"
+        cp -v MacOS-patches/sgct-ext-lpng-pngpriv.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h"
+        cp -v MacOS-patches/modules-globebrowsing-src-renderableglobe.cpp "$openSpaceHome/modules/globebrowsing/src/renderableglobe.cpp"
+        cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.h "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.h"
+        cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.inl"
+        cp -v MacOS-patches/Ghoul-src-misc-sharedmemory.cpp "$openSpaceHome/ext/ghoul/src/misc/sharedmemory.cpp"
+        cp -v MacOS-patches/Ghoul-src-logging-consolelog.cpp "$openSpaceHome/ext/ghoul/src/logging/consolelog.cpp"
+        # more patches to be added here.
+
+    - name: patch verifier.inl and other files
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        # (Commented out lines preserved from original)
+
+    - name: Setup ccache
+      run: |
+        # Initialize ccache if needed
+        ccache --version
+        ccache --zero-stats
+        ccache --show-stats
+        
+        # Show ccache configuration
+        echo "ccache config:"
+        ccache --show-config | grep -E "(max_size|cache_dir|compression)"
+
+    - name: Configure CMake
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        
+        # Use ccache as compiler launcher
+        export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
+        
+        cmake -G Xcode \
+                  -Wno-dev \
+                  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+                  -DCMAKE_CXX_STANDARD=20 \
+                  -DONLY_ACTIVE_ARCH=YES \
+                  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+                  -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 \
+                  -DCMAKE_CXX_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
+                  -DCMAKE_C_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
+                  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                  -DCMAKE_BUILD_TYPE="Release" \
+                  -DCMAKE_PREFIX_PATH=/opt/homebrew \
+                  -DBUILD_TESTS=OFF \
+                  -DCOMPILE_WARNING_AS_ERROR=OFF \
+                  -DOPENSPACE_HAVE_TESTS=OFF \
+                  -DSGCT_BUILD_TESTS=OFF \
+                  -DSGCT_DEP_INCLUDE_LIBPNG=OFF \
+                  -DPNG_PNG_INCLUDE_DIR=$(brew --prefix libpng)/include \
+                  "$openSpaceHome"
+    
+    - name: Build
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        
+        # Ensure ccache is in PATH
+        export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
+        
+        cmake --build . --config ${{env.BUILD_TYPE}} -- 
+        df -h
+        
+        # Print ccache stats to verify it worked
+        echo "--- ccache Statistics ---"
+        ccache --show-stats
+        
+        echo "--- Cache Hit Rate ---"
+        ccache --show-stats | grep -E "(hit rate|hits|misses)"
+        
+        # Show cache size
+        echo "--- ccache Size ---"
+        du -sh $CCACHE_DIR
+
+    - name: Sign macOS App with CEF (Ad-hoc)
+      if: runner.os == 'macOS'
+      run: |
+        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+        
+        if [ -z "$MAIN_APP" ]; then
+          echo "Error: OpenSpace.app not found"
+          exit 1
+        fi
+        
+        echo "Found main app at: $MAIN_APP"
+        
+        echo "Signing CEF Framework libraries..."
+        find "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries" -type f -perm +111 2>/dev/null | while read file; do
+          codesign --force --sign - "$file" 2>/dev/null || true
+        done
+        
+        echo "Signing CEF Framework..."
+        codesign --force --sign - "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework/Chromium Embedded Framework"
+        
+        codesign --force --sign - "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework"
+        
+        echo "Signing Helper apps..."
+        for helper in "OpenSpace_Helper" "OpenSpace_Helper_GPU" "OpenSpace_Helper_Renderer"; do
+          HELPER_PATH="$MAIN_APP/Contents/Frameworks/${helper}.app"
+          if [ -d "$HELPER_PATH" ]; then
+            echo "Signing $helper..."
+            codesign --force --sign - "$HELPER_PATH/Contents/MacOS/$helper"
+            codesign --force --sign - "$HELPER_PATH"
+          fi
+        done
+        
+        echo "Signing other frameworks and libraries..."
+        find "$MAIN_APP/Contents/Frameworks" -name "*.dylib" -o -name "*.framework" | while read lib; do
+          if [[ "$lib" != *"Chromium Embedded Framework"* ]] && [[ "$lib" != *".app"* ]]; then
+            codesign --force --sign - "$lib" 2>/dev/null || true
+          fi
+        done
+        
+        echo "Signing main executable..."
+        codesign --force --sign - "$MAIN_APP/Contents/MacOS/OpenSpace"
+        
+        echo "Signing main app bundle..."
+        codesign --force --sign - "$MAIN_APP"
+        
+        echo "Verifying signature..."
+        codesign --verify --deep --strict --verbose=2 "$MAIN_APP"
+        
+        echo "✓ App successfully signed with ad-hoc signature"
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenSpace-MacOS15-AppleSilicon-app-${{ github.run_number }}
+        path: $HOME/source/OpenSpace/bin/Release/*.app
