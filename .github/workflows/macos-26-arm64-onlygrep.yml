@@ -99,15 +99,16 @@ jobs:
         cp -v MacOS-patches/Ghoul-src-logging-consolelog.cpp "$openSpaceHome/ext/ghoul/src/logging/consolelog.cpp"
 
     - name: Search for problematic std::format with vector<bool>
-      run: |    
+      run: |  
+        openSpaceHome="$HOME/source/OpenSpace" 
         echo "Searching for potential std::format issues with vector<bool>..."
         grep -rn --include="*.cpp" --include="*.h" --include="*.inl" \
           -E 'std::format\([^)]*,\s*[a-zA-Z_][a-zA-Z0-9_]*\.(front|back)\(\)' \
-          ${{ github.workspace }} || true
+          $openSpaceHome || true
         
         grep -rn --include="*.cpp" --include="*.h" --include="*.inl" \
           -E 'std::format\([^)]*,\s*[a-zA-Z_][a-zA-Z0-9_]*\[[^]]+\]' \
-          ${{ github.workspace }} || true
+          $openSpaceHome || true
       continue-on-error: true
             
                 
