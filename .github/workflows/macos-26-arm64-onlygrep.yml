@@ -1,0 +1,114 @@
+name: macos-26-arm64-cached-onlygrep
+
+on: workflow_dispatch
+
+env:
+  BUILD_TYPE: Release
+  OPENSPACE_VERSION: "0.21.3plus"
+  THIS_REPO_PATH: "/Users/runner/work/OpenSpace-AppImage/OpenSpace-AppImage"
+  # OPTIMIZATION: Prevent Homebrew from updating every time (saves ~3 mins)
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  # OPTIMIZATION: Configure sccache
+  SCCACHE_DIR: "/Users/runner/.cache/sccache"
+  SCCACHE_CACHE_SIZE: "2G"
+
+jobs:
+  build:
+    runs-on: macos-26
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    # --- OPTIMIZATION: Cache Homebrew Downloads ---
+    - name: Cache Homebrew Downloads
+      uses: actions/cache@v4
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: ${{ runner.os }}-brew-v1-${{ hashFiles('.github/workflows/*.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-brew-v1-
+
+    # --- OPTIMIZATION: Cache OpenSpace Git Repo ---
+    - name: Cache OpenSpace Repo
+      uses: actions/cache@v4
+      with:
+        path: ~/source/OpenSpace/.git
+        key: ${{ runner.os }}-openspace-git-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-openspace-git-
+
+    # --- OPTIMIZATION: Cache Sccache (Compiler Cache) ---
+    - name: Cache Sccache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.SCCACHE_DIR }}
+        key: ${{ runner.os }}-sccache-${{ github.ref_name }}-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-sccache-${{ github.ref_name }}-
+          ${{ runner.os }}-sccache-
+
+    - name: get openspace code for a particular release
+      run: |
+        df -h
+        openSpaceHome="$HOME/source/OpenSpace"
+        mkdir -p "$openSpaceHome"
+        
+        # LOGIC: If .git exists (from cache), fetch updates. If not, full clone.
+        if [ -d "$openSpaceHome/.git" ]; then
+          echo "Cache Hit: Updating existing repository..."
+          cd "$openSpaceHome"
+          git remote set-url origin https://github.com/hn-88/OpenSpace.git
+          git fetch origin
+          git reset --hard origin/CMake4-requirements
+          git submodule update --init --recursive
+        else
+          echo "Cache Miss: Cloning fresh..."
+          # Ensure directory is empty before cloning
+          rm -rf "$openSpaceHome"
+          git clone --recursive https://github.com/hn-88/OpenSpace.git "$openSpaceHome"
+          cd "$openSpaceHome"
+          git checkout CMake4-requirements --recurse-submodules
+        fi
+
+        mkdir -p build
+        cd build
+
+    
+    - name: get patched Ghoul
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/ext"
+        # rm -rf ghoul
+        # git clone https://github.com/hn-88/Ghoul.git --branch XCode16.4fixes --recursive
+
+    - name: patch touchbar
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -v MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"
+
+    - name: patches for MacOS
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -v MacOS-patches/sgct-ext-zlib-zutil.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h"
+        cp -v MacOS-patches/sgct-ext-lpng-pngpriv.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h"
+        cp -v MacOS-patches/modules-globebrowsing-src-renderableglobe.cpp "$openSpaceHome/modules/globebrowsing/src/renderableglobe.cpp"
+        cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.h "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.h"
+        cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.inl"
+        cp -v MacOS-patches/Ghoul-src-misc-sharedmemory.cpp "$openSpaceHome/ext/ghoul/src/misc/sharedmemory.cpp"
+        cp -v MacOS-patches/Ghoul-src-logging-consolelog.cpp "$openSpaceHome/ext/ghoul/src/logging/consolelog.cpp"
+
+    - name: Search for problematic std::format with vector<bool>
+      run: |    
+        echo "Searching for potential std::format issues with vector<bool>..."
+        grep -rn --include="*.cpp" --include="*.h" --include="*.inl" \
+          -E 'std::format\([^)]*,\s*[a-zA-Z_][a-zA-Z0-9_]*\.(front|back)\(\)' \
+          ${{ github.workspace }} || true
+        
+        grep -rn --include="*.cpp" --include="*.h" --include="*.inl" \
+          -E 'std::format\([^)]*,\s*[a-zA-Z_][a-zA-Z0-9_]*\[[^]]+\]' \
+          ${{ github.workspace }} || true
+      continue-on-error: true
+            
+                
+        
