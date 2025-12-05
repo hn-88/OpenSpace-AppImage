@@ -40,11 +40,13 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-homebrew-packages-v1-
 
-    # --- OPTIMIZATION: Cache OpenSpace Git Repo ---
+    # --- OPTIMIZATION: Cache OpenSpace Git Repo (including submodules) ---
     - name: Cache OpenSpace Repo
       uses: actions/cache@v4
       with:
-        path: ~/source/OpenSpace/.git
+        path: |
+          ~/source/OpenSpace
+          !~/source/OpenSpace/build
         key: ${{ runner.os }}-openspace-git-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-openspace-git-
@@ -73,25 +75,33 @@ jobs:
       run: |
         df -h
         openSpaceHome="$HOME/source/OpenSpace"
-        mkdir -p "$openSpaceHome"
         
         # LOGIC: If .git exists (from cache), fetch updates. If not, full clone.
         if [ -d "$openSpaceHome/.git" ]; then
           echo "Cache Hit: Updating existing repository..."
           cd "$openSpaceHome"
+          
+          # Ensure we're tracking the right remote
           git remote set-url origin https://github.com/OpenSpace/OpenSpace.git
+          
+          # Fetch latest changes
           git fetch origin
+          
+          # Reset to target branch
           git reset --hard origin/master
-          git submodule update --init --recursive
+          
+          # Sync submodules (this handles moved/new/removed submodules)
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
         else
           echo "Cache Miss: Cloning fresh..."
-          # Ensure directory is empty before cloning
-          rm -rf "$openSpaceHome"
-          git clone --recursive https://github.com/hn-88/OpenSpace.git "$openSpaceHome"
+          mkdir -p "$openSpaceHome"
+          git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
           cd "$openSpaceHome"
           git checkout master --recurse-submodules
         fi
-
+        
+        cd "$openSpaceHome"
         mkdir -p build
 
     - name: Update Homebrew and Install Dependencies
@@ -131,7 +141,7 @@ jobs:
     - name: patch verifier.inl and other files
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cp -v MacOS-patches/include-openspace-documentation-verifier.inl "$openSpaceHome/include/openspace/documentation/verifier.inl"
+        # (Commented out lines preserved from original)
 
     - name: Setup ccache
       run: |
