@@ -299,15 +299,18 @@ std::vector<openspace::properties::Property*> findMatchesInAllProperties(
     std::vector<Property*> matches;
 
     std::mutex mutex;
-    std::for_each(
 #ifdef __APPLE__
-std::execution::seq,  // Sequential execution on macOS
+// macOS: No execution policy (sequential by default)
+std::for_each(
+    props.begin(), props.end(),
+    [&](Property* prop) {
 #else
-std::execution::par_unseq,  // Parallel on other platforms
+// Other platforms: Use parallel execution
+std::for_each(
+    std::execution::par_unseq,
+    props.begin(), props.end(),
+    [&](Property* prop) {
 #endif
-        properties.cbegin(),
-        properties.cend(),
-        [&](Property* prop) {
             const std::string_view uri = prop->uri();
 
             bool isMatch = checkUriMatchFromRegexResults(
@@ -351,15 +354,16 @@ std::vector<openspace::properties::PropertyOwner*> findMatchesInAllPropertyOwner
     std::vector<PropertyOwner*> matches;
 
     std::mutex mutex;
-    std::for_each(
 #ifdef __APPLE__
-std::execution::seq,  // Sequential execution on macOS
+std::for_each(
+    propOwners.begin(), propOwners.end(),
+    [&](PropertyOwner* propOwner) {
 #else
-std::execution::par_unseq,  // Parallel on other platforms
+std::for_each(
+    std::execution::par_unseq,
+    propOwners.begin(), propOwners.end(),
+    [&](PropertyOwner* propOwner) {
 #endif
-        propertyOwners.cbegin(),
-        propertyOwners.cend(),
-        [&](PropertyOwner* propOwner) {
             if (inputIsOnlyTag) {
                 // If we only got a tag as input, the result is all owners that directly
                 // match the group tag (without looking recusively in parent owners)
