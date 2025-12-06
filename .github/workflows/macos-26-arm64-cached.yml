@@ -138,6 +138,7 @@ jobs:
         cp -v MacOS-patches/Ghoul-src-misc-sharedmemory.cpp "$openSpaceHome/ext/ghoul/src/misc/sharedmemory.cpp"
         cp -v MacOS-patches/Ghoul-src-logging-consolelog.cpp "$openSpaceHome/ext/ghoul/src/logging/consolelog.cpp"
         cp -v MacOS-patches/include-openspace-documentation-verifier.inl "$openSpaceHome/include/openspace/documentation/verifier.inl"
+        cp -v MacOS-patches/src-scene-scene_lua.inl "$openSpaceHome/src/scene/scene_lua.inl"
 
     - name: Setup ccache
       run: |
