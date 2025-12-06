@@ -58,17 +58,17 @@ jobs:
         if [ -d "$openSpaceHome/.git" ]; then
           echo "Cache Hit: Updating existing repository..."
           cd "$openSpaceHome"
-          git remote set-url origin https://github.com/hn-88/OpenSpace.git
+          git remote set-url origin https://github.com/OpenSpace/OpenSpace.git
           git fetch origin
-          git reset --hard origin/CMake4-requirements
+          git reset --hard origin/master
           git submodule update --init --recursive
         else
           echo "Cache Miss: Cloning fresh..."
           # Ensure directory is empty before cloning
           rm -rf "$openSpaceHome"
-          git clone --recursive https://github.com/hn-88/OpenSpace.git "$openSpaceHome"
+          git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
           cd "$openSpaceHome"
-          git checkout CMake4-requirements --recurse-submodules
+          git checkout master --recurse-submodules
         fi
 
         mkdir -p build
