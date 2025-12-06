@@ -304,13 +304,6 @@ std::vector<openspace::properties::Property*> findMatchesInAllProperties(
 std::for_each(
     props.begin(), props.end(),
     [&](Property* prop) {
-#else
-// Other platforms: Use parallel execution
-std::for_each(
-    std::execution::par_unseq,
-    props.begin(), props.end(),
-    [&](Property* prop) {
-#endif
             const std::string_view uri = prop->uri();
 
             bool isMatch = checkUriMatchFromRegexResults(
@@ -326,6 +319,28 @@ std::for_each(
             }
         }
     );
+#else
+// Other platforms: Use parallel execution
+std::for_each(
+    std::execution::par_unseq,
+    props.begin(), props.end(),
+    [&](Property* prop) {
+            const std::string_view uri = prop->uri();
+
+            bool isMatch = checkUriMatchFromRegexResults(
+                uri,
+                { parentUri, propertyIdentifier, isLiteral },
+                groupTag,
+                prop->owner()
+            );
+
+            if (isMatch) {
+                std::lock_guard g(mutex);
+                matches.push_back(prop);
+            }
+        }
+    );
+#endif
 
     return matches;
 }
