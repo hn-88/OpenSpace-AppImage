@@ -22,6 +22,11 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+// Explicitly including OpenGL for APPLE
+#define GLFW_INCLUDE_NONE
+#ifdef __APPLE__
+#include <OpenGL/gl3.h>
+#endif
 #include <openspace/documentation/documentation.h>
 #include <openspace/engine/configuration.h>
 #include <openspace/engine/globals.h>
@@ -49,12 +54,6 @@
 #endif
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
-// Explicitly including OpenGL for APPLE
-#ifdef __APPLE__
-#include <OpenGL/gl.h>
-#else
-#include <GL/gl.h>
-#endif
 #include <sgct/clustermanager.h>
 #include <sgct/commandline.h>
 #include <sgct/engine.h>
