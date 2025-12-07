@@ -141,6 +141,7 @@ jobs:
         cp -v MacOS-patches/include-openspace-documentation-verifier.inl "$openSpaceHome/include/openspace/documentation/verifier.inl"
         cp -v MacOS-patches/src-scene-scene_lua.inl "$openSpaceHome/src/scene/scene_lua.inl"
         cp -v MacOS-patches/modules-space-rendering-renderableorbitalkepler.cpp "$openSpaceHome/modules/space/rendering/renderableorbitalkepler.cpp"
+        cp -v MacOS-patches/modules-globebrowsing-src-geojson-globegeometryhelper.cpp "$openSpaceHome/modules/globebrowsing/src/geojson/globegeometryhelper.cpp"
 
     - name: Setup ccache
       run: |
