@@ -18,6 +18,7 @@ env:
 jobs:
   build:
     runs-on: macos-26
+    continue-on-error: true  # Allow workflow to continue and cache even if build fails
 
     steps:
     - uses: actions/checkout@v4
@@ -186,6 +187,7 @@ jobs:
         export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
         
         cmake --build . --config ${{env.BUILD_TYPE}} -- -quiet
+        
         df -h
         
         # Print ccache stats to verify it worked
