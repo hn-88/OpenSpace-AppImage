@@ -18,7 +18,6 @@ env:
 jobs:
   build:
     runs-on: macos-26
-    continue-on-error: true  # Allow workflow to continue and cache even if build fails
 
     steps:
     - uses: actions/checkout@v4
@@ -52,9 +51,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-openspace-git-
 
-    # --- OPTIMIZATION: Cache ccache (Compiler Cache) ---
-    - name: Cache ccache
-      uses: actions/cache@v4
+    # --- OPTIMIZATION: Restore ccache (Compiler Cache) ---
+    - name: Restore ccache
+      id: cache-ccache-restore
+      uses: actions/cache/restore@v4
       with:
         path: ${{ env.CCACHE_DIR }}
         key: ${{ runner.os }}-ccache-${{ github.ref_name }}-${{ github.run_id }}
@@ -180,6 +180,7 @@ jobs:
                   "$openSpaceHome"
     
     - name: Build
+      continue-on-error: true
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
@@ -199,8 +200,25 @@ jobs:
         echo "--- ccache Size ---"
         du -sh $CCACHE_DIR
 
+    # --- Show ccache stats even if build failed ---
+    - name: Show ccache stats (always runs)
+      if: always()
+      run: |
+        echo "=== Final ccache Statistics ==="
+        ccache --show-stats
+        echo "=== ccache Size ==="
+        du -sh $CCACHE_DIR || true
+
+    # --- OPTIMIZATION: Save ccache (even on build failure) ---
+    - name: Save ccache
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ runner.os }}-ccache-${{ github.ref_name }}-${{ github.run_id }}
+
     - name: Sign macOS App with CEF (Ad-hoc)
-      if: runner.os == 'macOS'
+      if: runner.os == 'macOS' && success()
       run: |
         MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
         
@@ -250,6 +268,7 @@ jobs:
         echo "✓ App successfully signed with ad-hoc signature"
         
     - name: Upload Artifact
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: OpenSpace-MacOS15-AppleSilicon-app
