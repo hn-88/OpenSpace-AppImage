@@ -143,6 +143,9 @@ jobs:
         cp -v MacOS-patches/modules-space-rendering-renderableorbitalkepler.cpp "$openSpaceHome/modules/space/rendering/renderableorbitalkepler.cpp"
         cp -v MacOS-patches/modules-globebrowsing-src-geojson-globegeometryhelper.cpp "$openSpaceHome/modules/globebrowsing/src/geojson/globegeometryhelper.cpp"
         cp -v MacOS-patches/modules-globebrowsing-src-geojson-globegeometryfeature.cpp "$openSpaceHome/modules/globebrowsing/src/geojson/globegeometryfeature.cpp"
+        cp -v MacOS-patches/apps-OpenSpace-main.cpp "$openSpaceHome/apps/OpenSpace/main.cpp"
+        
+      
 
     - name: Setup ccache
       run: |
