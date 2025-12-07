@@ -780,7 +780,7 @@ void RenderableOrbitalKepler::updateBuffers() {
     orbitIdHolder.resize(_sizeRender);
     std::iota(orbitIdHolder.begin(), orbitIdHolder.end(), 0);
 
-ifdef __APPLE__
+#ifdef __APPLE__
     std::for_each(
         // std::execution::par_unseq,
         orbitIdHolder.begin(),
