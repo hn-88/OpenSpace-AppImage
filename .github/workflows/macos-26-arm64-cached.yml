@@ -185,7 +185,7 @@ jobs:
         # Ensure ccache is in PATH
         export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
         
-        cmake --build . --config ${{env.BUILD_TYPE}} -- 
+        cmake --build . --config ${{env.BUILD_TYPE}} -- -quiet
         df -h
         
         # Print ccache stats to verify it worked
