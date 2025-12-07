@@ -187,7 +187,7 @@ void GlobeGeometryFeature::createFromSingleGeosGeometry(const geos::geom::Geomet
                 // Note that Constrained Delaunay triangulation supports polygons with
                 // holes :)
                 std::vector<geos::geom::Coordinate> triCoords;
-                TriList<geos::triangulate::tri::Tri> triangles;
+                geos::triangulate::tri::TriList<geos::triangulate::tri::Tri> triangles;
                 using geos::triangulate::polygon::ConstrainedDelaunayTriangulator;
                 ConstrainedDelaunayTriangulator::triangulatePolygon(p, triangles);
 
