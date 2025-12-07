@@ -27,6 +27,7 @@
 #include <functional>
 #include <iterator>
 #include <numeric>
+#include <sstream>
 
 // Workaround for macOS libc++ std::format with std::vector<bool>
 namespace openspace::documentation::detail {
