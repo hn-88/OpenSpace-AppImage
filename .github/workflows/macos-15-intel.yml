@@ -1,0 +1,195 @@
+name: macos-15-intel
+
+on: workflow_dispatch
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  # This yml is copied from https://github.com/hn-88/OpenSpace-AppleSiliconMac/blob/main/.github/workflows/hn-xcode16-build-hn-arm64.yml
+  # and modified.
+  BUILD_TYPE: Release
+  OPENSPACE_VERSION: "0.21.3plus"
+  THIS_REPO_PATH: "/Users/runner/work/OpenSpace-AppImage/OpenSpace-AppImage" 
+  
+jobs:
+  build:
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    # You can convert this to a matrix build if you need cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+    runs-on: macos-15-intel
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: get openspace code for a particular release
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
+      run: |
+        df -h
+        openSpaceHome="$HOME/source/OpenSpace"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
+        cd "$openSpaceHome"
+        # use the main branch instead # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
+        git checkout master --recurse-submodules
+        mkdir build
+        cd build
+
+    - name: Update Homebrew and Install GLM
+      run: |
+        brew update
+        brew install glm
+
+    - name: patches for MacOS
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -v MacOS-patches/sgct-ext-zlib-zutil.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h"
+        cp -v MacOS-patches/sgct-ext-lpng-pngpriv.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h"
+        cp -v MacOS-patches/modules-globebrowsing-src-renderableglobe.cpp "$openSpaceHome/modules/globebrowsing/src/renderableglobe.cpp"
+        cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.h "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.h"
+        cp -v MacOS-patches/Ghoul-include-ghoul-misc-memorypool.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.inl"
+        cp -v MacOS-patches/Ghoul-src-misc-sharedmemory.cpp "$openSpaceHome/ext/ghoul/src/misc/sharedmemory.cpp"
+        cp -v MacOS-patches/Ghoul-src-logging-consolelog.cpp "$openSpaceHome/ext/ghoul/src/logging/consolelog.cpp"
+        cp -v MacOS-patches/include-openspace-documentation-verifier.inl "$openSpaceHome/include/openspace/documentation/verifier.inl"
+        cp -v MacOS-patches/src-scene-scene_lua.inl "$openSpaceHome/src/scene/scene_lua.inl"
+        cp -v MacOS-patches/modules-space-rendering-renderableorbitalkepler.cpp "$openSpaceHome/modules/space/rendering/renderableorbitalkepler.cpp"
+        cp -v MacOS-patches/modules-globebrowsing-src-geojson-globegeometryhelper.cpp "$openSpaceHome/modules/globebrowsing/src/geojson/globegeometryhelper.cpp"
+        cp -v MacOS-patches/modules-globebrowsing-src-geojson-globegeometryfeature.cpp "$openSpaceHome/modules/globebrowsing/src/geojson/globegeometryfeature.cpp"
+        cp -v MacOS-patches/apps-OpenSpace-main.cpp "$openSpaceHome/apps/OpenSpace/main.cpp"
+        cp -v MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"
+        cp -v MacOS-patches/modules-webbrowser-CMakeLists.txt "$openSpaceHome/modules/webbrowser/CMakeLists.txt"
+            
+    - name: Install dependencies
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
+      run: |
+        brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6
+        df -h
+
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        # https://stackoverflow.com/questions/16700415/cmake-generate-xcode-project-from-existing-sources
+        # CMAKE_PREFIX_PATH to /opt/homebrew - https://stackoverflow.com/questions/68105648/configure-cmake-to-work-with-homebrew-libraries-instead-system-provided-librarie
+        cmake -G Xcode \
+                  -Wno-dev \
+                  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+                  -DCMAKE_CXX_STANDARD=20 \
+                  -DONLY_ACTIVE_ARCH=YES \
+                  -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+                  -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+                  -DCMAKE_CXX_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
+                  -DCMAKE_C_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
+                  -DCMAKE_BUILD_TYPE="Release" \
+                  -DCMAKE_PREFIX_PATH=/usr/local;/usr/local/opt/qt@6 \
+                  -DBUILD_TESTS=OFF \
+                  -DCOMPILE_WARNING_AS_ERROR=OFF \
+                  -DOPENSPACE_HAVE_TESTS=OFF \
+                  -DSGCT_BUILD_TESTS=OFF \
+                  -DSGCT_DEP_INCLUDE_LIBPNG=OFF \
+                  -DPNG_PNG_INCLUDE_DIR=$(brew --prefix libpng)/include \
+                  "$openSpaceHome"
+    
+    - name: Build
+      # Build your program with the given configuration
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/build"
+        # echo "Check to see if we have enough disk space ... " only 8 GB used out of 120+ GB
+        # df -h
+        cmake --build . --config ${{env.BUILD_TYPE}} -- 
+        df -h
+
+    - name: Sign macOS App with CEF (Ad-hoc)
+      if: runner.os == 'macOS'
+      run: |
+        # Find the main .app bundle
+        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+        
+        if [ -z "$MAIN_APP" ]; then
+          echo "Error: OpenSpace.app not found"
+          exit 1
+        fi
+        
+        echo "Found main app at: $MAIN_APP"
+        
+        # Sign in order: deepest components first
+        
+        # 1. Sign the CEF framework libraries and resources
+        echo "Signing CEF Framework libraries..."
+        find "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries" -type f -perm +111 2>/dev/null | while read file; do
+          codesign --force --sign - "$file" 2>/dev/null || true
+        done
+        
+        # 2. Sign the CEF framework itself
+        echo "Signing CEF Framework..."
+        codesign --force --sign - "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework/Chromium Embedded Framework"
+        
+        # 3. Sign the CEF framework bundle
+        codesign --force --sign - "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework"
+        
+        # 4. Sign the helper apps (innermost executables first)
+        echo "Signing Helper apps..."
+        for helper in "OpenSpace_Helper" "OpenSpace_Helper_GPU" "OpenSpace_Helper_Renderer"; do
+          HELPER_PATH="$MAIN_APP/Contents/Frameworks/${helper}.app"
+          if [ -d "$HELPER_PATH" ]; then
+            echo "Signing $helper..."
+            # Sign the executable
+            codesign --force --sign - "$HELPER_PATH/Contents/MacOS/$helper"
+            # Sign the bundle
+            codesign --force --sign - "$HELPER_PATH"
+          fi
+        done
+        
+        # 5. Sign any other frameworks or dylibs in Frameworks directory
+        echo "Signing other frameworks and libraries..."
+        find "$MAIN_APP/Contents/Frameworks" -name "*.dylib" -o -name "*.framework" | while read lib; do
+          if [[ "$lib" != *"Chromium Embedded Framework"* ]] && [[ "$lib" != *".app"* ]]; then
+            codesign --force --sign - "$lib" 2>/dev/null || true
+          fi
+        done
+        
+        # 6. Sign the main executable
+        echo "Signing main executable..."
+        codesign --force --sign - "$MAIN_APP/Contents/MacOS/OpenSpace"
+        
+        # 7. Finally, sign the main app bundle
+        echo "Signing main app bundle..."
+        codesign --force --sign - "$MAIN_APP"
+        
+        # 8. Verify the signature
+        echo "Verifying signature..."
+        codesign --verify --deep --strict --verbose=2 "$MAIN_APP"
+        
+        echo "✓ App successfully signed with ad-hoc signature"
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        # Artifact name
+        name: OpenSpace-MacOS15-Intel-app
+        # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        path: $HOME/source/OpenSpace/bin/Release/*.app
+
+    - name: Upload .app to GitHub Release
+      run: |
+        RELEASE_TAG="daily-MacOS-Intel-app"
+        APP_FILE="$HOME/source/OpenSpace/bin/Release/*.app"
+    
+        # Create release if it doesn't exist
+        gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+          gh release create "$RELEASE_TAG" -t "OpenSpace MacOS Intel Daily Build" -n "Automated daily .app build of OpenSpace."
+    
+        # (Optional) update title/notes each run
+        gh release edit "$RELEASE_TAG" \
+          -t "OpenSpace MacOS Intel Daily Build" \
+          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please use this .app file from your home folder and not from the Applications folder. You may be asked to permit running this app from an unknown publisher. Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20Mac%20build"
+    
+        # Upload .app asset (overwrite if exists)
+        gh release upload "$RELEASE_TAG" "$APP_FILE" --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      
+    
