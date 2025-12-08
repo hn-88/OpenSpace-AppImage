@@ -54,7 +54,8 @@ jobs:
         cp -v MacOS-patches/modules-globebrowsing-src-geojson-globegeometryhelper.cpp "$openSpaceHome/modules/globebrowsing/src/geojson/globegeometryhelper.cpp"
         cp -v MacOS-patches/modules-globebrowsing-src-geojson-globegeometryfeature.cpp "$openSpaceHome/modules/globebrowsing/src/geojson/globegeometryfeature.cpp"
         cp -v MacOS-patches/apps-OpenSpace-main.cpp "$openSpaceHome/apps/OpenSpace/main.cpp"
-        cp -v MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"   
+        cp -v MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"
+        cp -v MacOS-patches/modules-webbrowser-CMakeLists.txt "$openSpaceHome/modules/webbrowser/CMakeLists.txt"
             
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
