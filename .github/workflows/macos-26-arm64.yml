@@ -76,7 +76,7 @@ jobs:
                   -DCMAKE_CXX_STANDARD=20 \
                   -DONLY_ACTIVE_ARCH=YES \
                   -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                  -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 \
+                  -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
                   -DCMAKE_CXX_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
                   -DCMAKE_C_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
                   -DCMAKE_BUILD_TYPE="Release" \
