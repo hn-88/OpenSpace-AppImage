@@ -170,12 +170,18 @@ jobs:
         name: OpenSpace-MacOS15-Intel-app
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: $HOME/source/OpenSpace/bin/Release/*.app
+        path: $HOME/source/OpenSpace/bin/*
+
+    - name: Zip .app bundle
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/bin/Release"
+        zip -r OpenSpace.zip OpenSpace.app
 
     - name: Upload .app to GitHub Release
       run: |
         RELEASE_TAG="daily-MacOS-Intel-app"
-        APP_FILE="$HOME/source/OpenSpace/bin/Release/*.app"
+        APP_FILE="$HOME/source/OpenSpace/bin/Release/OpenSpace.zip"
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
