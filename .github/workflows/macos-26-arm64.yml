@@ -56,6 +56,7 @@ jobs:
         cp -v MacOS-patches/apps-OpenSpace-main.cpp "$openSpaceHome/apps/OpenSpace/main.cpp"
         cp -v MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"
         cp -v MacOS-patches/modules-webbrowser-CMakeLists.txt "$openSpaceHome/modules/webbrowser/CMakeLists.txt"
+        cp -v MacOS-patches/modules-webgui-cmake-nodejs_support.cmake "$openSpaceHome/modules/webgui/cmake/nodejs_support.cmake"
             
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
