@@ -25,7 +25,32 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Free disk space
+      shell: pwsh
+      run: |
+        Write-Host "=== Initial disk usage ==="
+        Get-PSDrive
     
+        # Remove NuGet cache
+        Remove-Item "$env:USERPROFILE\.nuget\packages" -Recurse -Force -ErrorAction SilentlyContinue
+    
+        # Remove pip cache
+        Remove-Item "$env:LOCALAPPDATA\pip\Cache" -Recurse -Force -ErrorAction SilentlyContinue
+    
+        # Remove temporary directories
+        Get-ChildItem $env:TEMP | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    
+        # Remove MSVC build cache if any
+        Remove-Item "$env:LOCALAPPDATA\Microsoft\MSBuild" -Recurse -Force -ErrorAction SilentlyContinue
+    
+        # Remove cargo cache (if Rust tools used)
+        Remove-Item "$env:USERPROFILE\.cargo" -Recurse -Force -ErrorAction SilentlyContinue
+    
+        Write-Host "=== Final disk usage ==="
+        Get-PSDrive
+        
+
   
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
@@ -37,7 +62,6 @@ jobs:
         mkdir build
         cd build
         
-    
     - name: Install dependencies
       # https://github.com/OpenSpace/OpenSpace-Docs/blob/3ddcca71b5ff4700ab1f75c5a961ed07c455cb68/dev/compiling/index.md
       shell: pwsh
