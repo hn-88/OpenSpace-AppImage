@@ -87,7 +87,7 @@ jobs:
                   -DOPENSPACE_HAVE_TESTS=OFF \
                   -DSGCT_BUILD_TESTS=OFF \
                   -DSGCT_DEP_INCLUDE_LIBPNG=OFF \
-                  -DPNG_PNG_INCLUDE_DIR="$(brew --prefix libpng)/include" \
+                  -DPNG_PNG_INCLUDE_DIR=$(brew --prefix libpng)/include \
                     "$openSpaceHome"
     
     - name: Build
