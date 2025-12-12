@@ -165,6 +165,10 @@ jobs:
         codesign --verify --deep --strict --verbose=2 "$MAIN_APP"
         
         echo "✓ App successfully signed with ad-hoc signature"
+
+    - name: zip the app
+      run: |
+        zip -r OpenSpaceapp.zip $HOME/source/OpenSpace/bin/Release/OpenSpace.app
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -173,12 +177,12 @@ jobs:
         name: OpenSpace-MacOS15-AppleSilicon-app
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: $HOME/source/OpenSpace/bin/Release/*.app
+        path: OpenSpaceapp.zip
 
     - name: Upload .app to GitHub Release
       run: |
         RELEASE_TAG="daily-MacOS-app"
-        APP_FILE="$HOME/source/OpenSpace/bin/Release/*.app"
+        APP_FILE=OpenSpaceapp.zip
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
@@ -186,8 +190,8 @@ jobs:
     
         # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
-          -t "OpenSpace MacOS AppleSilicon Daily Build" \
-          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please use this .app file from your home folder and not from the Applications folder. You may be asked to permit running this app from an unknown publisher. Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20Mac%20build"
+          -t "OpenSpace MacOS AppleSilicon Build" \
+          -n "Automated build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please download and unzip the Windows zip file from openspaceproject.com and unzip the .app file into the bin directory of the Windows version. Run using the terminal, by changing the directory with cd into the bin directory, and then running `./OpenSpace.app/Contents/MacOS/OpenSpace`. But please note that this does nothing useful - see this issue, https://github.com/hn-88/OpenSpace-AppImage/issues/75  . You may be asked to permit running this app from an unknown publisher. Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20Mac%20build"
     
         # Upload .app asset (overwrite if exists)
         gh release upload "$RELEASE_TAG" "$APP_FILE" --clobber
