@@ -71,7 +71,9 @@ jobs:
         cd "$openSpaceHome/build"
         # https://stackoverflow.com/questions/16700415/cmake-generate-xcode-project-from-existing-sources
         # CMAKE_PREFIX_PATH to /opt/homebrew - https://stackoverflow.com/questions/68105648/configure-cmake-to-work-with-homebrew-libraries-instead-system-provided-librarie
+        PNG_DIR=$(brew --prefix libpng)
         cmake -G Xcode \
+                  -S "$openSpaceHome"
                   -Wno-dev \
                   -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
                   -DCMAKE_CXX_STANDARD=20 \
@@ -87,8 +89,7 @@ jobs:
                   -DOPENSPACE_HAVE_TESTS=OFF \
                   -DSGCT_BUILD_TESTS=OFF \
                   -DSGCT_DEP_INCLUDE_LIBPNG=OFF \
-                  -DPNG_PNG_INCLUDE_DIR=$(brew --prefix libpng)/include \
-                    "$openSpaceHome"
+                  -DPNG_PNG_INCLUDE_DIR=$PNG_DIR/include
     
     - name: Build
       # Build your program with the given configuration
@@ -170,18 +171,18 @@ jobs:
         name: OpenSpace-MacOS15-Intel-app
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: $HOME/source/OpenSpace/bin/*
+        path: /Users/runner/source/OpenSpace/bin/Release/OpenSpace.app
 
     - name: Zip .app bundle
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/bin/Release"
-        zip -r OpenSpace.zip OpenSpace.app
+        zip -r OpenSpaceMacOS15Intel.zip OpenSpace.app
 
     - name: Upload .app to GitHub Release
       run: |
         RELEASE_TAG="daily-MacOS-Intel-app"
-        APP_FILE="$HOME/source/OpenSpace/bin/Release/OpenSpace.zip"
+        APP_FILE="/Users/runner/source/OpenSpace/bin/Release/OpenSpaceMacOS15Intel.zip"
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
