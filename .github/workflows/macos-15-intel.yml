@@ -73,7 +73,7 @@ jobs:
         # CMAKE_PREFIX_PATH to /opt/homebrew - https://stackoverflow.com/questions/68105648/configure-cmake-to-work-with-homebrew-libraries-instead-system-provided-librarie
         PNG_DIR=$(brew --prefix libpng)
         cmake -G Xcode \
-                  -S "$openSpaceHome"
+                  -S "$openSpaceHome" \
                   -Wno-dev \
                   -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
                   -DCMAKE_CXX_STANDARD=20 \
@@ -83,13 +83,13 @@ jobs:
                   -DCMAKE_CXX_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
                   -DCMAKE_C_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
                   -DCMAKE_BUILD_TYPE="Release" \
-                  -DCMAKE_PREFIX_PATH=/usr/local;/usr/local/opt/qt@6 \
+                  -DCMAKE_PREFIX_PATH="/usr/local;/usr/local/opt/qt@6" \
                   -DBUILD_TESTS=OFF \
                   -DCOMPILE_WARNING_AS_ERROR=OFF \
                   -DOPENSPACE_HAVE_TESTS=OFF \
                   -DSGCT_BUILD_TESTS=OFF \
                   -DSGCT_DEP_INCLUDE_LIBPNG=OFF \
-                  -DPNG_PNG_INCLUDE_DIR=$PNG_DIR/include
+                  -DPNG_PNG_INCLUDE_DIR="$PNG_DIR/include"
     
     - name: Build
       # Build your program with the given configuration
