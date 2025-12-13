@@ -81,6 +81,12 @@ jobs:
         brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6
         df -h
 
+    - name: Install specific CMake version
+      run: |
+        brew uninstall --ignore-dependencies cmake
+        brew install cmake@3.24
+        brew link cmake@3.24
+
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -91,7 +97,7 @@ jobs:
         # CMAKE_PREFIX_PATH to /opt/homebrew - https://stackoverflow.com/questions/68105648/configure-cmake-to-work-with-homebrew-libraries-instead-system-provided-librarie
         cmake -G Xcode \
                   -Wno-dev \
-                  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+                  -DCMAKE_POLICY_VERSION_MINIMUM=3.2 \
                   -DCMAKE_CXX_STANDARD=20 \
                   -DONLY_ACTIVE_ARCH=YES \
                   -DCMAKE_OSX_ARCHITECTURES=arm64 \
