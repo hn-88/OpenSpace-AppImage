@@ -45,7 +45,9 @@ jobs:
         cd "$openSpaceHome"
         mv -v uniform_conversion.h ext/ghoul/src/opengl/uniform_conversion.h
         mv -v ghoul-src-opengl-programobject.cpp ext/ghoul/src/opengl/programobject.cpp
-        python smart_patcher.py applesilicon.diffedited.txt        
+        python smart_patcher.py applesilicon.diffedited.txt
+        # check for doubles in glsl files which might have remained
+        grep -rEn --include="*.glsl" --color=always "\b(double|dvec[234]?|dmat[234]?)\b" .
 
     - name: Update Homebrew and Install GLM
       run: |
