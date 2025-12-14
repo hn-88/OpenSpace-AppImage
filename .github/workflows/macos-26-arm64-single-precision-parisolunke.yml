@@ -31,7 +31,8 @@ jobs:
         # use the main branch instead # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
         git checkout main --recurse-submodules
         mkdir build
-        cd build
+        echo "patch json header"
+        mv -v ext-patches/json.hpp apps/OpenSpace/ext/sgct/ext/json/single_include/nlohmann/json.hpp
 
     - name: get the single precision patches
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
