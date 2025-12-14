@@ -187,7 +187,8 @@ jobs:
 
     - name: zip the app
       run: |
-        zip -r OpenSpaceapp.zip $HOME/source/OpenSpace/bin/Release/OpenSpace.app
+        cd $HOME/source/OpenSpace/bin/Release
+        zip -r OpenSpaceapp.zip OpenSpace.app
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -196,12 +197,12 @@ jobs:
         name: OpenSpace-MacOS15-AppleSilicon-app
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: OpenSpaceapp.zip
+        path: /Users/runner/source/OpenSpace/bin/Release/OpenSpaceapp.zip
 
     - name: Upload .app to GitHub Release
       run: |
         RELEASE_TAG="daily-MacOS-app-single-precision"
-        APP_FILE=OpenSpaceapp.zip
+        APP_FILE=/Users/runner/source/OpenSpace/bin/Release/OpenSpaceapp.zip
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
