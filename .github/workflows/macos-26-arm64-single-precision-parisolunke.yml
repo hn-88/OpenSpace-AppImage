@@ -81,10 +81,10 @@ jobs:
         brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6
         df -h
 
-    - name: Setup CMake 3.24
+    - name: Setup CMake 3.26
       uses: jwlawson/actions-setup-cmake@v2
       with:
-        cmake-version: '3.24.x'
+        cmake-version: '3.26.x'
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
