@@ -33,27 +33,6 @@ jobs:
         mkdir build
         cd build
 
-    - name: get the single precision patches
-      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        git clone https://github.com/hn-88/OpenSpace-single-precision.git
-        cd OpenSpace-single-precision
-        cp -v ghoul-patches/* "$openSpaceHome"
-        cp -v diff-files/* "$openSpaceHome"
-        cd "$openSpaceHome"
-        mv -v uniform_conversion.h ext/ghoul/src/opengl/uniform_conversion.h
-        mv -v ghoul-src-opengl-programobject.cpp ext/ghoul/src/opengl/programobject.cpp
-        python smart_patcher.py applesilicon.diffedited.txt
-        # check for doubles in glsl files which might have remained
-        grep -rEn --include="*.glsl" --color=always "\b(double|dvec[234]?|dmat[234]?)\b" .
-
-    - name: Update Homebrew and Install GLM
-      run: |
-        brew update
-        brew install glm
-
     - name: patches for MacOS
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
@@ -76,6 +55,29 @@ jobs:
         cp -v MacOS-patches/modules-webbrowser-src-webbrowserapp.cpp "$openSpaceHome/modules/webbrowser/src/webbrowserapp.cpp"
         cp -v MacOS-patches/modules-webbrowser-cmake-webbrowser_helpers.cmake "$openSpaceHome/modules/webbrowser/cmake/webbrowser_helpers.cmake"
         cp -v MacOS-patches/modules-webbrowser-src-cefhost.cpp "$openSpaceHome/modules/webbrowser/src/cefhost.cpp"
+
+    - name: get the single precision patches
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome"
+        git clone https://github.com/hn-88/OpenSpace-single-precision.git
+        cd OpenSpace-single-precision
+        cp -v ghoul-patches/* "$openSpaceHome"
+        cp -v diff-files/* "$openSpaceHome"
+        cd "$openSpaceHome"
+        mv -v uniform_conversion.h ext/ghoul/src/opengl/uniform_conversion.h
+        mv -v ghoul-src-opengl-programobject.cpp ext/ghoul/src/opengl/programobject.cpp
+        python smart_patcher.py applesilicon.diffedited.txt
+        # check for doubles in glsl files which might have remained
+        grep -rEn --include="*.glsl" --color=always "\b(double|dvec[234]?|dmat[234]?)\b" .
+
+    - name: Update Homebrew and Install GLM
+      run: |
+        brew update
+        brew install glm
+
+
             
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
