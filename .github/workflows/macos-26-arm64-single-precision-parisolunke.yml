@@ -77,12 +77,13 @@ jobs:
         cp -v MacOS-patches/modules-webbrowser-src-cefhost.cpp "$openSpaceHome/modules/webbrowser/src/cefhost.cpp"
             
     - name: Cache Homebrew downloads 
-      uses: actions/cache@v3 
+      uses: actions/cache@v3
       with: 
         path: | 
           ~/Library/Caches/Homebrew 
           /usr/local/Homebrew 
         key: macos26-cmake3.27-brew-v1
+        save-always: true
         restore-keys: | 
           macos26-cmake3.27-brew-
       
@@ -98,33 +99,7 @@ jobs:
       with:
         cmake-version: '3.26.x'
 
-    - name: Patch CEF missing <utility> include (std::in_place_t)
-      shell: bash
-      run: |
-        set -e
     
-        FILE="modules/webbrowser/ext/cef/cef_binary_127.3.5+g114ea2a+chromium-127.0.6533.120_macosarm64/include/base/cef_ref_counted.h"
-    
-        if ! grep -q "#include <utility>" "$FILE"; then
-          echo "Patching $FILE to include <utility>"
-          apply_patch <<'EOF'
-        diff --git a/include/base/cef_ref_counted.h b/include/base/cef_ref_counted.h
-        index 3c6b8b1..abcd123 100644
-        --- a/include/base/cef_ref_counted.h
-        +++ b/include/base/cef_ref_counted.h
-        @@ -10,6 +10,7 @@
-         #include <atomic>
-         #include <cstddef>
-         #include <type_traits>
-        +#include <utility>
-         
-         #include "include/base/cef_build.h"
-        EOF
-        else
-          echo "<utility> already present, skipping patch"
-        fi
-
-
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -152,6 +127,32 @@ jobs:
                   -DPNG_PNG_INCLUDE_DIR=$(brew --prefix libpng)/include \
                   "$openSpaceHome"
     
+    - name: Patch CEF missing <utility> include (std::in_place_t)
+      shell: bash
+      run: |
+        set -e
+    
+        FILE="modules/webbrowser/ext/cef/cef_binary_127.3.5+g114ea2a+chromium-127.0.6533.120_macosarm64/include/base/cef_ref_counted.h"
+    
+        if ! grep -q "#include <utility>" "$FILE"; then
+          echo "Patching $FILE to include <utility>"
+          apply_patch <<'EOF'
+        diff --git a/include/base/cef_ref_counted.h b/include/base/cef_ref_counted.h
+        index 3c6b8b1..abcd123 100644
+        --- a/include/base/cef_ref_counted.h
+        +++ b/include/base/cef_ref_counted.h
+        @@ -10,6 +10,7 @@
+         #include <atomic>
+         #include <cstddef>
+         #include <type_traits>
+        +#include <utility>
+         
+         #include "include/base/cef_build.h"
+        EOF
+        else
+          echo "<utility> already present, skipping patch"
+        fi
+   
     - name: Build
       # Build your program with the given configuration
       run: |
