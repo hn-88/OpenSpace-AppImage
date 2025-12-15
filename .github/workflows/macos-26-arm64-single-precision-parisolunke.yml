@@ -76,8 +76,19 @@ jobs:
         cp -v MacOS-patches/modules-webbrowser-cmake-webbrowser_helpers.cmake "$openSpaceHome/modules/webbrowser/cmake/webbrowser_helpers.cmake"
         cp -v MacOS-patches/modules-webbrowser-src-cefhost.cpp "$openSpaceHome/modules/webbrowser/src/cefhost.cpp"
             
+    - name: Cache Homebrew downloads 
+      uses: actions/cache@v3 
+      with: 
+        path: | 
+          ~/Library/Caches/Homebrew 
+          /usr/local/Homebrew 
+        key: macos26-cmake3.27-brew-v1
+        restore-keys: | 
+          macos26-cmake3.27-brew-
+      
     - name: Install dependencies
-      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
+      timeout-minutes: 30
+      # https://docs.openspaceproject.com/latest/contribute/development/compiling/macos.html
       run: |
         brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6
         df -h
