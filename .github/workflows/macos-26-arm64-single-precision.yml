@@ -76,10 +76,19 @@ jobs:
       run: |
         brew update
         brew install glm
-
-
+    
+    - name: Cache Homebrew downloads 
+      uses: actions/cache@v3 
+      with: 
+        path: | 
+          ~/Library/Caches/Homebrew 
+          /usr/local/Homebrew 
+        key: macos26-cmake4-brew-v1
+        restore-keys: | 
+          macos26-cmake4-brew-
             
     - name: Install dependencies
+      timeout-minutes: 30
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6
