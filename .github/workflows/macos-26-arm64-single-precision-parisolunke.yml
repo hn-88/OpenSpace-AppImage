@@ -135,23 +135,23 @@ jobs:
         
         set -e
     
-        FILE="modules/webbrowser/ext/cef/cef_binary_127.3.5+g114ea2a+chromium-127.0.6533.120_macosarm64/include/base/cef_ref_counted.h"
+        FILE=$(find . -name "cef_ref_counted.h")
     
         if ! grep -q "#include <utility>" "$FILE"; then
           echo "Patching $FILE to include <utility>"
-          apply_patch <<'EOF'
-        diff --git a/include/base/cef_ref_counted.h b/include/base/cef_ref_counted.h
-        index 3c6b8b1..abcd123 100644
-        --- a/include/base/cef_ref_counted.h
-        +++ b/include/base/cef_ref_counted.h
-        @@ -10,6 +10,7 @@
-         #include <atomic>
-         #include <cstddef>
-         #include <type_traits>
-        +#include <utility>
-         
-         #include "include/base/cef_build.h"
-        EOF
+          echo "diff --git a/include/base/cef_ref_counted.h b/include/base/cef_ref_counted.h" > apply_patch
+          echo "index 3c6b8b1..abcd123 100644" >> apply_patch
+          echo "--- a/include/base/cef_ref_counted.h" >> apply_patch
+          echo "+++ b/include/base/cef_ref_counted.h" >> apply_patch
+          echo "@@ -10,6 +10,7 @@" >> apply_patch
+          echo " #include <atomic>" >> apply_patch
+          echo " #include <cstddef>" >> apply_patch
+          echo " #include <type_traits>" >> apply_patch
+          echo "+#include <utility>" >> apply_patch
+          echo " " >> apply_patch
+          echo " #include \"include/base/cef_build.h\"" >> apply_patch
+          patch -p1 --dry-run < apply_patch
+          patch -p1 < apply_patch
         else
           echo "<utility> already present, skipping patch"
         fi
