@@ -130,6 +130,9 @@ jobs:
     - name: Patch CEF missing <utility> include (std::in_place_t)
       shell: bash
       run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome"
+        
         set -e
     
         FILE="modules/webbrowser/ext/cef/cef_binary_127.3.5+g114ea2a+chromium-127.0.6533.120_macosarm64/include/base/cef_ref_counted.h"
