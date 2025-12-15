@@ -60,6 +60,7 @@ jobs:
         cp -v MacOS-patches/modules-webbrowser-src-webbrowserapp.cpp "$openSpaceHome/modules/webbrowser/src/webbrowserapp.cpp"
         cp -v MacOS-patches/modules-webbrowser-cmake-webbrowser_helpers.cmake "$openSpaceHome/modules/webbrowser/cmake/webbrowser_helpers.cmake"
         cp -v MacOS-patches/modules-webbrowser-src-cefhost.cpp "$openSpaceHome/modules/webbrowser/src/cefhost.cpp"
+        cp -v MacOS-patches/Ghoul-src-filesystem-filesystem.osx.cpp "$openSpaceHome/ext/ghoul/src/filesystem/filesystem.osx.cpp"
             
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
