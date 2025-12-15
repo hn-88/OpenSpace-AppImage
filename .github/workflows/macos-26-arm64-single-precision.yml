@@ -70,8 +70,10 @@ jobs:
         mv -v ghoul-src-opengl-programobject.cpp ext/ghoul/src/opengl/programobject.cpp
         python smart_patcher.py applesilicon.diffedited.txt
         # check for doubles in glsl files which might have remained
-        if grep -rEn --include="*.glsl" --color=always "\b(double|dvec[234]?|dmat[234]?)\b" .
-          echo "Warning: Found double precision types in GLSL files"
+        GREP_OUTPUT=$(grep -rEn --include="*.glsl" --color=always "\b(double|dvec[234]?|dmat[234]?)\b" . || true)
+        if [ -n "$GREP_OUTPUT" ]; then
+          echo "Warning: Found double precision types in GLSL files:"
+          echo "$GREP_OUTPUT"
         else
           echo "✓ No double precision types found in GLSL files"
         fi
