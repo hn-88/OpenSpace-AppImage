@@ -109,6 +109,7 @@ jobs:
                   -DBUILD_TESTS=OFF \
                   -DCOMPILE_WARNING_AS_ERROR=OFF \
                   -DOPENSPACE_HAVE_TESTS=OFF \
+                  -DOPENSPACE_MODULE_WEBBROWSER=OFF -DOPENSPACE_MODULE_WEBGUI=OFF \
                   -DSGCT_BUILD_TESTS=OFF \
                   -DSGCT_DEP_INCLUDE_LIBPNG=OFF \
                   -DPNG_PNG_INCLUDE_DIR=$(brew --prefix libpng)/include \
