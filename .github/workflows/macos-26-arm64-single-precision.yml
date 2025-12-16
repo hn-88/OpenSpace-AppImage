@@ -55,6 +55,7 @@ jobs:
         cp -v MacOS-patches/modules-webbrowser-src-webbrowserapp.cpp "$openSpaceHome/modules/webbrowser/src/webbrowserapp.cpp"
         cp -v MacOS-patches/modules-webbrowser-cmake-webbrowser_helpers.cmake "$openSpaceHome/modules/webbrowser/cmake/webbrowser_helpers.cmake"
         cp -v MacOS-patches/modules-webbrowser-src-cefhost.cpp "$openSpaceHome/modules/webbrowser/src/cefhost.cpp"
+        cp -v MacOS-patches/Ghoul-src-filesystem-filesystem.osx.cpp "$openSpaceHome/ext/ghoul/src/filesystem/filesystem.osx.cpp"
 
     - name: get the single precision patches
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
@@ -76,6 +77,18 @@ jobs:
           echo "$GREP_OUTPUT"
         else
           echo "✓ No double precision types found in GLSL files"
+        fi
+        
+    - name: list doubles in cpp files
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
+      run: |
+        # list doubles/glm::dvec3/glm::dmat4 etc remaining in cpp files
+        GREP_OUTPUT=$(grep -rEn --include="*.cpp" --color=always "\b(double|dvec[234]?|dmat[234]?)\b" . || true)
+        if [ -n "$GREP_OUTPUT" ]; then
+          echo "Warning: Found double precision types in CPP files:"
+          echo "$GREP_OUTPUT"
+        else
+          echo "✓ No double precision types found in CPP files"
         fi
 
     - name: Update Homebrew and Install GLM
