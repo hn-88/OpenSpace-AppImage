@@ -82,6 +82,8 @@ jobs:
     - name: list doubles in cpp files
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
       run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome"
         # list doubles/glm::dvec3/glm::dmat4 etc remaining in cpp files
         GREP_OUTPUT=$(grep -rEn --include="*.cpp" --color=always "\b(double|dvec[234]?|dmat[234]?)\b" . || true)
         if [ -n "$GREP_OUTPUT" ]; then
