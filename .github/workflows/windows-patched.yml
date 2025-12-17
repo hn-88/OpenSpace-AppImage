@@ -34,7 +34,7 @@ jobs:
       run: |
         git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
-        git checkout "feature/video-examples-cleanup" --recurse-submodules
+        git checkout "issue/3225-travelspeed" --recurse-submodules
         git submodule update --init --recursive
         mkdir build
         cd build
@@ -173,7 +173,7 @@ jobs:
         
         echo ### Create main zip file
         :: Need to manually add any new weird paths that don't match the wildcards below
-        7z.exe a -tzip -mx=9 -mfb=257 -mpass=15 OpenSpace-minimal-video-patched.zip^
+        7z.exe a -tzip -mx=9 -mfb=257 -mpass=15 OpenSpace-minimal-travelspeed-patched.zip^
           bin/*^
           config/*^
           data/*^
@@ -203,15 +203,15 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         # Artifact name
-        name: OpenSpace-video-patched-minimal
+        name: OpenSpace-travelspeed-patched-minimal
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: ${{ env.openSpaceHome }}/OpenSpace-minimal-video-patched.zip
+        path: ${{ env.openSpaceHome }}/OpenSpace-minimal-travelspeed-patched.zip
 
     - name: Upload .zip to GitHub Release - Windows
       run: |
         $RELEASE_TAG = "daily-WIN-ZIP"
-        $ZIP_FILE = "${{ env.openSpaceHome }}\OpenSpace-minimal-video-patched.zip"
+        $ZIP_FILE = "${{ env.openSpaceHome }}\OpenSpace-minimal-travelspeed-patched.zip"
     
         # Check if release exists
         gh release view $RELEASE_TAG > $null 2>&1
