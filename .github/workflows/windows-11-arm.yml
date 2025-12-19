@@ -84,6 +84,30 @@ jobs:
       run : |
         # Copy-Item -Verbose "windows-patches/cefhost.cpp" "$env:openSpaceHome/modules/webbrowser/src/cefhost.cpp"
 
+    - name: Patch dr_mp3 for MSVC ARM64 (disable SIMD)
+      if: runner.os == 'Windows' && runner.arch == 'ARM64'
+      shell: pwsh
+      run: |
+        $file = "source/OpenSpace/modules/audio/ext/soloud/src/audiosource/wav/dr_impl.cpp"
+    
+        Write-Host "Patching $file"
+    
+        $content = Get-Content $file -Raw
+    
+        if ($content -match "DR_MP3_NO_SIMD") {
+          Write-Host "DR_MP3_NO_SIMD already present, skipping patch"
+          exit 0
+        }
+    
+        $patched = $content -replace `
+          "#define DR_MP3_FLOAT_OUTPUT\s*\r?\n", `
+          "#define DR_MP3_FLOAT_OUTPUT`r`n#define DR_MP3_NO_SIMD`r`n"
+    
+        Set-Content -Path $file -Value $patched -NoNewline
+    
+        Write-Host "Patch applied successfully"
+
+
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
