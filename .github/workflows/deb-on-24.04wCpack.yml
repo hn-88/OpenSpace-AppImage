@@ -66,9 +66,8 @@ jobs:
     - name: Install clipboard patches
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        # cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp" 
-        ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
-
+        cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp" 
+        
     - name: Install cmakelists patches
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
@@ -87,21 +86,7 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
-    - name: Create and apply patch file
-      run: |
-        echo "--- a/ext/ghoul/src/misc/clipboard.cpp" > /tmp/clipboard.patch
-        echo "+++ b/ext/ghoul/src/misc/clipboard.cpp" >> /tmp/clipboard.patch
-        echo "@@ -184,7 +184,8 @@" >> /tmp/clipboard.patch
-        echo "     }" >> /tmp/clipboard.patch
-        echo "     std::string cmd = std::format(\"echo \\\"{{}}\\\" | xclip -i -selection {} -f\", s);" >> /tmp/clipboard.patch
-        echo "-    const bool success = exec(std::format(cmd.c_str(), text), buf);" >> /tmp/clipboard.patch
-        echo "+    std::string fullCmd = std::vformat(cmd, std::make_format_args(text));" >> /tmp/clipboard.patch
-        echo "+    const bool success = exec(fullCmd, buf);" >> /tmp/clipboard.patch
-        echo "     if (success) {" >> /tmp/clipboard.patch
-        echo "         return;" >> /tmp/clipboard.patch
-        echo "     }" >> /tmp/clipboard.patch
-        cd /home/runner/source/OpenSpace
-        patch -p1 < /tmp/clipboard.patch
+
   
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
