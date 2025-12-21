@@ -93,6 +93,20 @@ jobs:
           echo "✓ No double precision types found in CPP files"
         fi
 
+    - name: list setUniform calls in cpp files
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome"
+        # list doubles/glm::dvec3/glm::dmat4 etc remaining in cpp files
+        GREP_OUTPUT=$(grep -rEn --include="*.cpp" --color=always "\b(niform|dvec[234]?|dmat[234]?)\b" . || true)
+        if [ -n "$GREP_OUTPUT" ]; then
+          echo "Listing uniform, setUniform calls in CPP files:"
+          echo "$GREP_OUTPUT"
+        else
+          echo "✓ No setUniform or uniform found in CPP files"
+        fi
+
     - name: Update Homebrew and Install GLM
       run: |
         brew update
