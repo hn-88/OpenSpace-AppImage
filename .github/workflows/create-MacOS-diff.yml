@@ -1,0 +1,70 @@
+name: create-MacOS-diff
+
+on: workflow_dispatch
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  # This yml is copied from https://github.com/hn-88/OpenSpace-AppleSiliconMac/blob/main/.github/workflows/hn-xcode16-build-hn-arm64.yml
+  # and modified.
+  BUILD_TYPE: Release
+  OPENSPACE_VERSION: "0.21.3plus"
+  THIS_REPO_PATH: "/Users/runner/work/OpenSpace-AppImage/OpenSpace-AppImage" 
+  
+jobs:
+  build:
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    # You can convert this to a matrix build if you need cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+    runs-on: macos-26
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: get openspace code for a particular release
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
+      run: |
+        df -h
+        openSpaceHome="$HOME/source/OpenSpace"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
+        cd "$openSpaceHome"
+        # use the main branch instead # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
+        git checkout "d4d323ac491d50a4c37935b5dce8688c97353930" --recurse-submodules
+        mkdir build
+        cd build
+
+    - name: patches for MacOS
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        diff -u MacOS-patches/sgct-ext-zlib-zutil.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h" > MacOS-reverse-diff.patch
+        diff -u MacOS-patches/sgct-ext-lpng-pngpriv.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/modules-globebrowsing-src-renderableglobe.cpp "$openSpaceHome/modules/globebrowsing/src/renderableglobe.cpp" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/Ghoul-include-ghoul-misc-memorypool.h "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.h" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/Ghoul-include-ghoul-misc-memorypool.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/memorypool.inl" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/Ghoul-src-misc-sharedmemory.cpp "$openSpaceHome/ext/ghoul/src/misc/sharedmemory.cpp" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/Ghoul-src-logging-consolelog.cpp "$openSpaceHome/ext/ghoul/src/logging/consolelog.cpp" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/include-openspace-documentation-verifier.inl "$openSpaceHome/include/openspace/documentation/verifier.inl" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/src-scene-scene_lua.inl "$openSpaceHome/src/scene/scene_lua.inl" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/modules-space-rendering-renderableorbitalkepler.cpp "$openSpaceHome/modules/space/rendering/renderableorbitalkepler.cpp" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/modules-globebrowsing-src-geojson-globegeometryhelper.cpp "$openSpaceHome/modules/globebrowsing/src/geojson/globegeometryhelper.cpp" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/modules-globebrowsing-src-geojson-globegeometryfeature.cpp "$openSpaceHome/modules/globebrowsing/src/geojson/globegeometryfeature.cpp" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/apps-OpenSpace-main.cpp "$openSpaceHome/apps/OpenSpace/main.cpp" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/modules-webbrowser-CMakeLists.txt "$openSpaceHome/modules/webbrowser/CMakeLists.txt" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/modules-webgui-cmake-nodejs_support.cmake "$openSpaceHome/modules/webgui/cmake/nodejs_support.cmake" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/modules-webbrowser-src-webbrowserapp.cpp "$openSpaceHome/modules/webbrowser/src/webbrowserapp.cpp" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/modules-webbrowser-cmake-webbrowser_helpers.cmake "$openSpaceHome/modules/webbrowser/cmake/webbrowser_helpers.cmake" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/modules-webbrowser-src-cefhost.cpp "$openSpaceHome/modules/webbrowser/src/cefhost.cpp" >> MacOS-reverse-diff.patch
+        diff -u MacOS-patches/Ghoul-src-filesystem-filesystem.osx.cpp "$openSpaceHome/ext/ghoul/src/filesystem/filesystem.osx.cpp" >> MacOS-reverse-diff.patch
+
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        # Artifact name
+        name: OpenSpace-MacOS-reverse-diff-patch
+        # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        path: MacOS-reverse-diff.patch
+
+    
