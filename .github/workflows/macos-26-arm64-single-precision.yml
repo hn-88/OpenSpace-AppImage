@@ -29,7 +29,7 @@ jobs:
         git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
         cd "$openSpaceHome"
         # use the main branch instead # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
-        git checkout "89f449212c57c153fc40c0498c6de61d1a15ffdb" --recurse-submodules
+        git checkout "d4d323ac491d50a4c37935b5dce8688c97353930" --recurse-submodules
         mkdir build
         cd build
 
