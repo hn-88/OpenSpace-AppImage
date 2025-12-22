@@ -35,6 +35,7 @@ jobs:
 
     - name: patches for MacOS
       run: |
+        set +e # Do not exit if diff returns 1
         openSpaceHome="$HOME/source/OpenSpace"
         diff -u MacOS-patches/sgct-ext-zlib-zutil.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h" > MacOS-reverse-diff.patch
         diff -u MacOS-patches/sgct-ext-lpng-pngpriv.h "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h" >> MacOS-reverse-diff.patch
