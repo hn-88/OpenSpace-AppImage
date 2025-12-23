@@ -1892,13 +1892,14 @@ void RenderableGlobe::recompileShaders() {
     //
     /////////////////////
     // Add this temporary debug code in recompileShaders:
-    std::string finalSource = ghoul::opengl::ShaderPreprocessor::process(
+    ghoul::opengl::ShaderPreprocessor preprocessorlocal;
+    std::string finalSourcelocal = preprocessorlocal::process(
         absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
         shaderDictionary
     );
-    std::ofstream dump("final_local_shader.glsl");
-    dump << finalSource;
-    dump.close();
+    std::ofstream dumplocal("final_local_shader.glsl");
+    dumplocal << finalSourcelocal;
+    dumplocal.close();
     ///////////////////////
     global::renderEngine->removeRenderProgram(_localRenderer.program.get());
     _localRenderer.program = global::renderEngine->buildRenderProgram(
@@ -1923,7 +1924,8 @@ void RenderableGlobe::recompileShaders() {
     //
     ///////////////////////////
     // Add this temporary debug code in recompileShaders:
-    std::string finalSource = ghoul::opengl::ShaderPreprocessor::process(
+    ghoul::opengl::ShaderPreprocessor preprocessor;
+    std::string finalSource = preprocessor.process(
         absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
         shaderDictionary
     );
