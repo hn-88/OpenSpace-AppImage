@@ -64,12 +64,13 @@ jobs:
         
     - name: Install dependencies
       # https://github.com/OpenSpace/OpenSpace-Docs/blob/3ddcca71b5ff4700ab1f75c5a961ed07c455cb68/dev/compiling/index.md
+      # https://github.com/miurahr/aqtinstall
       shell: pwsh
       run: |
         # Install QT 6.2.0        
         python -m pip install --upgrade pip
         pip install aqtinstall
-        aqt install-qt windows desktop 6.2.0 win64_msvc2019_64 --outputdir C:\Qt
+        aqt install-qt windows desktop 6.2.0 win64_msvc2019_arm64 --outputdir C:\Qt
 
     - name: Install Boost (MSVC 14.3)
       run: choco install boost-msvc-14.3 -y
