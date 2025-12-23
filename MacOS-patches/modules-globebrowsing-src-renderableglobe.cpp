@@ -1892,14 +1892,26 @@ void RenderableGlobe::recompileShaders() {
     //
     /////////////////////
     // Add this temporary debug code in recompileShaders:
-    ghoul::opengl::ShaderPreprocessor preprocessorlocal;
-    std::string finalSourcelocal = preprocessorlocal::process(
-        absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
-        shaderDictionary
-    );
-    std::ofstream dumplocal("final_local_shader.glsl");
-    dumplocal << finalSourcelocal;
-    dumplocal.close();
+ghoul::opengl::ShaderPreprocessor preprocessorLocalVertex(
+    absPath("${MODULE_GLOBEBROWSING}/shaders/localrenderer_vs.glsl"),
+    shaderDictionary
+);
+std::string finalSourceLocalVertex = preprocessorLocalVertex.process();
+
+std::ofstream dumpLocalVertex("final_local_vertex_shader.glsl");
+dumpLocalVertex << finalSourceLocalVertex;
+dumpLocalVertex.close();
+
+// Preprocess fragment shader
+ghoul::opengl::ShaderPreprocessor preprocessorLocalFragment(
+    absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
+    shaderDictionary
+);
+std::string finalSourceLocalFragment = preprocessorLocalFragment.process();
+
+std::ofstream dumpLocalFragment("final_local_fragment_shader.glsl");
+dumpLocalFragment << finalSourceLocalFragment;
+dumpLocalFragment.close();
     ///////////////////////
     global::renderEngine->removeRenderProgram(_localRenderer.program.get());
     _localRenderer.program = global::renderEngine->buildRenderProgram(
@@ -1924,14 +1936,27 @@ void RenderableGlobe::recompileShaders() {
     //
     ///////////////////////////
     // Add this temporary debug code in recompileShaders:
-    ghoul::opengl::ShaderPreprocessor preprocessor;
-    std::string finalSource = preprocessor.process(
-        absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
-        shaderDictionary
-    );
-    std::ofstream dump("final_global_shader.glsl");
-    dump << finalSource;
-    dump.close();
+    // Preprocess vertex shader
+ghoul::opengl::ShaderPreprocessor preprocessorVertex(
+    absPath("${MODULE_GLOBEBROWSING}/shaders/globalrenderer_vs.glsl"),
+    shaderDictionary
+);
+std::string finalSourceVertex = preprocessorVertex.process();
+
+std::ofstream dumpVertex("final_global_vertex_shader.glsl");
+dumpVertex << finalSourceVertex;
+dumpVertex.close();
+
+// Preprocess fragment shader
+ghoul::opengl::ShaderPreprocessor preprocessorFragment(
+    absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
+    shaderDictionary
+);
+std::string finalSourceFragment = preprocessorFragment.process();
+
+std::ofstream dumpFragment("final_global_fragment_shader.glsl");
+dumpFragment << finalSourceFragment;
+dumpFragment.close();
     //////////////////////////
     global::renderEngine->removeRenderProgram(_globalRenderer.program.get());
     _globalRenderer.program = global::renderEngine->buildRenderProgram(
