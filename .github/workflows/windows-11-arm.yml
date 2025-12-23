@@ -13,9 +13,9 @@ env:
   BUILD_TYPE: RelWithDebInfo
   OPENSPACE_VERSION: "0.21.3+"
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
-  QT_DIR: C:/Qt/6.2.0/msvc2019_64
-  QT6_DIR: C:/Qt/6.2.0/msvc2019_64
-  CMAKE_PREFIX_PATH: C:/Qt/6.2.0/msvc2019_64/lib/cmake
+  QT_DIR: C:/Qt/6.2.0/msvc2019_arm64
+  QT6_DIR: C:/Qt/6.2.0/msvc2019_arm64/lib/cmake/Qt6
+  CMAKE_PREFIX_PATH: C:/Qt/6.2.0/msvc2019_arm64
   buildConfig: RelWithDebInfo
   
 jobs:
