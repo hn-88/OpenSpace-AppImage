@@ -91,6 +91,32 @@ jobs:
           echo "✓ No setUniform or uniform found in these CPP files"
         fi
 
+    - name: Fix ghoul_assert in setUniform functions
+      shell: bash
+      run: |
+        echo "Fixing ghoul_assert in all .cpp files..."
+        
+        # Count files to process
+        total=$(find . -type f -name "*.cpp" -exec grep -l 'ghoul_assert(location != -1, "Location must not be -1");' {} + 2>/dev/null | wc -l)
+        echo "Found $total files to fix"
+        
+        # Use grep and sed with platform detection
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+          # macOS (BSD sed requires empty string after -i)
+          find . -type f -name "*.cpp" -exec grep -l 'ghoul_assert(location != -1, "Location must not be -1");' {} + | while read file; do
+            echo "Fixing: $file"
+            sed -i '' 's/ghoul_assert(location != -1, "Location must not be -1");/if (location == -1){ if (_ignoreUniformLocationError){ return; }ghoul_assert(false, "Location must not be -1");return;}/g' "$file"
+          done
+        else
+          # Linux (GNU sed)
+          find . -type f -name "*.cpp" -exec grep -l 'ghoul_assert(location != -1, "Location must not be -1");' {} + | while read file; do
+            echo "Fixing: $file"
+            sed -i 's/ghoul_assert(location != -1, "Location must not be -1");/if (location == -1){ if (_ignoreUniformLocationError){ return; }ghoul_assert(false, "Location must not be -1");return;}/g' "$file"
+          done
+        fi
+        
+        echo "Replacement complete!"
+
     - name: Update Homebrew and Install GLM
       run: |
         brew update
