@@ -13,9 +13,9 @@ env:
   BUILD_TYPE: RelWithDebInfo
   OPENSPACE_VERSION: "0.21.3+"
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
-  QT_DIR: C:/Qt/6.2.0/msvc2019_arm64
-  QT6_DIR: C:/Qt/6.2.0/msvc2019_arm64/lib/cmake/Qt6
-  CMAKE_PREFIX_PATH: C:/Qt/6.2.0/msvc2019_arm64
+  QT_DIR: C:/Qt/6.5.3/msvc2019_arm64
+  QT6_DIR: C:/Qt/6.5.3/msvc2019_arm64/lib/cmake/Qt6
+  CMAKE_PREFIX_PATH: C:/Qt/6.5.3/msvc2019_arm64
   buildConfig: RelWithDebInfo
   
 jobs:
@@ -114,7 +114,7 @@ jobs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         cd "$env:openSpaceHome/build"
-        cmake -S .. -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_PREFIX_PATH=C:/Qt/6.5.3/msvc2019_arm64-DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DOPENSPACE_ENABLE_ALL_MODULES=ON
+        cmake -S .. -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_PREFIX_PATH=C:/Qt/6.5.3/msvc2019_arm64 -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DOPENSPACE_ENABLE_ALL_MODULES=ON
         # -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20
 
     - name: Build
