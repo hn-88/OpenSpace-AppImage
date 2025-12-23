@@ -94,6 +94,8 @@ jobs:
     - name: Fix ghoul_assert in setUniform functions
       shell: bash
       run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd $openSpaceHome
         echo "Fixing ghoul_assert in all .cpp files..."
         
         # Count files to process
