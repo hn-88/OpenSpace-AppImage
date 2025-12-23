@@ -1890,6 +1890,16 @@ void RenderableGlobe::recompileShaders() {
     //
     // Create local shader
     //
+    /////////////////////
+    // Add this temporary debug code in recompileShaders:
+    std::string finalSource = ghoul::opengl::ShaderPreprocessor::process(
+        absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
+        shaderDictionary
+    );
+    std::ofstream dump("final_local_shader.glsl");
+    dump << finalSource;
+    dump.close();
+    ///////////////////////
     global::renderEngine->removeRenderProgram(_localRenderer.program.get());
     _localRenderer.program = global::renderEngine->buildRenderProgram(
         "LocalChunkedLodPatch",
@@ -1911,6 +1921,16 @@ void RenderableGlobe::recompileShaders() {
     //
     // Create global shader
     //
+    ///////////////////////////
+    // Add this temporary debug code in recompileShaders:
+    std::string finalSource = ghoul::opengl::ShaderPreprocessor::process(
+        absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
+        shaderDictionary
+    );
+    std::ofstream dump("final_global_shader.glsl");
+    dump << finalSource;
+    dump.close();
+    //////////////////////////
     global::renderEngine->removeRenderProgram(_globalRenderer.program.get());
     _globalRenderer.program = global::renderEngine->buildRenderProgram(
         "GlobalChunkedLodPatch",
