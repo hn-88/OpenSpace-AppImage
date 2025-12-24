@@ -1713,6 +1713,24 @@ void RenderableGlobe::setCommonUniforms(ghoul::opengl::ProgramObject& programObj
     programObject.setIgnoreUniformLocationError(ProgramObject::IgnoreError::No);
 }
 
+void dumpPreprocessedShader(const std::string& name, 
+                            const std::filesystem::path& shaderPath,
+                            const ghoul::Dictionary& dict) {
+    try {
+        ghoul::opengl::ShaderPreprocessor preprocessor(shaderPath, dict);
+        std::string source = preprocessor.process();
+        
+        std::string filename = "debug_" + name + ".glsl";
+        std::ofstream dump(filename);
+        dump << source << std::flush;
+        dump.close();
+        
+        std::cout << "✓ Dumped " << filename << " (" << source.length() << " bytes)" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "✗ Failed to preprocess " << name << ": " << e.what() << std::endl;
+    }
+}
+
 void RenderableGlobe::recompileShaders() {
     ZoneScoped;
 
@@ -1912,6 +1930,22 @@ std::string finalSourceLocalFragment = preprocessorLocalFragment.process();
 std::ofstream dumpLocalFragment("final_local_fragment_shader.glsl");
 dumpLocalFragment << finalSourceLocalFragment;
 dumpLocalFragment.close();
+    ///////////////////////
+    std::cout << "=== Preprocessing Global Renderer Shaders ===" << std::endl;
+dumpPreprocessedShader("global_vs", 
+    absPath("${MODULE_GLOBEBROWSING}/shaders/globalrenderer_vs.glsl"),
+    shaderDictionary);
+dumpPreprocessedShader("global_fs",
+    absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
+    shaderDictionary);
+
+std::cout << "=== Preprocessing Local Renderer Shaders ===" << std::endl;
+dumpPreprocessedShader("local_vs",
+    absPath("${MODULE_GLOBEBROWSING}/shaders/localrenderer_vs.glsl"),
+    shaderDictionary);
+dumpPreprocessedShader("local_fs",
+    absPath("${MODULE_GLOBEBROWSING}/shaders/renderer_fs.glsl"),
+    shaderDictionary);
     ///////////////////////
     global::renderEngine->removeRenderProgram(_localRenderer.program.get());
     _localRenderer.program = global::renderEngine->buildRenderProgram(
