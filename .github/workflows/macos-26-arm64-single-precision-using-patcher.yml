@@ -37,6 +37,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -v MacOS-patches/modules-globebrowsing-src-renderableglobe.cpp "$openSpaceHome/modules/globebrowsing/src/renderableglobe.cpp"
+        cp -v MacOS-patches/modules-globebrowsing-shaders-localrenderer_vs.glsl "$openSpaceHome/modules/globebrowsing/shaders/localrenderer_vs.glsl"
         cp -v MacOS-patches/reverse_patch.py "$openSpaceHome/reverse_patch.py"
         cp -v MacOS-patches/MacOS-reverse-diff.patch "$openSpaceHome/MacOS-reverse-diff.patch"
         cd "$openSpaceHome"
