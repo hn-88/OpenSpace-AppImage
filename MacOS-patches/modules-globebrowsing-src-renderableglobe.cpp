@@ -54,6 +54,13 @@
 #include <numeric>
 #include <queue>
 #include <vector>
+//debugging
+#include <iostream>    // for std::cout, std::cerr
+#include <fstream>     // for std::ofstream, std::ifstream
+#include <string>      // for std::string (might already be included)
+#include <filesystem>  // for std::filesystem::path (might already be included)
+#include <regex>       // for std::regex, std::sregex_iterator (if using Option 4)
+#include <set>         // for std::set (if using Option 4)
 
 #include <memory_resource>
 
