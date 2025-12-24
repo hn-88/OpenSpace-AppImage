@@ -73,14 +73,25 @@ jobs:
         aqt install-qt windows desktop 6.5.3 win64_msvc2019_arm64 --outputdir C:\Qt
         aqt install-qt windows desktop 6.5.3 win64_msvc2019_64 --outputdir C:\Qt
 
-    - name: Install Boost (MSVC 14.3)
-      run: choco install boost-msvc-14.3 -y
-
-    - name: Set Boost environment variables
+    - name: Install vcpkg dependencies
       run: |
-        echo "BOOST_ROOT=C:\tools\boost_1_85_0" >> $env:GITHUB_ENV
-        echo "BOOST_INCLUDEDIR=C:\tools\boost_1_85_0" >> $env:GITHUB_ENV
-        echo "BOOST_LIBRARYDIR=C:\tools\boost_1_85_0\lib64-msvc-14.3" >> $env:GITHUB_ENV
+        git clone https://github.com/Microsoft/vcpkg.git
+        cd vcpkg
+        .\bootstrap-vcpkg.bat
+        .\vcpkg install curl:arm64-windows
+        .\vcpkg install boost:arm64-windows
+        .\vcpkg install assimp:arm64-windows
+        # Add other dependencies as needed
+  
+#- name: Configure with vcpkg
+#  run: |
+#    cmake -S $env:openSpaceHome -B $env:openSpaceHome/build `
+#      -G "Visual Studio 17 2022" -A ARM64 `
+#      -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+#      -DVCPKG_TARGET_TRIPLET=arm64-windows `
+#      -DCMAKE_PREFIX_PATH=C:/Qt/6.5.3/msvc2019_arm64 `
+#      -DQT_HOST_PATH=C:/Qt/6.5.3/msvc2019_64 `
+      # ... rest of your cmake flags
 
     - name: Patches
       run : |
@@ -115,7 +126,7 @@ jobs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         cd "$env:openSpaceHome"
-        cmake -S . -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_PREFIX_PATH=C:/Qt/6.5.3/msvc2019_arm64 -DQt6_DIR=C:/Qt/6.5.3/msvc2019_arm64/lib/cmake/Qt6 -DQT_HOST_PATH=C:/Qt/6.5.3/msvc2019_64 -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DOPENSPACE_ENABLE_ALL_MODULES=ON
+        cmake -S . -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows -DCMAKE_PREFIX_PATH=C:/Qt/6.5.3/msvc2019_arm64 -DQt6_DIR=C:/Qt/6.5.3/msvc2019_arm64/lib/cmake/Qt6 -DQT_HOST_PATH=C:/Qt/6.5.3/msvc2019_64 -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DOPENSPACE_ENABLE_ALL_MODULES=ON
         # -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20
 
     - name: Build
