@@ -85,8 +85,8 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome"
-        # list doubles/glm::dvec3/glm::dmat4 etc remaining in cpp files
-        GREP_OUTPUT=$(grep -rEn --include="renderable*.cpp" --color=always "\b(niform)\b" . || true)
+        # list setUniform() in cpp files
+        GREP_OUTPUT=$(grep -rEn -A 4 --include="renderable*.cpp" --color=always "\b(niform)\b" . || true)
         if [ -n "$GREP_OUTPUT" ]; then
           echo "Listing uniform, setUniform calls in renderable CPP files:"
           echo "$GREP_OUTPUT"
