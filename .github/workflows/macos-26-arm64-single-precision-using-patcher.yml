@@ -86,12 +86,12 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome"
         # list setUniform() in cpp files
-        GREP_OUTPUT=$(grep -rEn -A 4 --include="renderable*.cpp" --color=always "\b(niform)\b" . || true)
+        GREP_OUTPUT=$(grep -rEn -A 4 --include="renderable*.cpp" --color=always "setUniform" . || true)
         if [ -n "$GREP_OUTPUT" ]; then
-          echo "Listing uniform, setUniform calls in renderable CPP files:"
+          echo "Listing setUniform calls in renderable CPP files:"
           echo "$GREP_OUTPUT"
         else
-          echo "✓ No setUniform or uniform found in these CPP files"
+          echo "✓ No setUniform found in these CPP files"
         fi
 
     - name: Fix ghoul_assert in setUniform functions
