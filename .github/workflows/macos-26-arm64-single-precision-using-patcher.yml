@@ -41,7 +41,7 @@ jobs:
         cp -v MacOS-patches/modules-globebrowsing-shaders-localrenderer_vs.glsl "$openSpaceHome/modules/globebrowsing/shaders/localrenderer_vs.glsl"
         cp -v MacOS-patches/modules-globebrowsing-shaders-renderer_fs.glsl "$openSpaceHome/modules/globebrowsing/shaders/renderer_fs.glsl"
         cp -v MacOS-patches/reverse_patch.py "$openSpaceHome/reverse_patch.py"
-        cp -v MacOS-patches/MacOS-reverse-diff.patch "$openSpaceHome/MacOS-reverse-diff.patch"
+        cp -v MacOS-patches/MacOS-reverse-diff-edited.patch "$openSpaceHome/MacOS-reverse-diff-edited.patch"
         cd "$openSpaceHome"
         python3 reverse_patch.py MacOS-reverse-diff-edited.patch
         
