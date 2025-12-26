@@ -179,7 +179,7 @@ jobs:
         cd "$openSpaceHome/build"
         # echo "Check to see if we have enough disk space ... " only 8 GB used out of 120+ GB
         # df -h
-        cmake --build . --config ${{env.BUILD_TYPE}} -- 
+        cmake --build . --config ${{env.BUILD_TYPE}} -- -quiet
         df -h
 
     - name: Sign macOS App with CEF (Ad-hoc)
