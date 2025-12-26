@@ -1,0 +1,645 @@
+--- MacOS-patches/sgct-ext-zlib-zutil.h	2025-12-22 09:23:27.455698612 +0000
++++ /home/runner/source/OpenSpace/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h	2025-12-22 09:24:15.012579463 +0000
+@@ -120,6 +120,15 @@
+ 
+ #if defined(MACOS) || defined(TARGET_OS_MAC)
+ #  define OS_CODE  0x07
++#  ifndef Z_SOLO
++#    if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
++#      include <unix.h> /* for fdopen */
++#    else
++#      ifndef fdopen
++#        define fdopen(fd,mode) NULL /* No fdopen() */
++#      endif
++#    endif
++#  endif
+ #endif
+ 
+ #ifdef TOPS20
+--- MacOS-patches/sgct-ext-lpng-pngpriv.h	2025-12-22 09:23:27.455698612 +0000
++++ /home/runner/source/OpenSpace/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h	2025-12-22 09:24:14.758580125 +0000
+@@ -404,11 +404,7 @@
+       * <fp.h> if possible.
+       */
+ #    if !defined(__MATH_H__) && !defined(__MATH_H) && !defined(__cmath__)
+-#      if defined(__APPLE__) && defined(__MACH__)
+-           // Skip fp.h on modern macOS - it's obsolete
+-#           else
+-#               include <fp.h>
+-#           endif
++#      include <fp.h>
+ #    endif
+ #  else
+ #    include <math.h>
+--- MacOS-patches/modules-globebrowsing-src-renderableglobe.cpp	2025-12-22 09:23:27.454698615 +0000
++++ /home/runner/source/OpenSpace/modules/globebrowsing/src/renderableglobe.cpp	2025-12-22 09:25:46.830303041 +0000
+@@ -55,7 +55,14 @@
+ #include <queue>
+ #include <vector>
+ 
++#if defined(__APPLE__) || (defined(__linux__) && defined(__clang__))
++#include <experimental/memory_resource>
++namespace std {
++    using namespace experimental;
++} // namespace std
++#else
+ #include <memory_resource>
++#endif
+ 
+ namespace {
+     constexpr std::string_view _loggerCat = "RenderableGlobe";
+@@ -1463,7 +1470,10 @@
+             if (_ringsComponent->textureTransparency()) {
+                 ringTextureTransparencyUnit.activate();
+                 _ringsComponent->textureTransparency()->bind();
+-                program.setUniform("ringTextureTransparency", ringTextureTransparencyUnit);
++                program.setUniform(
++                    "ringTextureTransparency",
++                    ringTextureTransparencyUnit
++                );
+             }
+ 
+             program.setUniform("textureOffset", _ringsComponent->textureOffset());
+@@ -1581,7 +1591,7 @@
+     if (_eclipseShadowsEnabled && !_ellipsoid.shadowConfigurationArray().empty()) {
+         calculateEclipseShadows(program, data, ShadowCompType::LOCAL_SHADOW);
+     }
+-    
++
+     // Shadow Mapping
+     if (_shadowMappingProperties.shadowMapping) {
+         // Bind ring textures for direct projection when rings component is available
+@@ -1598,7 +1608,10 @@
+             if (_ringsComponent->textureTransparency()) {
+                 ringTextureTransparencyUnit.activate();
+                 _ringsComponent->textureTransparency()->bind();
+-                program.setUniform("ringTextureTransparency", ringTextureTransparencyUnit);
++                program.setUniform(
++                    "ringTextureTransparency",
++                    ringTextureTransparencyUnit
++                );
+             }
+ 
+             program.setUniform("textureOffset", _ringsComponent->textureOffset());
+@@ -1781,9 +1794,11 @@
+         std::to_string(_shadowMappingProperties.shadowMapping && _shadowComponent)
+     );
+     pairs.emplace_back(
+-        "useRingShadows", 
+-        std::to_string(_shadowMappingProperties.shadowMapping && _ringsComponent && 
+-                       _ringsComponent->isEnabled())
++        "useRingShadows",
++        std::to_string(
++            _shadowMappingProperties.shadowMapping && _ringsComponent &&
++            _ringsComponent->isEnabled()
++        )
+     );
+     pairs.emplace_back("showChunkEdges", std::to_string(_debugProperties.showChunkEdges));
+     pairs.emplace_back("showHeightResolution", "0");
+--- MacOS-patches/Ghoul-include-ghoul-misc-memorypool.h	2025-12-22 09:23:27.452698619 +0000
++++ /home/runner/source/OpenSpace/ext/ghoul/include/ghoul/misc/memorypool.h	2025-12-22 09:25:46.741303299 +0000
+@@ -29,11 +29,15 @@
+ #include <ghoul/misc/assert.h>
+ #include <array>
+ #include <cstddef>
+-#include <cstring>
+ #include <memory>
+ 
++#if defined(__APPLE__) || (defined(__linux__) && defined(__clang__))
++#include <experimental/memory_resource>
++namespace pmr = std::experimental::pmr;
++#else
+ #include <memory_resource>
+ namespace pmr = std::pmr;
++#endif
+ 
+ #include <vector>
+ 
+--- MacOS-patches/Ghoul-include-ghoul-misc-memorypool.inl	2025-12-22 09:23:27.452698619 +0000
++++ /home/runner/source/OpenSpace/ext/ghoul/include/ghoul/misc/memorypool.inl	2025-12-22 09:25:46.741303299 +0000
+@@ -27,9 +27,6 @@
+ #include <algorithm>
+ #include <numeric>
+ 
+-#include <memory_resource>
+-namespace pmr = std::pmr;
+-
+ namespace {
+     constexpr int DebugByte = 0x0F;
+     constexpr int AlignmentByte = 0x1F;
+--- MacOS-patches/Ghoul-src-misc-sharedmemory.cpp	2025-12-22 09:23:27.453698617 +0000
++++ /home/runner/source/OpenSpace/ext/ghoul/src/misc/sharedmemory.cpp	2025-12-22 09:25:08.395415993 +0000
+@@ -36,12 +36,6 @@
+ #include <cstring>
+ #include <sys/shm.h>
+ // Common access type bits, used with ipcperm()
+-#ifdef __APPLE__
+-// Undefine conflicting macros
+-#undef IPC_R
+-#undef IPC_W
+-#undef IPC_M
+-#endif
+ constexpr int IPC_R = 000400; // read permission
+ constexpr int IPC_W = 000200; // write/alter permission
+ constexpr int IPC_M = 010000; // permission to change control info
+--- MacOS-patches/Ghoul-src-logging-consolelog.cpp	2025-12-22 09:23:27.453698617 +0000
++++ /home/runner/source/OpenSpace/ext/ghoul/src/logging/consolelog.cpp	2025-12-22 09:25:46.747303282 +0000
+@@ -30,11 +30,7 @@
+ #include <ghoul/misc/profiling.h>
+ #include <iostream>
+ #include <string_view>
+-#ifndef __APPLE__
+ #include <syncstream>
+-#else
+-#include <mutex>
+-#endif
+ 
+ #ifdef WIN32
+ #include <Windows.h>
+@@ -45,21 +41,6 @@
+ #include <unistd.h>
+ #include <sys/sysctl.h>
+ 
+-std::mutex sync_mutex;
+-
+-template <typename T>
+-void sync_print_cout(T&& message) {
+-    std::lock_guard<std::mutex> lock(sync_mutex);
+-    std::cout << std::forward<T>(message) << std::endl;
+-}
+-
+-template <typename T>
+-void sync_print_cerr(T&& message) {
+-    std::lock_guard<std::mutex> lock(sync_mutex);
+-    std::cerr << std::forward<T>(message) << std::endl;
+-}
+-// __APPLE__ has problems with syncstream, use sync_print instead of osyncstream
+-
+ // Function is taken from https://developer.apple.com/library/mac/qa/qa1361/_index.html
+ // Returns true if the current process is being debugged (either running under the
+ // debugger or has a debugger attached post facto).
+@@ -161,18 +142,10 @@
+ 
+     res += message;
+     if (level >= LogLevel::Error) {
+-#ifndef __APPLE__
+         std::osyncstream(std::cerr) << res << '\n';
+-#else
+-       sync_print_cerr(res); 
+-#endif
+     }
+     else {
+-#ifndef __APPLE__
+         std::osyncstream(std::cout) << res << '\n';
+-#else
+-       sync_print_cout(res);
+-#endif
+     }
+ 
+ 
+@@ -181,16 +154,9 @@
+     }
+ }
+ 
+-#ifdef __APPLE__
+-void ConsoleLog::flush() {
+-    std::lock_guard<std::mutex> lock(sync_mutex);
+-    std::cout.flush();
+-}
+-#else
+ void ConsoleLog::flush() {
+     std::osyncstream(std::cout).flush();
+ }
+-#endif
+ 
+ void ConsoleLog::setColorForLevel(LogLevel level) {
+ #ifdef WIN32
+--- MacOS-patches/include-openspace-documentation-verifier.inl	2025-12-22 09:23:27.453698617 +0000
++++ /home/runner/source/OpenSpace/include/openspace/documentation/verifier.inl	2025-12-22 09:25:46.787303166 +0000
+@@ -27,21 +27,6 @@
+ #include <functional>
+ #include <iterator>
+ #include <numeric>
+-#include <sstream>
+-
+-// Workaround for macOS libc++ std::format with std::vector<bool>
+-namespace openspace::documentation::detail {
+-    template<typename T>
+-    decltype(auto) format_value(T&& value) {
+-        using Type = std::remove_cvref_t<T>;
+-        if constexpr (std::is_same_v<Type, std::vector<bool>::reference> ||
+-                      std::is_same_v<Type, std::vector<bool>::const_reference>) {
+-            return static_cast<bool>(std::forward<T>(value));
+-        } else {
+-            return std::forward<T>(value);
+-        }
+-    }
+-}
+ 
+ namespace openspace::documentation {
+ 
+@@ -391,7 +376,7 @@
+             std::string list = std::accumulate(
+                 values.begin() + 1,
+                 values.end(),
+-                std::format("{}", detail::format_value(values.front())),
++                std::format("{}", values.front()),
+                 [](std::string lhs, typename T::Type rhs) {
+                     return std::format("{}, {}", lhs, rhs);
+                 }
+ 
+--- MacOS-patches/modules-space-rendering-renderableorbitalkepler.cpp	2025-12-22 09:23:27.454698615 +0000
++++ /home/runner/source/OpenSpace/modules/space/rendering/renderableorbitalkepler.cpp	2025-12-22 09:25:46.854302972 +0000
+@@ -44,28 +44,6 @@
+ #include <fstream>
+ #include <random>
+ #include <vector>
+-// could link to dispatch to get multithreading on macOS
+-// #ifdef __APPLE__
+-// #include <dispatch/dispatch.h> // Include GCD header & link to libdispatch
+-
+-//     // Use Apple's Grand Central Dispatch for parallelism
+-//     dispatch_apply(_threadIds.size(), dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^(size_t index) {
+-//         // dispatch_apply gives you an index (0 to size-1), so we use it to access the threadId
+-//         int threadId = _threadIds[index];
+-//         threadedSegmentCalculations(threadId, data);
+-//     });
+-
+-// #else
+-//     // Standard C++17 Parallelism
+-//     std::for_each(
+-//         std::execution::par_unseq,
+-//         _threadIds.begin(),
+-//         _threadIds.end(),
+-//         [&](int threadId) {
+-//             threadedSegmentCalculations(threadId, data);
+-//         }
+-//     );
+-// #endif
+ 
+ namespace {
+     // The possible values for the _renderingModes property
+@@ -517,15 +495,6 @@
+ 
+     bool isPaused = data.time.j2000Seconds() == data.previousFrameTime.j2000Seconds();
+     if (!isPaused || _forceUpdate) {
+-#ifdef __APPLE__
+-        std::for_each(
+-            _threadIds.begin(),
+-            _threadIds.end(),
+-            [&](int threadId) {
+-                threadedSegmentCalculations(threadId, data);
+-            }
+-        );
+-#else
+         std::for_each(
+             std::execution::par_unseq,
+             _threadIds.begin(),
+@@ -534,7 +503,6 @@
+                 threadedSegmentCalculations(threadId, data);
+             }
+         );
+-#endif
+     }
+ 
+     _lineDrawCount = static_cast<GLsizei>(_segmentsPerOrbit.size() * 2);
+@@ -560,9 +528,13 @@
+                 cameraUpDirectionWorld.x,
+                 cameraUpDirectionWorld.z
+             );
+-            orthoRight = glm::normalize(glm::cross(otherVector, cameraViewDirectionWorld));
++            orthoRight = glm::normalize(
++                glm::cross(otherVector, cameraViewDirectionWorld)
++            );
+         }
+-        glm::vec3 orthoUp = glm::normalize(glm::cross(cameraViewDirectionWorld, orthoRight));
++        glm::vec3 orthoUp = glm::normalize(
++            glm::cross(cameraViewDirectionWorld, orthoRight)
++        );
+ 
+         _pointProgram->activate();
+         _pointProgram->setUniform(
+@@ -753,9 +725,9 @@
+     // Trail vectors needs double length as it may use two trails per orbit
+     _startIndexTrails.resize(_sizeRender * 2);
+     _segmentSizeTrails.resize(_sizeRender * 2);
+-    
++
+     double maxSemiMajorAxis = 0.0;
+-    size_t nVerticesTotal = 0; 
++    size_t nVerticesTotal = 0;
+     for (unsigned int i = 0; i < _sizeRender; i++) {
+         // For points rendering as they are always two vertices long
+         _segmentSizePoints[i] = 2;
+@@ -780,49 +752,7 @@
+     orbitIdHolder.resize(_sizeRender);
+     std::iota(orbitIdHolder.begin(), orbitIdHolder.end(), 0);
+ 
+-#ifdef __APPLE__
+     std::for_each(
+-        // std::execution::par_unseq,
+-        orbitIdHolder.begin(),
+-        orbitIdHolder.end(),
+-        [&](int index) {
+-            ZoneScoped;
+-
+-            const kepler::Parameters& orbit = _parameters[index];
+-
+-            const KeplerCalculator calc = KeplerCalculator(
+-                orbit.eccentricity,
+-                orbit.semiMajorAxis,
+-                orbit.inclination,
+-                orbit.ascendingNode,
+-                orbit.argumentOfPeriapsis,
+-                orbit.meanAnomaly,
+-                orbit.period,
+-                orbit.epoch
+-            );
+-
+-            const int nVerts = _segmentsPerOrbit[index];
+-            const int offset = _vertexBufferOffset[index];
+-            const int nSegments = nVerts - 1;
+-            for (GLint j = 0; j < nVerts; j++) {
+-                const double timeOffset = orbit.period *
+-                    static_cast<double>(j) / static_cast<double>(nSegments);
+-
+-                const glm::dvec3 position = calc.position(timeOffset + orbit.epoch);
+-
+-                _vertexBufferData[offset + j].x = static_cast<float>(position.x);
+-                _vertexBufferData[offset + j].y = static_cast<float>(position.y);
+-                _vertexBufferData[offset + j].z = static_cast<float>(position.z);
+-                _vertexBufferData[offset + j].time = timeOffset;
+-                _vertexBufferData[offset + j].epoch = orbit.epoch;
+-                _vertexBufferData[offset + j].period = orbit.period;
+-            }
+-
+-            _updateHelper[index].timePerStep = orbit.period / nSegments;
+-        }
+-    );
+-#else
+-        std::for_each(
+         std::execution::par_unseq,
+         orbitIdHolder.begin(),
+         orbitIdHolder.end(),
+@@ -862,7 +792,6 @@
+             _updateHelper[index].timePerStep = orbit.period / nSegments;
+         }
+     );
+-#endif
+ 
+     // Calculate how many orbits we calculate per thread
+     // 1000 per thread (arbitrary) to not create threads that do little to no work
+@@ -986,7 +915,7 @@
+                 else {
+                     const int trailHead = static_cast<int>(std::ceil(frac * nSegments));
+                     const int headVertexIndex = startVertexIndex + trailHead + 1;
+-                    const int correctTrailLength = trailLength + 3; 
++                    const int correctTrailLength = trailLength + 3;
+ 
+                     // Need to do this due to order of vertex data in the vertex buffer
+                     int correctVertexIndex = headVertexIndex - correctTrailLength;
+@@ -1002,7 +931,7 @@
+                         p0Start = startVertexIndex;
+                         p1Start = correctVertexIndex;
+ 
+-                        // Special check to make sure we don't end up with segment 
++                        // Special check to make sure we don't end up with segment
+                         // sections 1 vertex length. A segment must contain at least 2
+                         // vertices or more.
+                         if (lastVertexIndex - correctVertexIndex == 1) {
+--- MacOS-patches/modules-globebrowsing-src-geojson-globegeometryhelper.cpp	2025-12-22 09:23:27.453698617 +0000
++++ /home/runner/source/OpenSpace/modules/globebrowsing/src/geojson/globegeometryhelper.cpp	2025-12-22 09:25:46.827303050 +0000
+@@ -245,7 +245,7 @@
+     vertices.reserve(maxSteps * maxSteps);
+ 
+     // Add points inside the triangle
+-    std::vector<geos::geom::Coordinate> pointCoords;
++    std::vector<Coordinate> pointCoords;
+     pointCoords.reserve(3 * maxSteps + 1);
+ 
+     const Ellipsoid& ellipsoid = globe.ellipsoid();
+@@ -314,7 +314,7 @@
+     // time
+     std::vector<std::unique_ptr<Point>> geosPoints;
+     geosPoints.reserve(pointCoords.size());
+-    for (const geos::geom::Coordinate& c : pointCoords) {
++    for (const Coordinate& c : pointCoords) {
+         geosPoints.emplace_back(geometryFactory->createPoint(c));
+     }
+     std::unique_ptr<MultiPoint> points = geometryFactory->createMultiPoint(
+@@ -326,13 +326,13 @@
+ 
+     // Returns a list of triangles, as geos polygons
+     GeometryCollection* triangleGeoms = builder.getTriangles(*geometryFactory).release();
+-    std::vector<geos::geom::Coordinate> triCoords;
++    std::vector<Coordinate> triCoords;
+     triangleGeoms->getCoordinates()->toVector(triCoords);
+ 
+     vertices.reserve(vertices.size() + triCoords.size() + 1);
+ 
+     int count = 0;
+-    for (const geos::geom::Coordinate& coord : triCoords) {
++    for (const Coordinate& coord : triCoords) {
+         count++;
+         if (count == 4) {
+             // Skip every 4th coord, as polygons have one extra coord per triangle.
+--- MacOS-patches/modules-globebrowsing-src-geojson-globegeometryfeature.cpp	2025-12-22 09:23:27.453698617 +0000
++++ /home/runner/source/OpenSpace/modules/globebrowsing/src/geojson/globegeometryfeature.cpp	2025-12-22 09:25:46.826303053 +0000
+@@ -187,7 +187,7 @@
+                 // Note that Constrained Delaunay triangulation supports polygons with
+                 // holes :)
+                 std::vector<geos::geom::Coordinate> triCoords;
+-                geos::triangulate::tri::TriList<geos::triangulate::tri::Tri> triangles;
++                TriList<Tri> triangles;
+                 using geos::triangulate::polygon::ConstrainedDelaunayTriangulator;
+                 ConstrainedDelaunayTriangulator::triangulatePolygon(p, triangles);
+ 
+@@ -195,7 +195,7 @@
+ 
+                 // Add three coordinates per triangle. Note flipped winding order
+                 // (want counter clockwise, but GEOS provides clockwise)
+-                for (const geos::triangulate::tri::Tri* t : triangles) {
++                for (const Tri* t : triangles) {
+                     triCoords.push_back(t->getCoordinate(0));
+                     triCoords.push_back(t->getCoordinate(2));
+                     triCoords.push_back(t->getCoordinate(1));
+@@ -205,7 +205,7 @@
+                 // Boundaries / Lines
+ 
+                 // Normalize to make sure rings have correct orientation
+-                std::unique_ptr<geos::geom::Polygon> pNormalized = p->clone();
++                std::unique_ptr<Polygon> pNormalized = p->clone();
+                 pNormalized->normalize();
+ 
+                 const geos::geom::LinearRing* outerRing = pNormalized->getExteriorRing();
+--- MacOS-patches/apps-OpenSpace-main.cpp	2025-12-22 09:23:27.453698617 +0000
++++ /home/runner/source/OpenSpace/apps/OpenSpace/main.cpp	2025-12-22 09:25:45.073308132 +0000
+@@ -22,11 +22,6 @@
+  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
+  ****************************************************************************************/
+ 
+-// Explicitly including OpenGL for APPLE
+-#define GLFW_INCLUDE_NONE
+-#ifdef __APPLE__
+-#include <OpenGL/gl3.h>
+-#endif
+ #include <openspace/documentation/documentation.h>
+ #include <openspace/engine/configuration.h>
+ #include <openspace/engine/globals.h>
+@@ -1190,7 +1185,7 @@
+     // we need to explicitly tell the operating system where to find the PDB files. We
+     // place them right next to the .exe file and this seems to be the only reliable way
+     // to do it.
+-    // Using SymInitialize and SymSetSearchPath from dbghelp.h didn't work 
++    // Using SymInitialize and SymSetSearchPath from dbghelp.h didn't work
+     // https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/symbol-path
+ 
+     std::string exeFolder = std::filesystem::path(argv[0]).parent_path().string();
+--- MacOS-patches/src-interaction-touchbar.mm	2025-12-22 09:23:27.455698612 +0000
++++ /home/runner/source/OpenSpace/src/interaction/touchbar.mm	2025-12-22 09:25:46.877302905 +0000
+@@ -174,7 +174,11 @@
+     - (void)pauseResumeButtonAction:(id)sender {
+         // No sync or send because time settings are always synced and sent
+         // to the connected nodes and peers
+-        global::scriptEngine->queueScript("openspace.time.togglePause();");
++        global::scriptEngine->queueScript(
++            "openspace.time.togglePause();",
++            scripting::ScriptEngine::ShouldBeSynchronized::No,
++            scripting::ScriptEngine::ShouldSendToRemote::No
++        );
+ 
+         NSButton* button = static_cast<NSButton*>(sender);
+         // This check is inverted since the togglePause script has not run yet
+@@ -194,7 +198,11 @@
+              "NavigationHandler.OrbitalNavigator.Aim",
+              "NavigationHandler.OrbitalNavigator.RetargetAnchor"
+         );
+-        global::scriptEngine->queueScript(str);
++        global::scriptEngine->queueScript(
++            str,
++            scripting::ScriptEngine::ShouldBeSynchronized::Yes,
++            scripting::ScriptEngine::ShouldSendToRemote::Yes
++        );
+     }
+ 
+     - (void)hideTextAction:(id)sender {
+@@ -206,7 +214,9 @@
+              openspace.setPropertyValueSingle('Dashboard.IsEnabled', not isEnabled);\
+              openspace.setPropertyValueSingle('RenderEngine.ShowLog', not isEnabled);\
+              openspace.setPropertyValueSingle('RenderEngine.ShowVersion', not isEnabled);\
+-             openspace.setPropertyValueSingle('RenderEngine.ShowCamera', not isEnabled)"            
++             openspace.setPropertyValueSingle('RenderEngine.ShowCamera', not isEnabled)",
++            scripting::ScriptEngine::ShouldBeSynchronized::No,
++            scripting::ScriptEngine::ShouldSendToRemote::No
+         );
+     }
+ 
+@@ -215,7 +225,9 @@
+         (void)sender;
+         global::scriptEngine->queueScript(
+             "local isEnabled = openspace.propertyValue('Modules.CefWebGui.Visible');\
+-             openspace.setPropertyValueSingle('Modules.CefWebGui.Visible', not isEnabled);"            
++             openspace.setPropertyValueSingle('Modules.CefWebGui.Visible', not isEnabled);",
++            scripting::ScriptEngine::ShouldBeSynchronized::No,
++            scripting::ScriptEngine::ShouldSendToRemote::No
+         );
+     }
+ @end
+--- MacOS-patches/modules-webbrowser-CMakeLists.txt	2025-12-22 09:23:27.454698615 +0000
++++ /home/runner/source/OpenSpace/modules/webbrowser/CMakeLists.txt	2025-12-22 09:23:45.134657392 +0000
+@@ -202,18 +202,9 @@
+     # add_cef_logical_target("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
+     add_dependencies(${target} libcef_dll_wrapper)
+     target_link_libraries(${target} PRIVATE libcef_dll_wrapper ${CEF_STANDARD_LIBS})
+-    # Map target names to their output names
+-    if(target STREQUAL "OpenSpace_Helper")
+-      set(output_name "${CEF_HELPER_TARGET_OUTPUT_NAME}")
+-    elseif(target STREQUAL "OpenSpace_Helper_GPU")
+-      set(output_name "${CEF_HELPER_TARGET_GPU_OUTPUT_NAME}")
+-    elseif(target STREQUAL "OpenSpace_Helper_Renderer")
+-      set(output_name "${CEF_HELPER_TARGET_RENDERER_OUTPUT_NAME}")
+-    endif()
+-    
+     set_target_properties(${target} PROPERTIES
+       MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/mac/helper-Info.plist
+-      OUTPUT_NAME "${output_name}"
++      OUTPUT_NAME "${target}_OUTPUT_NAME"
+     )
+ 
+     target_compile_options(${target} PRIVATE -Wno-deprecated-declarations)
+--- MacOS-patches/modules-webgui-cmake-nodejs_support.cmake	2025-12-22 09:23:27.455698612 +0000
++++ /home/runner/source/OpenSpace/modules/webgui/cmake/nodejs_support.cmake	2025-12-22 09:23:45.137657384 +0000
+@@ -38,8 +38,7 @@
+       set(path "v${version}/win-x64/${filename}")
+     endif ()
+   elseif (APPLE)
+-    if (CMAKE_OSX_ARCHITECTURES MATCHES "arm64" OR 
+-        CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|ARM64")
++    if (CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
+       set(basename "node-v${version}-darwin-arm64")
+       set(filename "${basename}.tar.gz")
+       set(path "v${version}/${filename}")
+--- MacOS-patches/modules-webbrowser-src-webbrowserapp.cpp	2025-12-22 09:23:27.455698612 +0000
++++ /home/runner/source/OpenSpace/modules/webbrowser/src/webbrowserapp.cpp	2025-12-22 09:23:45.137657384 +0000
+@@ -48,9 +48,6 @@
+     commandline->AppendSwitch("enable-begin-frame-scheduling");
+     commandline->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
+ #ifdef __APPLE__
+-    // Disable GPU acceleration on macOS (avoids "GPU unavailable" error)
+-    commandline->AppendSwitch("disable-gpu");
+-    commandline->AppendSwitch("disable-gpu-compositing");
+     commandline->AppendSwitch("--disable-gpu-sandbox");
+     commandline->AppendSwitch("--no-sandbox");
+ #endif // __APPLE__
+--- MacOS-patches/modules-webbrowser-cmake-webbrowser_helpers.cmake	2025-12-22 09:23:27.454698615 +0000
++++ /home/runner/source/OpenSpace/modules/webbrowser/cmake/webbrowser_helpers.cmake	2025-12-22 09:23:45.135657390 +0000
+@@ -68,14 +68,13 @@
+   endif ()
+ 
+   set(CEF_FINAL_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CEF_OUTPUT_PREFIX}${CEF_TARGET}.app")
+-  set(CEF_INTERMEDIATE_HELPER_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CEF_OUTPUT_PREFIX}${CEF_HELPER_TARGET_OUTPUT_NAME}.app")
+-  set(CEF_INTERMEDIATE_HELPER_APP_GPU "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CEF_OUTPUT_PREFIX}${CEF_HELPER_TARGET_GPU_OUTPUT_NAME}.app")
+-  set(CEF_INTERMEDIATE_HELPER_APP_RENDERER "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CEF_OUTPUT_PREFIX}${CEF_HELPER_TARGET_RENDERER_OUTPUT_NAME}.app")
++  set(CEF_INTERMEDIATE_HELPER_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CEF_OUTPUT_PREFIX}${CEF_HELPER_TARGET}.app")
++  set(CEF_INTERMEDIATE_HELPER_APP_GPU "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CEF_OUTPUT_PREFIX}${CEF_HELPER_TARGET_GPU}.app")
++  set(CEF_INTERMEDIATE_HELPER_APP_RENDERER "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CEF_OUTPUT_PREFIX}${CEF_HELPER_TARGET_RENDERER}.app")
+ 
+-
+-  set(CEF_FINAL_HELPER_APP "${CEF_FINAL_APP}/Contents/Frameworks/${CEF_HELPER_TARGET_OUTPUT_NAME}.app")
+-  set(CEF_FINAL_HELPER_APP_GPU "${CEF_FINAL_APP}/Contents/Frameworks/${CEF_HELPER_TARGET_GPU_OUTPUT_NAME}.app")
+-  set(CEF_FINAL_HELPER_APP_RENDERER "${CEF_FINAL_APP}/Contents/Frameworks/${CEF_HELPER_TARGET_RENDERER_OUTPUT_NAME}.app")
++  set(CEF_FINAL_HELPER_APP "${CEF_FINAL_APP}/Contents/Frameworks/${CEF_HELPER_TARGET}.app")
++  set(CEF_FINAL_HELPER_APP_GPU "${CEF_FINAL_APP}/Contents/Frameworks/${CEF_HELPER_TARGET_GPU}.app")
++  set(CEF_FINAL_HELPER_APP_RENDERER "${CEF_FINAL_APP}/Contents/Frameworks/${CEF_HELPER_TARGET_RENDERER}.app")
+   set(CEF_FRAMEWORK_LOCATION "${CEF_BINARY_DIR}/Chromium Embedded Framework.framework")
+   set(CEF_FRAMEWORK_FINAL_LOCATION "${CEF_FINAL_APP}/Contents/Frameworks/Chromium Embedded Framework.framework")
+ 
+--- MacOS-patches/modules-webbrowser-src-cefhost.cpp	2025-12-22 09:23:27.454698615 +0000
++++ /home/runner/source/OpenSpace/modules/webbrowser/src/cefhost.cpp	2025-12-22 09:25:46.871302922 +0000
+@@ -53,14 +53,11 @@
+     const std::filesystem::path root =
+         std::filesystem::path(helperLocation).parent_path();
+     const std::filesystem::path cefcache = std::format("{}/cefcache", root);
+-    
++    CefString(&settings.root_cache_path).FromString(cefcache.string());
+ 
+ #ifndef __APPLE__
+-    // Apple is more strict about where the cache can be located
+-    CefString(&settings.root_cache_path).FromString(cefcache.string());    
+     // Apple will always look for helper in a fixed location
+     CefString(&settings.browser_subprocess_path).FromString(helperLocation);
+-    
+ #endif // __APPLE__
+ 
+     settings.windowless_rendering_enabled = 1;
+--- MacOS-patches/Ghoul-src-filesystem-filesystem.osx.cpp	2025-12-22 09:23:27.453698617 +0000
++++ /home/runner/source/OpenSpace/ext/ghoul/src/filesystem/filesystem.osx.cpp	2025-12-22 09:25:08.390416008 +0000
+@@ -184,7 +184,7 @@
+         }
+     }
+ 
+-   // LWARNING(std::format("Could not find callback identifier '{}'", callbackIdentifier));
++    LWARNING(std::format("Could not find callback identifier '{}'", callbackIdentifier));
+ }
+ 
+ void callbackHandler(const std::string& path) {
