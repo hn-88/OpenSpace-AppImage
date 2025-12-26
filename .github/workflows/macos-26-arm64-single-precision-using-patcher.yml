@@ -43,7 +43,7 @@ jobs:
         cp -v MacOS-patches/reverse_patch.py "$openSpaceHome/reverse_patch.py"
         cp -v MacOS-patches/MacOS-reverse-diff.patch "$openSpaceHome/MacOS-reverse-diff.patch"
         cd "$openSpaceHome"
-        python3 reverse_patch.py MacOS-reverse-diff.patch
+        python3 reverse_patch.py MacOS-reverse-diff-edited.patch
         
     - name: get the single precision patches
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
