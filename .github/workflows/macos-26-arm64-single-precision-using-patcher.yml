@@ -44,6 +44,11 @@ jobs:
         cp -v MacOS-patches/MacOS-reverse-diff-edited.patch "$openSpaceHome/MacOS-reverse-diff-edited.patch"
         cd "$openSpaceHome"
         python3 reverse_patch.py MacOS-reverse-diff-edited.patch
+        echo "now applying smart_patcher patches..."
+        cp -v MacOS-patches/smart_patcher.py "$openSpaceHome/smart_patcher.py"
+        cp -v MacOS-patches/MacOS-patches.txt "$openSpaceHome/MacOS-patches.txt"
+        python3 smart_patcher.py MacOS-patches.txt
+        
         
     - name: get the single precision patches
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
