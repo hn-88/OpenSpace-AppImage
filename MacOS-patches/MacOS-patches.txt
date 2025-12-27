@@ -42,33 +42,32 @@ index xxxx..xxxx 100644
 --- a/modules/globebrowsing/src/renderableglobe.cpp
 +++ b/modules/globebrowsing/src/renderableglobe.cpp
 @@ around line 612
--    , _debugProperties({
--        BoolProperty(ShowChunkEdgeInfo, false),
--        BoolProperty(LevelProjectedAreaInfo, true),
--        TriggerProperty(ResetTileProviderInfo),
--        BoolProperty(PerformFrustumCullingInfo, true),
--        BoolProperty(PerformHorizonCullingInfo, true),
--        IntProperty(ModelSpaceRenderingInfo, 14, 1, 22),
--        IntProperty(DynamicLodIterationCountInfo, 16, 4, 128)
--    })
--    , _debugPropertyOwner({ "Debug" })
--    , _shadowMappingProperties({
--        BoolProperty(ShadowMappingInfo, false),
--        FloatProperty(ZFightingPercentageInfo, 0.995f, 0.000001f, 1.f),
--        IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
--    })
-+  , _debugProperties{
-+    .showChunkEdges = BoolProperty(ShowChunkEdgeInfo, false),
-+    .levelByProjectedAreaElseDistance = BoolProperty(LevelProjectedAreaInfo, true),
-+    .resetTileProviders = TriggerProperty(ResetTileProviderInfo),
-+    .performFrustumCulling = BoolProperty(PerformFrustumCullingInfo, true),
-+    .performHorizonCulling = BoolProperty(PerformHorizonCullingInfo, true),
-+    .modelSpaceRenderingCutoffLevel = IntProperty(ModelSpaceRenderingInfo, 14, 1, 22),
-+    .dynamicLodIterationCount = IntProperty(DynamicLodIterationCountInfo, 16, 4, 128)
-+}
-+    , _debugPropertyOwner({ "Debug" })
-+ , _shadowMappingProperties{
-+    .shadowMapping = BoolProperty(ShadowMappingInfo, false),
-+    .zFightingPercentage = FloatProperty(ZFightingPercentageInfo, 0.995f, 0.000001f, 1.f),
-+    .numberShadowSamples = IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
-+}
+-BoolProperty(ShowChunkEdgeInfo, false),
++.showChunkEdges = BoolProperty(ShowChunkEdgeInfo, false),
+@@ 
+-BoolProperty(LevelProjectedAreaInfo, true),
++.levelByProjectedAreaElseDistance = BoolProperty(LevelProjectedAreaInfo, true),
+@@ 
+-TriggerProperty(ResetTileProviderInfo),
++.resetTileProviders = TriggerProperty(ResetTileProviderInfo),
+@@ 
+-BoolProperty(PerformFrustumCullingInfo, true),
++.performFrustumCulling = BoolProperty(PerformFrustumCullingInfo, true),
+@@ 
+-BoolProperty(PerformHorizonCullingInfo, true),
++.performHorizonCulling = BoolProperty(PerformHorizonCullingInfo, true),
+@@ 
+-IntProperty(ModelSpaceRenderingInfo, 14, 1, 22),
++.modelSpaceRenderingCutoffLevel = IntProperty(ModelSpaceRenderingInfo, 14, 1, 22),
+@@ 
+-IntProperty(DynamicLodIterationCountInfo, 16, 4, 128)
++.dynamicLodIterationCount = IntProperty(DynamicLodIterationCountInfo, 16, 4, 128)
+@@ 
+-BoolProperty(ShadowMappingInfo, false),
++.shadowMapping = BoolProperty(ShadowMappingInfo, false),
+@@ 
+-FloatProperty(ZFightingPercentageInfo, 0.995f, 0.000001f, 1.f),
++.zFightingPercentage = FloatProperty(ZFightingPercentageInfo, 0.995f, 0.000001f, 1.f),
+@@ 
+-IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
++.numberShadowSamples = IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
