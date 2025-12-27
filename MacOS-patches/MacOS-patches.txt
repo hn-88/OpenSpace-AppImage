@@ -1,0 +1,38 @@
+diff --git a/src/interaction/touchbar.mm b/src/interaction/touchbar.mm
+index xxxx..xxxx 100644
+--- a/src/interaction/touchbar.mm
++++ b/src/interaction/touchbar.mm
+@@ around line 179
+-.synchronized = scripting::ScriptEngine::ShouldBeSynchronized::No,
++.synchronized = scripting::ScriptEngine::Script::ShouldBeSynchronized::No,
+@@ 
+-.sendToRemote = scripting::ScriptEngine::ShouldSendToRemote::No
++.sendToRemote = scripting::ScriptEngine::Script::ShouldSendToRemote::No
+@@ 
+-.synchronized = scripting::ScriptEngine::ShouldBeSynchronized::Yes,
++.synchronized = scripting::ScriptEngine::Script::ShouldBeSynchronized::Yes,
+@@ 
+-.sendToRemote = scripting::ScriptEngine::ShouldSendToRemote::Yes
++.sendToRemote = scripting::ScriptEngine::Script::ShouldSendToRemote::Yes
+@@ 
+-.synchronized = scripting::ScriptEngine::ShouldBeSynchronized::No,
++.synchronized = scripting::ScriptEngine::Script::ShouldBeSynchronized::No,
+@@ 
+-.sendToRemote = scripting::ScriptEngine::ShouldSendToRemote::No
++.sendToRemote = scripting::ScriptEngine::Script::ShouldSendToRemote::No
+
+diff --git a/src/engine/downloadmanager.cpp b/src/engine/downloadmanager.cpp
+index xxxx..xxxx 100644
+--- a/src/engine/downloadmanager.cpp
++++ b/src/engine/downloadmanager.cpp
+@@ around line 37
+-#include <malloc.h>
++#include <cstdlib>
+
+diff --git a/modules/imgui/ext/imgui/imgui_draw.cpp b/modules/imgui/ext/imgui/imgui_draw.cpp
+index xxxx..xxxx 100644
+--- a/modules/imgui/ext/imgui/imgui_draw.cpp
++++ b/modules/imgui/ext/imgui/imgui_draw.cpp
+@@ around line 46
+-#include <malloc.h>
++#include <cstdlib>
