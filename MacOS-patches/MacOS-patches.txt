@@ -81,3 +81,15 @@ index xxxx..xxxx 100644
 -    })
 +.numberShadowSamples = IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
 +}
+
+diff --git a/modules/globebrowsing/shaders/localrenderer_vs.glsl b/modules/globebrowsing/shaders/localrenderer_vs.glsl
+index xxxx..xxxx 100644
+--- a/modules/globebrowsing/shaders/localrenderer_vs.glsl
++++ b/modules/globebrowsing/shaders/localrenderer_vs.glsl
+@@ around line 118
+-posObjSpace = vec3(inverseViewTransform * dvec4(p, 1.0));
++posObjSpace = vec3(inverseViewTransform * vec4(p, 1.0));
++normalObjSpace = normalize(vec3(inverseViewTransform * vec4(patchNormalCameraSpace, 0.0)));
+@@ 121
+-positionWorldSpace = vec3(modelTransform * dvec4(p, 1.0));
++positionWorldSpace = vec3(modelTransform * vec4(p, 1.0));
