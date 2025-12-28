@@ -93,3 +93,11 @@ index xxxx..xxxx 100644
 @@ 121
 -positionWorldSpace = vec3(modelTransform * dvec4(p, 1.0));
 +positionWorldSpace = vec3(modelTransform * vec4(p, 1.0));
+
+diff --git a/modules/globebrowsing/shaders/renderer_fs.glsl b/modules/globebrowsing/shaders/renderer_fs.glsl
+index xxxx..xxxx 100644
+--- a/modules/globebrowsing/shaders/renderer_fs.glsl
++++ b/modules/globebrowsing/shaders/renderer_fs.glsl
+-in vec3 normalObjSpace;
++in vec3 normalObjSpace;
++in vec3 posObjSpace;
