@@ -78,9 +78,11 @@ jobs:
         git clone https://github.com/Microsoft/vcpkg.git
         cd vcpkg
         .\bootstrap-vcpkg.bat
-        .\vcpkg install curl:arm64-windows
-        .\vcpkg install boost:arm64-windows
-        .\vcpkg install assimp:arm64-windows
+        # Use static triplet for consistent static linking
+        .\vcpkg install curl[ssl]:arm64-windows-static
+        .\vcpkg install zlib:arm64-windows-static
+        .\vcpkg install boost:arm64-windows-static
+        .\vcpkg install assimp:arm64-windows-static
         # Add other dependencies as needed
   
 #- name: Configure with vcpkg
