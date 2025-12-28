@@ -101,3 +101,20 @@ index xxxx..xxxx 100644
 -in vec3 normalObjSpace;
 +in vec3 normalObjSpace;
 +in vec3 posObjSpace;
+
+diff --git a/apps/OpenSpace/main.cpp b/apps/OpenSpace/main.cpp
+index xxxx..xxxx 100644
+--- a/apps/OpenSpace/main.cpp
++++ b/apps/OpenSpace/main.cpp
+@@ -22,11 +22,8 @@
+  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
+  ****************************************************************************************/
+-// Explicitly including OpenGL for APPLE
+-#ifdef __APPLE__
++// Prevent GLFW from including OpenGL headers (we use glbinding instead)
+ #define GLFW_INCLUDE_NONE
+-#include <OpenGL/gl3.h>
+-#endif // __APPLE__
+ #include <openspace/documentation/documentation.h>
+ #include <openspace/engine/configuration.h>
+ #include <openspace/engine/globals.h>
