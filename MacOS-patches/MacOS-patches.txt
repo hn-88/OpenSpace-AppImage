@@ -118,3 +118,17 @@ index xxxx..xxxx 100644
  #include <openspace/documentation/documentation.h>
  #include <openspace/engine/configuration.h>
  #include <openspace/engine/globals.h>
+
+diff --git a/modules/globebrowsing/src/renderableglobe.cpp b/modules/globebrowsing/src/renderableglobe.cpp
+index xxxx..xxxx 100644
+--- a/modules/globebrowsing/src/renderableglobe.cpp
++++ b/modules/globebrowsing/src/renderableglobe.cpp
+@@ around line 1232
+-    _globalRenderer.program->setUniform(
+-        "modelViewProjectionTransform",
+-        modelViewProjectionTransform
+-    );
++    _globalRenderer.program->setUniform(
++        "modelViewProjectionTransform",
++        glm::mat4(modelViewProjectionTransform)
++    );
