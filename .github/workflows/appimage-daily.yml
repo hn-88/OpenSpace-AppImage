@@ -56,7 +56,14 @@ jobs:
         # try the latest main branch, one of the newest commits
         mkdir build
         cd build
-    
+
+    - name: get updated ghoul
+      # https://github.com/OpenSpace/OpenSpace/issues/3880
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/ext/ghoul"
+        git checkout master --recurse-submodules
+        
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
