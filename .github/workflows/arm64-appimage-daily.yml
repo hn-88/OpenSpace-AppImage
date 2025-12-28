@@ -63,9 +63,16 @@ jobs:
         mkdir build
         cd build
 
-    - name: patch for ghoul issue
+    - name: get updated ghoul
+      # https://github.com/OpenSpace/OpenSpace/issues/3880
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/ext/ghoul"
+        git checkout master --recurse-submodules
+
+    #- name: patch for ghoul issue
+    #  run: |
+    #    openSpaceHome="$HOME/source/OpenSpace"
         # mv Ghoul-include-ghoul-misc-interpolator.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/interpolator.inl" -v
         
     
