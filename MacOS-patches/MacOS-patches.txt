@@ -79,7 +79,7 @@ index xxxx..xxxx 100644
 @@ 
 -        IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
 -    })
-+.numberShadowSamples = IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
++.nShadowSamples = IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
 +}
 
 diff --git a/modules/globebrowsing/shaders/localrenderer_vs.glsl b/modules/globebrowsing/shaders/localrenderer_vs.glsl
