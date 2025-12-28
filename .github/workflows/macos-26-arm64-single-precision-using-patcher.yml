@@ -187,6 +187,45 @@ jobs:
         cmake --build . --config ${{env.BUILD_TYPE}} -- -quiet
         df -h
 
+    - name: run macdeployqt
+      shell: bash
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome"
+        echo "### Bundling the QT libraries with macdeployqt"
+
+        # Define variables
+        APP_NAME="OpenSpace"
+        # CMake on macOS often places the .app bundle in bin/Release or just Release depending on configuration
+        # Adjust this path if your build places it elsewhere (e.g., just "Release/$APP_NAME.app")
+        APP_BUNDLE_PATH="bin/Release/$APP_NAME.app"
+        
+        # 1. Clean up previous attempts/unnecessary files if needed
+        # (MacOS builds usually keep clean separation, but we ensure we are working on the fresh build)
+        
+        echo "### Running macdeployqt..."
+        # macdeployqt patches the binary to find Qt frameworks and copies them into the bundle.
+        # -verbose=1 helps debug if files are missing.
+        $QT_DIR/bin/macdeployqt "$APP_BUNDLE_PATH" -verbose=1
+
+        # 2. Copy application resources into the App Bundle
+        # macOS apps expect resources in Contents/Resources. 
+        # This makes the .app self-contained (drag-and-drop).
+        echo "### Copying resources into App Bundle..."
+        
+        DEST_RES="$APP_BUNDLE_PATH/Contents/Resources"
+        
+        # Create Resources directory if macdeployqt didn't (it usually does)
+        mkdir -p "$DEST_RES"
+
+        # Copy top-level configuration and data folders into the bundle
+        cp -R config "$DEST_RES/"
+        cp -R data "$DEST_RES/"
+        cp -R modules "$DEST_RES/"
+        cp -R scripts "$DEST_RES/"
+        cp -R shaders "$DEST_RES/"
+        cp openspace.cfg "$DEST_RES/"
+
     - name: Sign macOS App with CEF (Ad-hoc)
       if: runner.os == 'macOS'
       run: |
@@ -254,7 +293,7 @@ jobs:
       run: |
         cd $HOME/source/OpenSpace/bin/Release
         zip -r OpenSpaceapp.zip OpenSpace.app
-        
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
@@ -264,10 +303,66 @@ jobs:
         # A file, directory or wildcard pattern that describes what to upload
         path: /Users/runner/source/OpenSpace/bin/Release/OpenSpaceapp.zip
 
+    - name: Prepare and deploy (MacOS)
+      shell: bash
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome"
+        echo "### Deploying for MacOS (Release build)"
+
+        # Define variables
+        APP_NAME="OpenSpace"
+        # CMake on macOS often places the .app bundle in bin/Release or just Release depending on configuration
+        # Adjust this path if your build places it elsewhere (e.g., just "Release/$APP_NAME.app")
+        APP_BUNDLE_PATH="bin/Release/$APP_NAME.app"
+                
+        # Copy documentation files to the root of the DMG/Zip (outside the app) or inside Resources.
+        # Usually, License/Readme files sit next to the .app in the zip.
+        # We will prepare a 'staging' folder to zip everything together cleanly.
+        mkdir -p deploy_staging
+        mv "$APP_BUNDLE_PATH" deploy_staging/
+
+        # Copy text files next to the App (so user sees them upon unzipping)
+        cp ACKNOWLEDGMENTS.md deploy_staging/
+        cp CITATION.cff deploy_staging/
+        cp CODE_OF_CONDUCT.md deploy_staging/
+        cp COMMIT.md deploy_staging/
+        cp CREDITS.md deploy_staging/
+        cp LICENSE.md deploy_staging/
+        cp README.md deploy_staging/
+        
+        # Copy sync folder if it exists (handling the variable %sync% from original script)
+        if [ ! -z "$sync" ]; then
+             cp -R $sync deploy_staging/
+        fi
+
+        # 3. Zip the result
+        echo "### Create main zip file"
+        cd deploy_staging
+        
+        # Zip the bundle and the text files. 
+        # -y preserves symlinks (CRITICAL for Qt frameworks inside the .app)
+        # -r recursive
+        zip -r -9 -y ../OpenSpace-minimal-daily-mac.zip . \
+          -x "*.git*" \
+          -x "*.DS_Store"
+
+        echo "Deployment package created: OpenSpace-minimal-daily-mac.zip"
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        # Artifact name
+        name: OpenSpace-MacOS15-AppleSilicon-minimal
+        # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        path: /Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac.zip
+
     - name: Upload .app to GitHub Release
       run: |
         RELEASE_TAG="daily-MacOS-app-single-precision"
         APP_FILE=/Users/runner/source/OpenSpace/bin/Release/OpenSpaceapp.zip
+        MINZIP_FILE=/Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac.zip
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
@@ -279,7 +374,8 @@ jobs:
           -n "Automated build of OpenSpace - patched to single-precision - (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please download and unzip the Windows zip file from openspaceproject.com and unzip the .app file into the bin directory of the Windows version. Run using the terminal, by changing the directory with cd into the bin directory, and then running `./OpenSpace.app/Contents/MacOS/OpenSpace`. But please note the points at https://github.com/hn-88/OpenSpace-single-precision/wiki  . You may be asked to permit running this app from an unknown publisher - please see https://github.com/hn-88/OpenSpace-AppImage/wiki/How-to-run-unsigned-apps-on-Mac . Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20Mac%20build"
     
         # Upload .app asset (overwrite if exists)
-        gh release upload "$RELEASE_TAG" "$APP_FILE" --clobber
+        gh release upload "$RELEASE_TAG" "$APP_FILE" "$MINZIP_FILE" --clobber
+        
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
 
