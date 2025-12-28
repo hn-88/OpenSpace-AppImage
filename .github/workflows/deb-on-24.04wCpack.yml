@@ -52,7 +52,13 @@ jobs:
         # try the latest main branch, one of the latest commits
         mkdir build
         cd build
-        
+
+    - name: get updated ghoul
+      # https://github.com/OpenSpace/OpenSpace/issues/3880
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/ext/ghoul"
+        git checkout master --recurse-submodules
     
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
@@ -63,10 +69,10 @@ jobs:
         sudo apt-get -y install libasound2t64 
         # libasound2-data libasound2-plugins
 
-    - name: Install clipboard patches
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp" 
+    #- name: Install clipboard patches
+    #  run: |
+    #    openSpaceHome="$HOME/source/OpenSpace"
+        # cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp" 
         
     - name: Install cmakelists patches
       run: |
