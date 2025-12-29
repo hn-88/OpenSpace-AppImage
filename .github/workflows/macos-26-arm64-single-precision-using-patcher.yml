@@ -194,6 +194,10 @@ jobs:
         cd "$openSpaceHome"
         echo "### Bundling the QT libraries with macdeployqt"
 
+        echo "/opt/homebrew/opt/qt@6/bin" >> $GITHUB_PATH
+        which macdeployqt
+        macdeployqt -help
+
         # Define variables
         APP_NAME="OpenSpace"
         # CMake on macOS often places the .app bundle in bin/Release or just Release depending on configuration
@@ -204,9 +208,17 @@ jobs:
         # (MacOS builds usually keep clean separation, but we ensure we are working on the fresh build)
         
         echo "### Running macdeployqt..."
-        # macdeployqt patches the binary to find Qt frameworks and copies them into the bundle.
-        # -verbose=1 helps debug if files are missing.
-        $QT_DIR/bin/macdeployqt "$APP_BUNDLE_PATH" -verbose=1
+        macdeployqt "$APP_BUNDLE_PATH" \
+          -qmldir=/opt/homebrew/opt/qt@6/qml \
+          -verbose=2 \
+          -always-overwrite
+        
+        echo "### Verifying Qt platform plugin..."
+        ls "$APP_BUNDLE_PATH/Contents/PlugIns/platforms" || true
+        
+        echo "### Cleaning debug Qt dylibs..."
+        find "$APP_BUNDLE_PATH/Contents" -name "*_debug.dylib" -delete || true
+
 
         # 2. Copy application resources into the App Bundle
         # macOS apps expect resources in Contents/Resources. 
@@ -219,12 +231,12 @@ jobs:
         mkdir -p "$DEST_RES"
 
         # Copy top-level configuration and data folders into the bundle
-        cp -R config "$DEST_RES/"
-        cp -R data "$DEST_RES/"
-        cp -R modules "$DEST_RES/"
-        cp -R scripts "$DEST_RES/"
-        cp -R shaders "$DEST_RES/"
-        cp openspace.cfg "$DEST_RES/"
+        # cp -R config "$DEST_RES/"
+        # cp -R data "$DEST_RES/"
+        # cp -R modules "$DEST_RES/"
+        # cp -R scripts "$DEST_RES/"
+        # cp -R shaders "$DEST_RES/"
+        # cp openspace.cfg "$DEST_RES/"
 
     - name: Sign macOS App with CEF (Ad-hoc)
       if: runner.os == 'macOS'
@@ -330,6 +342,14 @@ jobs:
         cp CREDITS.md deploy_staging/
         cp LICENSE.md deploy_staging/
         cp README.md deploy_staging/
+
+        # Copy top-level configuration and data folders
+        cp -R config deploy_staging/
+        cp -R data deploy_staging/
+        cp -R modules deploy_staging/
+        cp -R scripts deploy_staging/
+        cp -R shaders deploy_staging/
+        cp openspace.cfg deploy_staging/
         
         # Copy sync folder if it exists (handling the variable %sync% from original script)
         if [ ! -z "$sync" ]; then
