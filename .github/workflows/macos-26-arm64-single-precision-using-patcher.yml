@@ -276,23 +276,49 @@ jobs:
           fi
         done
         
-        # 5. Sign any other frameworks or dylibs in Frameworks directory
+        # 5. Sign Qt plugins added by macdeployqt
+        echo "Signing Qt plugins..."
+        if [ -d "$MAIN_APP/Contents/PlugIns" ]; then
+          find "$MAIN_APP/Contents/PlugIns" -name "*.dylib" | while read lib; do
+            echo "  Signing $(basename $lib)..."
+            codesign --force --sign - "$lib"
+          done
+        fi
+        
+        # 6. Sign Qt frameworks added by macdeployqt
+        echo "Signing Qt frameworks..."
+        find "$MAIN_APP/Contents/Frameworks" -name "Qt*.framework" | while read framework; do
+          # Sign the actual library inside the framework first
+          FRAMEWORK_NAME=$(basename "$framework" .framework)
+          if [ -f "$framework/Versions/A/$FRAMEWORK_NAME" ]; then
+            echo "  Signing $FRAMEWORK_NAME library..."
+            codesign --force --sign - "$framework/Versions/A/$FRAMEWORK_NAME"
+          elif [ -f "$framework/$FRAMEWORK_NAME" ]; then
+            echo "  Signing $FRAMEWORK_NAME library..."
+            codesign --force --sign - "$framework/$FRAMEWORK_NAME"
+          fi
+          # Then sign the framework bundle
+          echo "  Signing $FRAMEWORK_NAME framework..."
+          codesign --force --sign - "$framework"
+        done
+        
+        # 7. Sign any other frameworks or dylibs in Frameworks directory
         echo "Signing other frameworks and libraries..."
         find "$MAIN_APP/Contents/Frameworks" -name "*.dylib" -o -name "*.framework" | while read lib; do
-          if [[ "$lib" != *"Chromium Embedded Framework"* ]] && [[ "$lib" != *".app"* ]]; then
+          if [[ "$lib" != *"Chromium Embedded Framework"* ]] && [[ "$lib" != *".app"* ]] && [[ "$lib" != *"Qt"*.framework* ]]; then
             codesign --force --sign - "$lib" 2>/dev/null || true
           fi
         done
         
-        # 6. Sign the main executable
+        # 8. Sign the main executable
         echo "Signing main executable..."
         codesign --force --sign - "$MAIN_APP/Contents/MacOS/OpenSpace"
         
-        # 7. Finally, sign the main app bundle
+        # 9. Finally, sign the main app bundle
         echo "Signing main app bundle..."
         codesign --force --sign - "$MAIN_APP"
         
-        # 8. Verify the signature
+        # 10. Verify the signature
         echo "Verifying signature..."
         codesign --verify --deep --strict --verbose=2 "$MAIN_APP"
         
