@@ -235,7 +235,7 @@ jobs:
         echo "Deployment complete!"
 
 
-    - name: Sign macOS App with CEF (Ad-hoc)
+    - name: Sign macOS App (Ad-hoc)
       if: runner.os == 'macOS'
       run: |
         # Find the main .app bundle
@@ -250,46 +250,41 @@ jobs:
         
         # Sign in order: deepest components first
         
-        # 1. Sign the CEF framework libraries and resources
+        # 1. Sign ALL dylibs and executables recursively (deepest first)
+        echo "Signing all dylibs and executables..."
+        find "$MAIN_APP/Contents" -type f \( -name "*.dylib" -o -perm +111 \) | sort -r | while read file; do
+          # Skip if it's part of a .framework or .app bundle (we'll handle those separately)
+          if [[ "$file" != *".framework/"* ]] && [[ "$file" != *".app/Contents/"* ]]; then
+            echo "  Signing $(basename "$file")..."
+            codesign --force --sign - "$file" 2>/dev/null || true
+          fi
+        done
+        
+        # 2. Sign the CEF framework libraries and resources
         echo "Signing CEF Framework libraries..."
         find "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries" -type f -perm +111 2>/dev/null | while read file; do
           codesign --force --sign - "$file" 2>/dev/null || true
         done
         
-        # 2. Sign the CEF framework itself
+        # 3. Sign the CEF framework itself
         echo "Signing CEF Framework..."
         codesign --force --sign - "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework/Chromium Embedded Framework"
         
-        # 3. Sign the CEF framework bundle
+        # 4. Sign the CEF framework bundle
         codesign --force --sign - "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework"
         
-        # 4. Sign the helper apps (innermost executables first)
-        echo "Signing Helper apps..."
-        for helper in "OpenSpace_Helper" "OpenSpace_Helper_GPU" "OpenSpace_Helper_Renderer"; do
-          HELPER_PATH="$MAIN_APP/Contents/Frameworks/${helper}.app"
-          if [ -d "$HELPER_PATH" ]; then
-            echo "Signing $helper..."
-            # Sign the executable
-            codesign --force --sign - "$HELPER_PATH/Contents/MacOS/$helper"
-            # Sign the bundle
-            codesign --force --sign - "$HELPER_PATH"
-          fi
-        done
-        
-        # 5. Sign Qt plugins added by macdeployqt
-        echo "Signing Qt plugins..."
-        if [ -d "$MAIN_APP/Contents/PlugIns" ]; then
-          find "$MAIN_APP/Contents/PlugIns" -name "*.dylib" | while read lib; do
-            echo "  Signing $(basename $lib)..."
-            codesign --force --sign - "$lib"
-          done
-        fi
-        
-        # 6. Sign Qt frameworks added by macdeployqt
-        echo "Signing Qt frameworks..."
-        find "$MAIN_APP/Contents/Frameworks" -name "Qt*.framework" | while read framework; do
-          # Sign the actual library inside the framework first
+        # 5. Sign all Qt and other frameworks (deepest nested first)
+        echo "Signing all frameworks..."
+        find "$MAIN_APP/Contents/Frameworks" -name "*.framework" -not -path "*Chromium Embedded Framework.framework*" | sort -r | while read framework; do
           FRAMEWORK_NAME=$(basename "$framework" .framework)
+          
+          # Sign any nested dylibs first
+          find "$framework" -name "*.dylib" 2>/dev/null | while read dylib; do
+            echo "    Signing nested $(basename "$dylib")..."
+            codesign --force --sign - "$dylib" 2>/dev/null || true
+          done
+          
+          # Sign the actual library inside the framework
           if [ -f "$framework/Versions/A/$FRAMEWORK_NAME" ]; then
             echo "  Signing $FRAMEWORK_NAME library..."
             codesign --force --sign - "$framework/Versions/A/$FRAMEWORK_NAME"
@@ -297,16 +292,35 @@ jobs:
             echo "  Signing $FRAMEWORK_NAME library..."
             codesign --force --sign - "$framework/$FRAMEWORK_NAME"
           fi
-          # Then sign the framework bundle
+          
+          # Sign the framework bundle
           echo "  Signing $FRAMEWORK_NAME framework..."
           codesign --force --sign - "$framework"
         done
         
-        # 7. Sign any other frameworks or dylibs in Frameworks directory
-        echo "Signing other frameworks and libraries..."
-        find "$MAIN_APP/Contents/Frameworks" -name "*.dylib" -o -name "*.framework" | while read lib; do
-          if [[ "$lib" != *"Chromium Embedded Framework"* ]] && [[ "$lib" != *".app"* ]] && [[ "$lib" != *"Qt"*.framework* ]]; then
-            codesign --force --sign - "$lib" 2>/dev/null || true
+        # 6. Sign Qt plugins
+        echo "Signing Qt plugins..."
+        if [ -d "$MAIN_APP/Contents/PlugIns" ]; then
+          find "$MAIN_APP/Contents/PlugIns" -name "*.dylib" | while read lib; do
+            echo "  Signing $(basename "$lib")..."
+            codesign --force --sign - "$lib"
+          done
+        fi
+        
+        # 7. Sign the helper apps (innermost executables first)
+        echo "Signing Helper apps..."
+        for helper in "OpenSpace_Helper" "OpenSpace_Helper_GPU" "OpenSpace_Helper_Renderer"; do
+          HELPER_PATH="$MAIN_APP/Contents/Frameworks/${helper}.app"
+          if [ -d "$HELPER_PATH" ]; then
+            echo "Signing $helper..."
+            # Sign any nested components first
+            find "$HELPER_PATH/Contents" -name "*.dylib" 2>/dev/null | while read dylib; do
+              codesign --force --sign - "$dylib" 2>/dev/null || true
+            done
+            # Sign the executable
+            codesign --force --sign - "$HELPER_PATH/Contents/MacOS/$helper"
+            # Sign the bundle
+            codesign --force --sign - "$HELPER_PATH"
           fi
         done
         
@@ -323,7 +337,6 @@ jobs:
         codesign --verify --deep --strict --verbose=2 "$MAIN_APP"
         
         echo "✓ App successfully signed with ad-hoc signature"
-
     - name: zip the app
       run: |
         cd $HOME/source/OpenSpace/bin/Release
