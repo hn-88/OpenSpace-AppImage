@@ -196,47 +196,45 @@ jobs:
 
         echo "/opt/homebrew/opt/qt@6/bin" >> $GITHUB_PATH
         which macdeployqt
-        macdeployqt -help
+        # macdeployqt -help || true
 
         # Define variables
         APP_NAME="OpenSpace"
         # CMake on macOS often places the .app bundle in bin/Release or just Release depending on configuration
         # Adjust this path if your build places it elsewhere (e.g., just "Release/$APP_NAME.app")
+        # Define variables
+        APP_NAME="OpenSpace"
         APP_BUNDLE_PATH="bin/Release/$APP_NAME.app"
         
-        # 1. Clean up previous attempts/unnecessary files if needed
-        # (MacOS builds usually keep clean separation, but we ensure we are working on the fresh build)
+        echo "### Verifying app bundle exists..."
+        if [ ! -d "$APP_BUNDLE_PATH" ]; then
+            echo "ERROR: App bundle not found at $APP_BUNDLE_PATH"
+            echo "Searching for .app bundles..."
+            find . -name "*.app" -type d
+            exit 1
+        fi
+        echo "Found app bundle at: $APP_BUNDLE_PATH"
         
         echo "### Running macdeployqt..."
-        macdeployqt "$APP_BUNDLE_PATH" \
-          -qmldir=/opt/homebrew/opt/qt@6/qml \
+        if ! macdeployqt "$APP_BUNDLE_PATH" \
+          -qmldir="/opt/homebrew/opt/qt@6/qml" \
           -verbose=2 \
-          -always-overwrite
+          -always-overwrite; then
+            echo "ERROR: macdeployqt failed"
+            exit 1
+        fi
         
         echo "### Verifying Qt platform plugin..."
-        ls "$APP_BUNDLE_PATH/Contents/PlugIns/platforms" || true
+        if [ -d "$APP_BUNDLE_PATH/Contents/PlugIns/platforms" ]; then
+            ls -la "$APP_BUNDLE_PATH/Contents/PlugIns/platforms"
+        else
+            echo "WARNING: platforms plugin directory not found"
+        fi
         
         echo "### Cleaning debug Qt dylibs..."
         find "$APP_BUNDLE_PATH/Contents" -name "*_debug.dylib" -delete || true
+        echo "Deployment complete!"
 
-
-        # 2. Copy application resources into the App Bundle
-        # macOS apps expect resources in Contents/Resources. 
-        # This makes the .app self-contained (drag-and-drop).
-        echo "### Copying resources into App Bundle..."
-        
-        DEST_RES="$APP_BUNDLE_PATH/Contents/Resources"
-        
-        # Create Resources directory if macdeployqt didn't (it usually does)
-        mkdir -p "$DEST_RES"
-
-        # Copy top-level configuration and data folders into the bundle
-        # cp -R config "$DEST_RES/"
-        # cp -R data "$DEST_RES/"
-        # cp -R modules "$DEST_RES/"
-        # cp -R scripts "$DEST_RES/"
-        # cp -R shaders "$DEST_RES/"
-        # cp openspace.cfg "$DEST_RES/"
 
     - name: Sign macOS App with CEF (Ad-hoc)
       if: runner.os == 'macOS'
