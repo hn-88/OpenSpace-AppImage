@@ -33,6 +33,8 @@
 #include "uniform_conversion.h"
 // debugging for Mac
 #include <fstream>
+#include <iostream>
+#include <cstdio>
 
 using glm::bvec2;
 using glm::bvec3;
@@ -149,6 +151,7 @@ ProgramObject::operator GLuint() const {
     return _id;
 }
 
+
 #ifdef __APPLE__
 void ProgramObject::dumpShadersToFile(const std::string& baseName) const {
     if (_shaderObjects.empty()) return;
@@ -183,6 +186,7 @@ void ProgramObject::dumpShadersToFile(const std::string& baseName) const {
     }
 }
 #endif
+
 
 ProgramObject& ProgramObject::operator=(const ProgramObject& rhs) {
     if (this != &rhs) {
@@ -322,25 +326,84 @@ void ProgramObject::compileShaderObjects() {
 }
 
 void ProgramObject::linkProgramObject() {
+
+    // 1. Validate all attached shaders BEFORE linking (critical on macOS)
+    GLint numShaders = 0;
+    glGetProgramiv(_id, GL_ATTACHED_SHADERS, &numShaders);
+
+    if (numShaders == 0) {
+        throw ProgramObjectLinkingError("No shaders attached to program", name());
+    }
+
+    std::vector<GLuint> shaders(numShaders);
+    glGetAttachedShaders(_id, numShaders, nullptr, shaders.data());
+
+    for (GLuint shader : shaders) {
+        GLint compiled = 0;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+
+        if (compiled != 1) {
+            GLint logLength = 0;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
+
+            std::string log = "Shader compilation failed";
+            if (logLength > 0) {
+                std::vector<GLchar> rawLog(logLength);
+                glGetShaderInfoLog(shader, logLength, nullptr, rawLog.data());
+                log += ":\n";
+                log += rawLog.data();
+            }
+
+            throw ProgramObjectLinkingError(log, name());
+        }
+    }
+    // debug via chatgpt
+    auto linkFn = glbinding::Binding::LinkProgram.address();
+    fprintf(stderr,
+        "[GL DEBUG] glLinkProgram resolved=%d address=%p\n",
+        glbinding::Binding::LinkProgram.isResolved(),
+        linkFn
+    );
+    
+    // chatgpt suggestion
+//#ifdef __APPLE__
+//glUseProgram(0);
+//#endif
+    //GLint currentProgram = -1;
+    //glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
+
+    //GLenum err = glGetError();
+    //fprintf(stderr,
+    //    "[GL DEBUG] Before glLinkProgram: currentProgram=%d glError=0x%x\n",
+    //    currentProgram, err
+   // );
+    
+    
+
+    // 2. Now it is SAFE to link
     glLinkProgram(_id);
 
     GLint linkStatus = 0;
     glGetProgramiv(_id, GL_LINK_STATUS, &linkStatus);
-    if (static_cast<GLboolean>(linkStatus) == GL_FALSE) {
+    if (linkStatus != 1) {
         GLint logLength = 0;
         glGetProgramiv(_id, GL_INFO_LOG_LENGTH, &logLength);
 
-        if (logLength == 0) {
-            throw ProgramObjectLinkingError("Unknown error", name());
+        std::string log = "Program linking failed";
+        if (logLength > 0) {
+            std::vector<GLchar> rawLog(logLength);
+            glGetProgramInfoLog(_id, logLength, nullptr, rawLog.data());
+            log += ":\n";
+            log += rawLog.data();
         }
 
-        std::vector<GLchar> rawLog(logLength);
-        glGetProgramInfoLog(_id, logLength, nullptr, rawLog.data());
-        const std::string log = std::string(rawLog.data());
         throw ProgramObjectLinkingError(log, name());
     }
+
     _programIsDirty = false;
 }
+
+
 
 void ProgramObject::rebuildFromFile() {
     // The copy constructor of ShaderObject (called by the copy constructor of
@@ -1282,7 +1345,7 @@ bool ProgramObject::setUniform(const std::string& name, const glm::dmat2x2& valu
     }
 
     // macOS OpenGL does not support double-precision matrix uniforms
-    setUniform(location, glm::mat2(value), transpose);
+    setUniform(location, glm::mat2x2(value), transpose);
     return true;
 }
 
@@ -1295,7 +1358,7 @@ bool ProgramObject::setUniform(const std::string& name, const glm::dmat2x3& valu
     if (location == -1) {
         return false;
     }
-    setUniform(location, value, transpose);
+    setUniform(location, glm::mat2x3(value), transpose);
     return true;
 }
 
@@ -1308,7 +1371,7 @@ bool ProgramObject::setUniform(const std::string& name, const glm::dmat2x4& valu
     if (location == -1) {
         return false;
     }
-    setUniform(location, value, transpose);
+    setUniform(location, glm::mat2x4(value), transpose);
     return true;
 }
 
@@ -1321,7 +1384,7 @@ bool ProgramObject::setUniform(const std::string& name, const glm::dmat3x2& valu
     if (location == -1) {
         return false;
     }
-    setUniform(location, value, transpose);
+    setUniform(location, glm::mat3x2(value), transpose);
     return true;
 }
 
@@ -1334,7 +1397,7 @@ bool ProgramObject::setUniform(const std::string& name, const glm::dmat3x3& valu
     if (location == -1) {
         return false;
     }
-    setUniform(location, value, transpose);
+    setUniform(location, glm::mat3x3(value), transpose);
     return true;
 }
 
@@ -1347,7 +1410,7 @@ bool ProgramObject::setUniform(const std::string& name, const glm::dmat3x4& valu
     if (location == -1) {
         return false;
     }
-    setUniform(location, value, transpose);
+    setUniform(location, glm::mat3x4(value), transpose);
     return true;
 }
 
@@ -1360,7 +1423,7 @@ bool ProgramObject::setUniform(const std::string& name, const glm::dmat4x2& valu
     if (location == -1) {
         return false;
     }
-    setUniform(location, value, transpose);
+    setUniform(location, glm::mat4x2(value), transpose);
     return true;
 }
 
@@ -1373,7 +1436,7 @@ bool ProgramObject::setUniform(const std::string& name, const glm::dmat4x3& valu
     if (location == -1) {
         return false;
     }
-    setUniform(location, value, transpose);
+    setUniform(location, glm::mat4x3(value), transpose);
     return true;
 }
 
@@ -1386,7 +1449,7 @@ bool ProgramObject::setUniform(const std::string& name, const glm::dmat4x4& valu
     if (location == -1) {
         return false;
     }
-    setUniform(location, value, transpose);
+    setUniform(location, glm::mat4x4(value), transpose);
     return true;
 }
 
@@ -3044,9 +3107,12 @@ bool ProgramObject::setAttribute(const std::string& name, GLdouble value) {
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value);
+
+    // macOS OpenGL does not support double-precision vertex attributes
+    setAttribute(location, static_cast<float>(value));
     return true;
 }
+
 
 bool ProgramObject::setAttribute(const std::string& name, GLdouble v1, GLdouble v2) {
     ghoul_assert(!name.empty(), "Name must not be empty");
@@ -3055,7 +3121,7 @@ bool ProgramObject::setAttribute(const std::string& name, GLdouble v1, GLdouble 
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, v1, v2);
+    setAttribute(location, static_cast<float>(v1), static_cast<float>(v2));
     return true;
 }
 
@@ -3068,7 +3134,7 @@ bool ProgramObject::setAttribute(const std::string& name, GLdouble v1, GLdouble 
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, v1, v2, v3);
+    setAttribute(location, static_cast<float>(v1), static_cast<float>(v2), static_cast<float>(v3));
     return true;
 }
 
@@ -3081,7 +3147,7 @@ bool ProgramObject::setAttribute(const std::string& name, GLdouble v1, GLdouble 
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, v1, v2, v3, v4);
+    setAttribute(location, static_cast<float>(v1), static_cast<float>(v2), static_cast<float>(v3), static_cast<float>(v4));
     return true;
 }
 
@@ -3092,9 +3158,12 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dvec2& valu
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value);
+
+    // macOS OpenGL does not support double-precision vertex attributes
+    setAttribute(location, glm::vec2(value));
     return true;
 }
+
 
 bool ProgramObject::setAttribute(const std::string& name, const glm::dvec3& value) {
     ghoul_assert(!name.empty(), "Name must not be empty");
@@ -3103,7 +3172,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dvec3& valu
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value);
+    setAttribute(location, glm::vec3(value));
     return true;
 }
 
@@ -3114,7 +3183,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dvec4& valu
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value);
+    setAttribute(location, glm::vec4(value));
     return true;
 }
 
@@ -3244,7 +3313,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dmat2x2& va
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value, transpose);
+    setAttribute(location, glm::mat2x2(value), transpose);
     return true;
 }
 
@@ -3257,7 +3326,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dmat2x3& va
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value, transpose);
+    setAttribute(location, glm::mat2x3(value), transpose);
     return true;
 }
 
@@ -3270,7 +3339,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dmat2x4& va
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value, transpose);
+    setAttribute(location, glm::mat2x4(value), transpose);
     return true;
 }
 
@@ -3283,7 +3352,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dmat3x2& va
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value, transpose);
+    setAttribute(location, glm::mat3x2(value), transpose);
     return true;
 }
 
@@ -3296,7 +3365,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dmat3x3& va
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value, transpose);
+    setAttribute(location, glm::mat3x3(value), transpose);
     return true;
 }
 
@@ -3309,7 +3378,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dmat3x4& va
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value, transpose);
+    setAttribute(location, glm::mat3x4(value), transpose);
     return true;
 }
 
@@ -3322,7 +3391,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dmat4x2& va
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value, transpose);
+    setAttribute(location, glm::mat4x2(value), transpose);
     return true;
 }
 
@@ -3335,7 +3404,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dmat4x3& va
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value, transpose);
+    setAttribute(location, glm::mat4x3(value), transpose);
     return true;
 }
 
@@ -3348,7 +3417,7 @@ bool ProgramObject::setAttribute(const std::string& name, const glm::dmat4x4& va
     if (location == GL_INVALID_INDEX) {
         return false;
     }
-    setAttribute(location, value, transpose);
+    setAttribute(location, glm::mat4x4(value), transpose);
     return true;
 }
 
