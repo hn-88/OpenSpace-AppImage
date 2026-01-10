@@ -29,8 +29,8 @@ jobs:
         git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
         cd "$openSpaceHome"
         # use the main branch instead # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
-        # git checkout "d4d323ac491d50a4c37935b5dce8688c97353930" --recurse-submodules
-        git checkout master --recurse-submodules
+        git checkout "296081379b18da62686d2c0635c2478daae1b68b" --recurse-submodules
+        # git checkout master --recurse-submodules
         mkdir build
         cd build
 
@@ -71,6 +71,8 @@ jobs:
         else
           echo "✓ No double precision types found in GLSL files"
         fi
+        echo "Running smart_patcher for shader edits..."
+        python smart_patcher.py changes-to-shaders.diff
         
     - name: list doubles in renderable cpp files
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
@@ -86,19 +88,6 @@ jobs:
           echo "✓ No double precision types found in CPP files"
         fi
 
-    - name: list setUniform calls in renderable cpp files
-      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        # list setUniform() in cpp files
-        GREP_OUTPUT=$(grep -rEn -A 4 --include="renderable*.cpp" --color=always "setUniform" . || true)
-        if [ -n "$GREP_OUTPUT" ]; then
-          echo "Listing setUniform calls in renderable CPP files:"
-          echo "$GREP_OUTPUT"
-        else
-          echo "✓ No setUniform found in these CPP files"
-        fi
 
     - name: Fix ghoul_assert in setUniform functions
       shell: bash
@@ -184,55 +173,8 @@ jobs:
         cd "$openSpaceHome/build"
         # echo "Check to see if we have enough disk space ... " only 8 GB used out of 120+ GB
         # df -h
-        cmake --build . --config ${{env.BUILD_TYPE}} -- -quiet
+        cmake --build . --config ${{env.BUILD_TYPE}} --parallel -- -quiet
         df -h
-
-    - name: run macdeployqt
-      shell: bash
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        echo "### Bundling the QT libraries with macdeployqt"
-
-        echo "/opt/homebrew/opt/qt@6/bin" >> $GITHUB_PATH
-        which macdeployqt
-        # macdeployqt -help || true
-
-        # Define variables
-        APP_NAME="OpenSpace"
-        # CMake on macOS often places the .app bundle in bin/Release or just Release depending on configuration
-        # Adjust this path if your build places it elsewhere (e.g., just "Release/$APP_NAME.app")
-        # Define variables
-        APP_NAME="OpenSpace"
-        APP_BUNDLE_PATH="bin/Release/$APP_NAME.app"
-        
-        echo "### Verifying app bundle exists..."
-        if [ ! -d "$APP_BUNDLE_PATH" ]; then
-            echo "ERROR: App bundle not found at $APP_BUNDLE_PATH"
-            echo "Searching for .app bundles..."
-            find . -name "*.app" -type d
-            exit 1
-        fi
-        echo "Found app bundle at: $APP_BUNDLE_PATH"
-        
-        echo "### Running macdeployqt..."
-        if ! macdeployqt "$APP_BUNDLE_PATH" \
-          -verbose=2 \
-          -always-overwrite; then
-            echo "ERROR: macdeployqt failed"
-            exit 0
-        fi
-        
-        echo "### Verifying Qt platform plugin..."
-        if [ -d "$APP_BUNDLE_PATH/Contents/PlugIns/platforms" ]; then
-            ls -la "$APP_BUNDLE_PATH/Contents/PlugIns/platforms"
-        else
-            echo "WARNING: platforms plugin directory not found"
-        fi
-        
-        echo "### Cleaning debug Qt dylibs..."
-        find "$APP_BUNDLE_PATH/Contents" -name "*_debug.dylib" -delete || true
-        echo "Deployment complete!"
 
 
     - name: Sign macOS App (Ad-hoc)
@@ -299,13 +241,13 @@ jobs:
         done
         
         # 6. Sign Qt plugins
-        echo "Signing Qt plugins..."
-        if [ -d "$MAIN_APP/Contents/PlugIns" ]; then
-          find "$MAIN_APP/Contents/PlugIns" -name "*.dylib" | while read lib; do
-            echo "  Signing $(basename "$lib")..."
-            codesign --force --sign - "$lib"
-          done
-        fi
+        # echo "Signing Qt plugins..."
+        # if [ -d "$MAIN_APP/Contents/PlugIns" ]; then
+        #   find "$MAIN_APP/Contents/PlugIns" -name "*.dylib" | while read lib; do
+        #     echo "  Signing $(basename "$lib")..."
+        #     codesign --force --sign - "$lib"
+        #   done
+        # fi
         
         # 7. Sign the helper apps (innermost executables first)
         echo "Signing Helper apps..."
@@ -337,6 +279,7 @@ jobs:
         codesign --verify --deep --strict --verbose=2 "$MAIN_APP"
         
         echo "✓ App successfully signed with ad-hoc signature"
+
     - name: zip the app
       run: |
         cd $HOME/source/OpenSpace/bin/Release
