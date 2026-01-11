@@ -372,7 +372,7 @@ jobs:
         # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
           -t "OpenSpace-single-precision MacOS AppleSilicon Build" \
-          -n "Automated build of OpenSpace - patched to single-precision - (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see the documentation at https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-on-Mac 
+          -n "Build of OpenSpace - patched to single-precision - (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see the documentation at https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-on-Mac "
     
         # Upload .app asset (overwrite if exists)
         gh release upload "$RELEASE_TAG" "$MINZIP_FILE" --clobber
