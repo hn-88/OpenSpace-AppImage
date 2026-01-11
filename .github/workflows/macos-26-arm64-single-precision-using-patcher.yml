@@ -372,10 +372,10 @@ jobs:
         # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
           -t "OpenSpace-single-precision MacOS AppleSilicon Build" \
-          -n "Automated build of OpenSpace - patched to single-precision - (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please download and unzip the Windows zip file from openspaceproject.com and unzip the .app file into the bin directory of the Windows version. Run using the terminal, by changing the directory with cd into the bin directory, and then running `./OpenSpace.app/Contents/MacOS/OpenSpace`. But please note the points at https://github.com/hn-88/OpenSpace-single-precision/wiki  . You may be asked to permit running this app from an unknown publisher - please see https://github.com/hn-88/OpenSpace-AppImage/wiki/How-to-run-unsigned-apps-on-Mac . Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20Mac%20build"
+          -n "Automated build of OpenSpace - patched to single-precision - (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see the documentation at https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-on-Mac 
     
         # Upload .app asset (overwrite if exists)
-        gh release upload "$RELEASE_TAG" "$APP_FILE" "$MINZIP_FILE" --clobber
+        gh release upload "$RELEASE_TAG" "$MINZIP_FILE" --clobber
         
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
