@@ -311,7 +311,8 @@ jobs:
         # Usually, License/Readme files sit next to the .app in the zip.
         # We will prepare a 'staging' folder to zip everything together cleanly.
         mkdir -p deploy_staging
-        mv "$APP_BUNDLE_PATH" deploy_staging/
+        mkdir -p deploy_staging/bin
+        mv "$APP_BUNDLE_PATH" deploy_staging/bin
 
         # Copy text files next to the App (so user sees them upon unzipping)
         cp ACKNOWLEDGMENTS.md deploy_staging/
@@ -325,6 +326,7 @@ jobs:
         # Copy top-level configuration and data folders
         cp -R config deploy_staging/
         cp -R data deploy_staging/
+        cp -R documentation deploy_staging/
         cp -R modules deploy_staging/
         cp -R scripts deploy_staging/
         cp -R shaders deploy_staging/
