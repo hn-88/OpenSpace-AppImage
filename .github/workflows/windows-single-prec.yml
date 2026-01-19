@@ -1,0 +1,259 @@
+name: windows-single-prec
+
+on: 
+  workflow_dispatch:
+  
+  #schedule:
+  #  - cron: "0 1 * * *"   # runs daily at 01:00 UTC
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
+  # and modified.
+  BUILD_TYPE: RelWithDebInfo
+  OPENSPACE_VERSION: "0.21.2+"
+  openSpaceHome: ${{ github.workspace }}/source/OpenSpace
+  QT_DIR: C:/Qt/6.2.0/msvc2019_64
+  QT6_DIR: C:/Qt/6.2.0/msvc2019_64
+  CMAKE_PREFIX_PATH: C:/Qt/6.2.0/msvc2019_64/lib/cmake
+  buildConfig: RelWithDebInfo
+  
+jobs:
+  build:
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    # You can convert this to a matrix build if you need cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    
+  
+    - name: get openspace code for a particular release
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
+      run: |
+        git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
+        cd $env:openSpaceHome
+        git checkout "296081379b18da62686d2c0635c2478daae1b68b" --recurse-submodules
+        git submodule update --init --recursive
+        mkdir build
+        cd build
+        
+    
+    - name: Install dependencies
+      # https://github.com/OpenSpace/OpenSpace-Docs/blob/3ddcca71b5ff4700ab1f75c5a961ed07c455cb68/dev/compiling/index.md
+      shell: pwsh
+      run: |
+        # Install QT 6.2.0        
+        python -m pip install --upgrade pip
+        pip install aqtinstall
+        aqt install-qt windows desktop 6.2.0 win64_msvc2019_64 --outputdir C:\Qt
+
+    - name: Install Boost (MSVC 14.3)
+      run: choco install boost-msvc-14.3 -y
+
+    - name: Set Boost environment variables
+      run: |
+        echo "BOOST_ROOT=C:\tools\boost_1_85_0" >> $env:GITHUB_ENV
+        echo "BOOST_INCLUDEDIR=C:\tools\boost_1_85_0" >> $env:GITHUB_ENV
+        echo "BOOST_LIBRARYDIR=C:\tools\boost_1_85_0\lib64-msvc-14.3" >> $env:GITHUB_ENV
+
+    - name: get the single precision patches
+      shell: bash
+      run: |
+        echo "openSpaceHome is "
+        echo "$openSpaceHome"
+        cd "$openSpaceHome"
+        git clone https://github.com/hn-88/OpenSpace-single-precision.git
+        cd OpenSpace-single-precision
+        cp -v ghoul-patches/* "$openSpaceHome"
+        cp -v diff-files/* "$openSpaceHome"
+        cd "$openSpaceHome"
+        mv -v uniform_conversion.h ext/ghoul/src/opengl/uniform_conversion.h
+        mv -v ghoul-src-opengl-programobject.cpp ext/ghoul/src/opengl/programobject.cpp
+        python smart_patcher.py applesilicon.diffedited.txt
+        # check for doubles in glsl files which might have remained
+        GREP_OUTPUT=$(grep -rEn --include="*.glsl" --include="*.hglsl" --color=always "\b(double|dvec[234]?|dmat[234]?)\b" . || true)
+        if [ -n "$GREP_OUTPUT" ]; then
+          echo "Warning: Found double precision types in GLSL files:"
+          echo "$GREP_OUTPUT"
+        else
+          echo "✓ No double precision types found in GLSL files"
+        fi
+        echo "Running smart_patcher for shader edits..."
+        #python smart_patcher.py changes-to-shaders.diff
+        python smart_patcher.py changes-to-shadersv2.diff
+    
+    - name: Patches
+      run : |
+        # Copy-Item -Verbose "windows-patches/cefhost.cpp" "$env:openSpaceHome/modules/webbrowser/src/cefhost.cpp"
+        
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: |
+        cd "$env:openSpaceHome/build"
+        cmake -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
+        -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
+        -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
+        -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
+        # -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20
+
+    - name: Build
+      # Build your program with the given configuration
+      run: |
+        cd $env:openSpaceHome
+        cmake --build ./build --config RelWithDebInfo --parallel
+ 
+    - name: Upload Artifact only bin
+      uses: actions/upload-artifact@v4
+      with:
+        # Artifact name
+        name: OpenSpace-bindirectory-zip
+        # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        path: ${{ env.openSpaceHome }}/bin/**
+
+    - name: Deploy
+      # Build and deploy your program with the given configuration
+      run: |
+        cd $env:openSpaceHome
+        # ./deploy.bat This fails, probably due to warnings which are treated as errors, and CMake flags
+    
+    - name: Prepare and deploy
+      shell: cmd
+      run: |
+        cd /d "%openSpaceHome%"
+        echo ### copied from deploy.bat commit 4bf8124
+ 
+        :PostBuildCleanup
+        echo ### Dealing with some files
+        :: Remove unnecessary files of our own making
+        del bin\RelWithDebInfo\*.pdb
+        del bin\RelWithDebInfo\codegen.exe
+        del bin\RelWithDebInfo\Qt6Svg.dll
+        
+        :: Remove unnecessary Qt files
+        rmdir /S /Q bin\RelWithDebInfo\iconengines
+        rmdir /S /Q bin\RelWithDebInfo\imageformats
+        rmdir /S /Q bin\RelWithDebInfo\networkinformation
+        
+        :: The binary files are created in the RelWithDebInfo subdirectory and we want them in bin
+        robocopy bin\\RelWithDebInfo bin /E /MOV
+        rmdir /S /Q bin\\RelWithDebInfo
+
+        :: Comparing with official release, found that QT dlls need to be bundled.
+           
+        @echo off
+        REM Path variables
+        set "QtBin=${{ env.QT_DIR }}\bin"
+        set "QtPlugins=${{ env.QT_DIR }}\plugins"
+        set "TargetBin=${{ env.openSpaceHome }}\bin"
+        
+        echo Copying required Qt runtime DLLs from %QtBin% to %TargetBin%...
+        
+        REM Ensure directories exist
+        if not exist "%TargetBin%\platforms" mkdir "%TargetBin%\platforms"
+        if not exist "%TargetBin%\styles" mkdir "%TargetBin%\styles"
+        if not exist "%TargetBin%\tls" mkdir "%TargetBin%\tls"
+        if not exist "%TargetBin%\generic" mkdir "%TargetBin%\generic"
+        
+        REM Copy essential DLLs (OpenGL + DirectX)
+        for %%d in (dxcompiler.dll dxil.dll opengl32sw.dll) do (
+          if exist "%QtBin%\%%d" (
+            copy /Y "%QtBin%\%%d" "%TargetBin%\" >nul
+            echo Copied %%d
+          ) else (
+            echo WARNING: Missing %%d in %QtBin%
+          )
+        )
+        
+        REM Copy platform plugin (mandatory)
+        copy /Y "%QtPlugins%\platforms\qwindows.dll" "%TargetBin%\platforms\" >nul
+        echo Copied qwindows.dll
+        
+        REM Copy optional style plugin (UI style)
+        if exist "%QtPlugins%\styles\qmodernwindowsstyle.dll" (
+          copy /Y "%QtPlugins%\styles\qmodernwindowsstyle.dll" "%TargetBin%\styles\" >nul
+          echo Copied qmodernwindowsstyle.dll
+        )
+        
+        REM Copy optional TLS backends (network/SSL)
+        for %%d in (qcertonlybackend.dll qopensslbackend.dll qschannelbackend.dll) do (
+          if exist "%QtPlugins%\tls\%%d" (
+            copy /Y "%QtPlugins%\tls\%%d" "%TargetBin%\tls\" >nul
+            echo Copied %%d
+          )
+        )
+        
+        REM Copy optional generic plugin (TUIO touch)
+        if exist "%QtPlugins%\generic\qtuiotouchplugin.dll" (
+          copy /Y "%QtPlugins%\generic\qtuiotouchplugin.dll" "%TargetBin%\generic\" >nul
+          echo Copied qtuiotouchplugin.dll
+        )
+        
+        echo Qt runtime DLLs copy completed.
+        
+        :: Download the Microsoft redistributable
+        curl "https://aka.ms/vs/17/release/vc_redist.x64.exe" --output vc_redist.x64.exe -L
+        
+        echo ### Create main zip file
+        :: Need to manually add any new weird paths that don't match the wildcards below
+        7z.exe a -tzip -mx=9 -mfb=257 -mpass=15 OpenSpace-minimal-single-precision.zip^
+          bin/*^
+          config/*^
+          data/*^
+          documentation/*^
+          scripts/*^
+          shaders/*^
+          ACKNOWLEDGMENTS.md^
+          CITATION.cff^
+          CODE_OF_CONDUCT.md^
+          COMMIT.md^
+          CREDITS.md^
+          LICENSE.md^
+          openspace.cfg^
+          README.md^
+          vc_redist.x64.exe^
+          ^
+          modules/*/shaders/*^
+          modules/*/scripts/*^
+          modules/globebrowsing/gdal_data/*^
+          modules/webgui/ext/nodejs/node.exe^
+          ^
+          %sync%^
+          -x!documentation/.git
+              
+    
+    - name: Upload Artifact minimal
+      uses: actions/upload-artifact@v4
+      with:
+        # Artifact name
+        name: OpenSpace-single-precision-minimal
+        # optional, default is artifact
+        # A file, directory or wildcard pattern that describes what to upload
+        path: ${{ env.openSpaceHome }}/OpenSpace-minimal-single-precision.zip
+
+    - name: Upload .zip to GitHub Release - Windows
+      run: |
+        $RELEASE_TAG = "daily-WIN-ZIP"
+        $ZIP_FILE = "${{ env.openSpaceHome }}\OpenSpace-minimal-single-precision.zip"
+    
+        # Check if release exists
+        gh release view $RELEASE_TAG > $null 2>&1
+        if ($LASTEXITCODE -ne 0) {
+          gh release create $RELEASE_TAG -t "OpenSpace Windows Daily Build" -n "Automated daily build of OpenSpace."
+        }
+    
+        # Update title/notes each run
+        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
+        gh release edit $RELEASE_TAG `
+          -t "OpenSpace Windows Daily Build" `
+          -n "Automated daily build of OpenSpace (updated $timestamp UTC)."
+    
+        # Upload .zip asset (overwrite if exists)
+        gh release upload $RELEASE_TAG $ZIP_FILE --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
+      
+    
