@@ -13,9 +13,9 @@ env:
   BUILD_TYPE: RelWithDebInfo
   OPENSPACE_VERSION: "0.21.3+"
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
-  QT_DIR: C:/Qt/6.2.0/msvc2019_64
-  QT6_DIR: C:/Qt/6.2.0/msvc2019_64
-  CMAKE_PREFIX_PATH: C:/Qt/6.2.0/msvc2019_64/lib/cmake
+  QT_DIR: C:/Qt/6.9.3/msvc2022_arm64
+  QT6_DIR: C:/Qt/6.9.3/msvc2022_arm64
+  CMAKE_PREFIX_PATH: C:/Qt/6.9.3/msvc2022_arm64/lib/cmake
   buildConfig: RelWithDebInfo
   
 jobs:
@@ -54,7 +54,7 @@ jobs:
       run: |
         # Download Boost
         Invoke-WebRequest -Uri https://boostorg.jfrog.io/artifactory/main/release/1.85.0/source/boost_1_85_0.zip -OutFile boost.zip
-        Expand-Archive boost.zip -DestinationPath C:\
+        7z x boost.zip -oC:\ -y
         
         # Setup ARM64 build environment and build
         cd C:\boost_1_85_0
@@ -102,7 +102,7 @@ jobs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         cd "$env:openSpaceHome/build"
-        cmake -DCMAKE_PREFIX_PATH="C:\Qt\6.9.3\msvc2022_arm64" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
+        cmake -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
         -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
         -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
         -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
