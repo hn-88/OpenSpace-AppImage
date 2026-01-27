@@ -44,11 +44,11 @@ jobs:
       # https://github.com/OpenSpace/OpenSpace-Docs/blob/3ddcca71b5ff4700ab1f75c5a961ed07c455cb68/dev/compiling/index.md
       shell: pwsh
       run: |
-        # Install QT 6.2.0        
+        # Install QT 6      
         python -m pip install --upgrade pip
         pip install aqtinstall
-        aqt list-qt windows desktop --arch 6.10.0  # Verify the exact arch string
-        aqt install-qt windows desktop 6.10.0 win64_msvc2022_arm64 --outputdir C:\Qt
+        aqt install-qt windows desktop 6.9.3 win64_msvc2022_64 --outputdir C:\Qt
+        aqt install-qt windows desktop 6.9.3 win64_msvc2022_arm64_cross_compiled --outputdir C:\Qt
 
     - name: Build Boost for ARM64
       run: |
