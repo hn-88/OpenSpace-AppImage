@@ -53,11 +53,11 @@ jobs:
     - name: Build Boost for ARM64
       run: |
         # Download Boost
-        Invoke-WebRequest -Uri https://boostorg.jfrog.io/artifactory/main/release/1.85.0/source/boost_1_85_0.zip -OutFile boost.zip
+        Invoke-WebRequest -Uri https://archives.boost.io/release/1.89.0/source/boost_1_89_0.zip -OutFile boost.zip
         7z x boost.zip -oC:\ -y
         
         # Setup ARM64 build environment and build
-        cd C:\boost_1_85_0
+        cd C:\boost_1_89_0
         .\bootstrap.bat
         .\b2 --build-type=complete architecture=arm address-model=64 toolset=msvc-14.3 variant=release link=shared threading=multi --prefix=C:\boost-arm64 -j4 install
         
