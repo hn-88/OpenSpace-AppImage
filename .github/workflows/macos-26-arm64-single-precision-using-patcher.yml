@@ -29,8 +29,8 @@ jobs:
         git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
         cd "$openSpaceHome"
         # use the main branch instead # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
-        git checkout "296081379b18da62686d2c0635c2478daae1b68b" --recurse-submodules
-        # git checkout master --recurse-submodules
+        # git checkout "296081379b18da62686d2c0635c2478daae1b68b" --recurse-submodules
+        git checkout master --recurse-submodules
         mkdir build
         cd build
 
@@ -303,7 +303,7 @@ jobs:
         # Zip the bundle and the text files. 
         # -y preserves symlinks (CRITICAL for Qt frameworks inside the .app)
         # -r recursive
-        zip -r -9 -y ../OpenSpace-minimal-daily-macv2.zip . \
+        zip -r -9 -y ../OpenSpace-minimal-daily-mac-testing.zip . \
           -x "*.git*" \
           -x "*.DS_Store"
 
@@ -322,7 +322,7 @@ jobs:
       run: |
         RELEASE_TAG="daily-MacOS-app-single-precision"
         APP_FILE=/Users/runner/source/OpenSpace/bin/Release/OpenSpaceapp.zip
-        MINZIP_FILE=/Users/runner/source/OpenSpace/OpenSpace-minimal-daily-macv2.zip
+        MINZIP_FILE=/Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac-testing.zip
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
