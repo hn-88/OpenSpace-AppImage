@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenSpace AppImage</title>
+    <style>
+        .last-updated {
+            color: #666;
+            font-size: 0.9em;
+            font-style: italic;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenSpace Downloads</h1>
+    
+    <div>
+        <h2>macOS Build</h2>
+        <a href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-MacOS-app-single-precision/OpenSpace-minimal-daily-mac.zip">
+            Download OpenSpace for macOS
+        </a>
+        <div class="last-updated" id="macos-updated">Loading...</div>
+    </div>
+
+    <script>
+        // Fetch asset (zip file) last updated timestamp
+        async function updateAssetDate(tag, assetName, elementId) {
+            try {
+                const response = await fetch(
+                    `https://api.github.com/repos/hn-88/OpenSpace-AppImage/releases/tags/${tag}`
+                );
+                const data = await response.json();
+                
+                // Find the specific asset by name
+                const asset = data.assets?.find(a => a.name === assetName);
+                
+                if (asset && asset.updated_at) {
+                    const date = new Date(asset.updated_at);
+                    const formattedDate = date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    document.getElementById(elementId).textContent = 
+                        `Last updated: ${formattedDate}`;
+                } else {
+                    document.getElementById(elementId).textContent = 
+                        'Asset not found';
+                }
+            } catch (error) {
+                document.getElementById(elementId).textContent = 
+                    'Last updated: Unable to fetch';
+                console.error('Error fetching asset date:', error);
+            }
+        }
+
+        // Call with the tag and exact asset filename
+        updateAssetDate(
+            'daily-MacOS-app-single-precision', 
+            'OpenSpace-minimal-daily-mac.zip',
+            'macos-updated'
+        );
+    </script>
+</body>
+</html>
