@@ -1,0 +1,58 @@
+name: Compare OpenSpace Mac Versions
+
+on:
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  compare-zips:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Directories
+        run: |
+          mkdir -p working_ver
+          mkdir -p testing_ver
+
+      - name: Download and Unzip Working Version
+        run: |
+          echo "Downloading Working Version..."
+          wget -q https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-MacOS-app-single-precision/OpenSpace-minimal-daily-mac.zip -O working.zip
+          
+          echo "Unzipping Working Version..."
+          unzip -q working.zip -d working_ver/
+
+      - name: Download and Unzip Testing Version
+        run: |
+          echo "Downloading Testing Version..."
+          wget -q https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-MacOS-app-single-precision/OpenSpace-minimal-daily-mac-testing.zip -O testing.zip
+          
+          echo "Unzipping Testing Version..."
+          unzip -q testing.zip -d testing_ver/
+
+      - name: Generate Diff
+        run: |
+          echo "Generating recursive diff..."
+          # Flags used:
+          # -u: Unified format (provides context for text changes)
+          # -r: Recursive (compares subdirectories)
+          #
+          # Note on Binaries: The standard 'diff' command automatically detects binary 
+          # files and will print "Binary files X and Y differ" instead of printing 
+          # the garbage content. This satisfies the requirement to ignore binary content.
+          
+          diff -ur working_ver/ testing_ver/ > comparison.diff || true
+          
+          # Check if the diff file has content
+          if [ -s comparison.diff ]; then
+            echo "Differences detected. File size: $(du -h comparison.diff | cut -f1)"
+          else
+            echo "No differences found between the two versions."
+            echo "No differences found" > comparison.diff
+          fi
+
+      - name: Upload Diff Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openspace-diff-log
+          path: comparison.diff
+          retention-days: 5
