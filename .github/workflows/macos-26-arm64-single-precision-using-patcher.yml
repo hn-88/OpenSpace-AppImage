@@ -261,12 +261,13 @@ jobs:
         
         # Locate the extracted root (handles if zip has a top-level folder like 'OpenSpace')
         # find gets the first directory inside prev_build_temp
-        PREV_ROOT=$(find prev_build_temp -mindepth 1 -maxdepth 1 -type d | head -n 1)
+        #PREV_ROOT=$(find prev_build_temp -mindepth 1 -maxdepth 1 -type d | head -n 1)
+        # This finds other directories, like the documentation directory is head -n 1
         
         # Fallback: if no directory found (zip was flat), use the temp dir itself
-        if [ -z "$PREV_ROOT" ]; then
-          PREV_ROOT="prev_build_temp"
-        fi
+        #if [ -z "$PREV_ROOT" ]; then
+        PREV_ROOT="prev_build_temp"
+        #fi
         echo "Previous build root located at: $PREV_ROOT"
 
         # debugging test to trigger the diff test to true
