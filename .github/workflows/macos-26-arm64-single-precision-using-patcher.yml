@@ -307,7 +307,7 @@ jobs:
           -x "*.git*" \
           -x "*.DS_Store"
 
-        echo "Deployment package created: OpenSpace-minimal-daily-mac.zip"
+        echo "Deployment package created: OpenSpace-minimal-daily-mac-testing.zip"
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -316,7 +316,7 @@ jobs:
         name: OpenSpace-MacOS15-AppleSilicon-minimal
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: /Users/runner/source/OpenSpace/OpenSpace-minimal-daily-macv2.zip
+        path: /Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac-testing.zip
 
     - name: Upload .app to GitHub Release
       run: |
