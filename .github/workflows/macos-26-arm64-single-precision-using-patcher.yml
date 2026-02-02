@@ -423,5 +423,11 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
 
+    - name: Fail if Shaders Differ to force email alert
+      if: env.ZIPFILENAME == 'OpenSpace-minimal-daily-mac-testing.zip'
+      run: |
+        echo "::error::Shaders differ from the previous release!"
+        exit 1
+
       
     
