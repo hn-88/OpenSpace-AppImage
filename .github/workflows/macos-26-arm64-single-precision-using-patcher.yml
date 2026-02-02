@@ -1,6 +1,9 @@
 name: macos-26-arm64-single-precision-using-patcher
 
-on: workflow_dispatch
+on: 
+  workflow_dispatch:      # allows manual trigger
+  schedule:
+    - cron: "0 2 * * *"   # runs daily at 02:00 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -239,6 +242,84 @@ jobs:
         
         echo "✓ App successfully signed with ad-hoc signature"
 
+    - name: Compare Shaders with Previous Release
+      run: |
+        cd "$HOME/source/OpenSpace"
+        # ---------------------------------------------------------
+        # 1. Download and Unzip the previous release
+        # ---------------------------------------------------------
+        echo "Downloading previous release..."
+        DOWNLOAD_URL="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-MacOS-app-single-precision/OpenSpace-minimal-daily-mac.zip"
+        
+        # Download (-L follows redirects, -s silent, -O saves with remote name)
+        # We save to a specific temp name to avoid overwriting local files
+        curl -L "$DOWNLOAD_URL" -o prev_build.zip
+        
+        # Unzip quiet (-q) into a temp directory
+        mkdir -p prev_build_temp
+        unzip -q prev_build.zip -d prev_build_temp
+        
+        # Locate the extracted root (handles if zip has a top-level folder like 'OpenSpace')
+        # find gets the first directory inside prev_build_temp
+        PREV_ROOT=$(find prev_build_temp -mindepth 1 -maxdepth 1 -type d | head -n 1)
+        
+        # Fallback: if no directory found (zip was flat), use the temp dir itself
+        if [ -z "$PREV_ROOT" ]; then
+          PREV_ROOT="prev_build_temp"
+        fi
+        echo "Previous build root located at: $PREV_ROOT"
+    
+        # ---------------------------------------------------------
+        # 2. Compare ./shaders and ./modules/*/shaders
+        # ---------------------------------------------------------
+        DIFF_FOUND=false
+    
+        # Function to check diff and update flag
+        check_diff() {
+            local dir1="$1"
+            local dir2="$2"
+            
+            if [ -d "$dir1" ] && [ -d "$dir2" ]; then
+                # diff -r (recursive) -q (quiet/brief) returns 1 if differences found
+                if ! diff -rq "$dir1" "$dir2"; then
+                    echo "Difference found in: $dir1"
+                    DIFF_FOUND=true
+                fi
+            elif [ -d "$dir1" ]; then
+                echo "New directory found in current build: $dir1"
+                DIFF_FOUND=true
+            fi
+        }
+    
+        echo "Checking core shaders..."        
+        check_diff "./shaders" "$PREV_ROOT/shaders"
+    
+        echo "Checking module shaders..."
+        # Enable nullglob so the loop does not run if no modules exist
+        shopt -s nullglob
+        for shader_dir in modules/*/shaders; do
+            # Map ./modules/ModuleA/shaders -> $PREV_ROOT/modules/ModuleA/shaders
+            prev_shader_dir="$PREV_ROOT/$shader_dir"
+            check_diff "$shader_dir" "$prev_shader_dir"
+        done
+    
+        # ---------------------------------------------------------
+        # 3. Set Environment Variables
+        # ---------------------------------------------------------
+        if [ "$DIFF_FOUND" = "false" ]; then
+            echo "No shader differences detected."
+            echo "MINZIP_FILE=/Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac.zip" >> $GITHUB_ENV
+            echo "ZIPFILENAME=OpenSpace-minimal-daily-mac.zip" >> $GITHUB_ENV
+        else
+            echo "Shader differences detected."
+            echo "MINZIP_FILE=/Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac-testing.zip" >> $GITHUB_ENV
+            echo "ZIPFILENAME=OpenSpace-minimal-daily-mac-testing.zip" >> $GITHUB_ENV
+        fi
+    
+        # Cleanup
+        rm -rf prev_build.zip prev_build_temp
+      shell: bash
+
     - name: zip the app
       run: |
         cd $HOME/source/OpenSpace/bin/Release
@@ -303,7 +384,7 @@ jobs:
         # Zip the bundle and the text files. 
         # -y preserves symlinks (CRITICAL for Qt frameworks inside the .app)
         # -r recursive
-        zip -r -9 -y ../OpenSpace-minimal-daily-mac-testing.zip . \
+        zip -r -9 -y ../$ZIPFILENAME . \
           -x "*.git*" \
           -x "*.DS_Store"
 
@@ -321,8 +402,8 @@ jobs:
     - name: Upload .app to GitHub Release
       run: |
         RELEASE_TAG="daily-MacOS-app-single-precision"
-        APP_FILE=/Users/runner/source/OpenSpace/bin/Release/OpenSpaceapp.zip
-        MINZIP_FILE=/Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac-testing.zip
+        # APP_FILE=/Users/runner/source/OpenSpace/bin/Release/OpenSpaceapp.zip
+        # MINZIP_FILE=/Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac-testing.zip
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
