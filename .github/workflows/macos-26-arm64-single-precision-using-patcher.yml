@@ -271,7 +271,7 @@ jobs:
         echo "Previous build root located at: $PREV_ROOT"
 
         # debugging test to trigger the diff test to true
-        rm -v $PREV_ROOT/modules/globebrowsing/shaders/renderer_fs.glsl
+        # rm -v $PREV_ROOT/modules/globebrowsing/shaders/renderer_fs.glsl
     
         # ---------------------------------------------------------
         # 2. Compare ./shaders and ./modules/*/shaders
