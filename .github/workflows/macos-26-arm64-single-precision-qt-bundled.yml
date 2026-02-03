@@ -94,7 +94,7 @@ jobs:
       timeout-minutes: 30
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
-        brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6
+        brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6 dylibbundler
         df -h
 
     - name: Configure CMake
@@ -161,135 +161,84 @@ jobs:
             exit 1
         fi
         echo "Found app bundle at: $APP_BUNDLE_PATH"
+                
+        QT_PATH=$(qmake -query QT_INSTALL_LIBS) # Auto-detect Qt lib path
         
-        echo "### Running macdeployqt..."
-        if ! macdeployqt "$APP_BUNDLE_PATH" \
-          -verbose=2 \
-          -always-overwrite; then
+        echo "### Running standard macdeployqt..."
+        # We use -libpath to help it find non-standard libs if needed, but usually it needs manual help
+        if ! macdeployqt "$APP_BUNDLE_PATH" -verbose=2 -always-overwrite; then
             echo "ERROR: macdeployqt failed"
-            exit 0
+            exit 1
         fi
         
-        echo "### Verifying Qt platform plugin..."
-        if [ -d "$APP_BUNDLE_PATH/Contents/PlugIns/platforms" ]; then
-            ls -la "$APP_BUNDLE_PATH/Contents/PlugIns/platforms"
+        echo "### 1. Manually Bundling Missing Qt Frameworks (QtDBus)..."
+        # QtDBus is often missed because it is frequently loaded dynamically or via plugins.
+        if [ ! -d "$APP_BUNDLE_PATH/Contents/Frameworks/QtDBus.framework" ]; then
+            echo "Copying QtDBus.framework..."
+            cp -R "$QT_PATH/QtDBus.framework" "$APP_BUNDLE_PATH/Contents/Frameworks/"
+            
+            # Fix permissions so we can modify the binary
+            chmod -R u+w "$APP_BUNDLE_PATH/Contents/Frameworks/QtDBus.framework"
+            
+            # Update the ID of the framework to be relative to the bundle
+            install_name_tool -id "@rpath/QtDBus.framework/Versions/5/QtDBus" \
+                "$APP_BUNDLE_PATH/Contents/Frameworks/QtDBus.framework/Versions/5/QtDBus"
+                
+            # Link the main executable to this new internal framework (optional, mostly for safety)
+            # This finds the main binary name automatically
+            APP_BINARY="$APP_BUNDLE_PATH/Contents/MacOS/$(defaults read "$APP_BUNDLE_PATH/Contents/Info.plist" CFBundleExecutable)"
+            install_name_tool -change "$QT_PATH/QtDBus.framework/Versions/5/QtDBus" "@rpath/QtDBus.framework/Versions/5/QtDBus" "$APP_BINARY"
         else
-            echo "WARNING: platforms plugin directory not found"
+            echo "QtDBus detected, skipping manual copy."
         fi
         
-        echo "### Cleaning debug Qt dylibs..."
+        echo "### 2. Bundling Non-Qt 3rd Party Dependencies..."
+        # Note: GLM is usually header-only. If you have compiled libs (like libassimp, etc.), this handles them.
+        # 'dylibbundler' recursively finds missing libs, copies them to Contents/Libs, and fixes paths.
+        
+        # Create a directory for non-Qt libs if you prefer separating them, or use Frameworks
+        mkdir -p "$APP_BUNDLE_PATH/Contents/Frameworks"
+        
+        # Check if dylibbundler is installed (Recommended)
+        if command -v dylibbundler &> /dev/null; then
+            echo "Using dylibbundler to fix 3rd party libs..."
+            dylibbundler \
+                -od -b \
+                -x "$APP_BUNDLE_PATH/Contents/MacOS/$(defaults read "$APP_BUNDLE_PATH/Contents/Info.plist" CFBundleExecutable)" \
+                -d "$APP_BUNDLE_PATH/Contents/Frameworks" \
+                -p "@executable_path/../Frameworks" \
+                -s "/usr/lib" \
+                --overwrite-files
+        else
+            echo "WARNING: dylibbundler not found. Falling back to manual check (less robust)."
+            # Basic Manual Fallback:
+            # This looks for libs in /usr/local (homebrew) referenced by the binary and copies them.
+            APP_BINARY="$APP_BUNDLE_PATH/Contents/MacOS/$(defaults read "$APP_BUNDLE_PATH/Contents/Info.plist" CFBundleExecutable)"
+            
+            # List dependencies, grep for /usr/local, and loop
+            otool -L "$APP_BINARY" | grep "/usr/local" | awk '{print $1}' | while read -r lib; do
+                echo "Bundling external lib: $lib"
+                cp "$lib" "$APP_BUNDLE_PATH/Contents/Frameworks/"
+                base_lib=$(basename "$lib")
+                chmod 755 "$APP_BUNDLE_PATH/Contents/Frameworks/$base_lib"
+                
+                # Point executable to the local copy
+                install_name_tool -change "$lib" "@executable_path/../Frameworks/$base_lib" "$APP_BINARY"
+                
+                # Update the id of the library itself
+                install_name_tool -id "@executable_path/../Frameworks/$base_lib" "$APP_BUNDLE_PATH/Contents/Frameworks/$base_lib"
+            done
+        fi
+        
+        echo "### Cleaning debug files..."
         find "$APP_BUNDLE_PATH/Contents" -name "*_debug.dylib" -delete || true
+        find "$APP_BUNDLE_PATH/Contents" -name "*.dSYM" -delete || true
+        
+        echo "### Signing (Ad-hoc) to prevent 'damaged' messages on newer macOS..."
+        codesign --force --deep --sign - "$APP_BUNDLE_PATH"
+        
         echo "Deployment complete!"
 
-
-    - name: Sign macOS App (Ad-hoc)
-      if: runner.os == 'macOS'
-      run: |
-        # Find the main .app bundle
-        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
-        
-        if [ -z "$MAIN_APP" ]; then
-          echo "Error: OpenSpace.app not found"
-          exit 1
-        fi
-        
-        echo "Found main app at: $MAIN_APP"
-        
-        # Sign in order: deepest components first
-        
-        # 1. Sign ALL dylibs and executables recursively (deepest first)
-        echo "Signing all dylibs and executables... this step may be buggy"
-        find "$MAIN_APP/Contents" -type f \( -name "*.dylib" -o -perm +111 \) | sort -r | while read file; do
-          # Skip if it's part of a .framework or .app bundle (we'll handle those separately)
-          if [[ "$file" != *".framework/"* ]] && [[ "$file" != *".app/Contents/"* ]]; then
-            echo "  Signing $(basename "$file")..."
-            codesign --force --sign - "$file" 2>/dev/null || true
-          fi
-        done
-        
-        # 2. Sign the CEF framework libraries and resources
-        echo "Signing CEF Framework libraries..."
-        find "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries" -type f -perm +111 2>/dev/null | while read file; do
-          codesign --force --sign - "$file" 2>/dev/null || true
-        done
-        
-        # 3. Sign the CEF framework itself
-        echo "Signing CEF Framework..."
-        codesign --force --sign - "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework/Chromium Embedded Framework"
-        
-        # 4. Sign the CEF framework bundle
-        codesign --force --sign - "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework"
-
-        echo "Signing loose dylibs in Frameworks..."
-        find "$MAIN_APP/Contents/Frameworks" -maxdepth 1 -name "*.dylib" | while read lib; do
-            echo "  Signing loose lib: $(basename "$lib")..."
-            codesign --force --sign - "$lib"
-        done
-        
-        # 5. Sign all Qt and other frameworks (deepest nested first)
-        echo "Signing all frameworks..."
-        find "$MAIN_APP/Contents/Frameworks" -name "*.framework" -not -path "*Chromium Embedded Framework.framework*" | sort -r | while read framework; do
-          FRAMEWORK_NAME=$(basename "$framework" .framework)
-          
-          # Sign any nested dylibs first
-          find "$framework" -name "*.dylib" 2>/dev/null | while read dylib; do
-            echo "    Signing nested $(basename "$dylib")..."
-            codesign --force --sign - "$dylib" 2>/dev/null || true
-          done
-          
-          # Sign the actual library inside the framework
-          if [ -f "$framework/Versions/A/$FRAMEWORK_NAME" ]; then
-            echo "  Signing $FRAMEWORK_NAME library..."
-            codesign --force --sign - "$framework/Versions/A/$FRAMEWORK_NAME"
-          elif [ -f "$framework/$FRAMEWORK_NAME" ]; then
-            echo "  Signing $FRAMEWORK_NAME library..."
-            codesign --force --sign - "$framework/$FRAMEWORK_NAME"
-          fi
-          
-          # Sign the framework bundle
-          echo "  Signing $FRAMEWORK_NAME framework..."
-          codesign --force --sign - "$framework"
-        done
-        
-        # 6. Sign Qt plugins
-        echo "Signing Qt plugins..."
-        if [ -d "$MAIN_APP/Contents/PlugIns" ]; then
-          find "$MAIN_APP/Contents/PlugIns" -name "*.dylib" | while read lib; do
-            echo "  Signing $(basename "$lib")..."
-            codesign --force --sign - "$lib"
-          done
-        fi
-        
-        # 7. Sign the helper apps (innermost executables first)
-        echo "Signing Helper apps..."
-        for helper in "OpenSpace_Helper" "OpenSpace_Helper_GPU" "OpenSpace_Helper_Renderer"; do
-          HELPER_PATH="$MAIN_APP/Contents/Frameworks/${helper}.app"
-          if [ -d "$HELPER_PATH" ]; then
-            echo "Signing $helper..."
-            # Sign any nested components first
-            find "$HELPER_PATH/Contents" -name "*.dylib" 2>/dev/null | while read dylib; do
-              codesign --force --sign - "$dylib" 2>/dev/null || true
-            done
-            # Sign the executable
-            codesign --force --sign - "$HELPER_PATH/Contents/MacOS/$helper"
-            # Sign the bundle
-            codesign --force --sign - "$HELPER_PATH"
-          fi
-        done
-        
-        # 8. Sign the main executable
-        echo "Signing main executable..."
-        codesign --force --sign - "$MAIN_APP/Contents/MacOS/OpenSpace"
-        
-        # 9. Finally, sign the main app bundle
-        echo "Signing main app bundle..."
-        codesign --force --sign - "$MAIN_APP"
-        
-        # 10. Verify the signature
-        echo "Verifying signature..."
-        codesign --verify --deep --strict --verbose=2 "$MAIN_APP"
-        
-        echo "✓ App successfully signed with ad-hoc signature"
     - name: zip the app
       run: |
         cd $HOME/source/OpenSpace/bin/Release
@@ -380,7 +329,7 @@ jobs:
         # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
           -t "OpenSpace-single-precision MacOS AppleSilicon Build" \
-          -n "Automated build of OpenSpace - patched to single-precision - (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please download and unzip the Windows zip file from openspaceproject.com and unzip the .app file into the bin directory of the Windows version. Run using the terminal, by changing the directory with cd into the bin directory, and then running `./OpenSpace.app/Contents/MacOS/OpenSpace`. But please note the points at https://github.com/hn-88/OpenSpace-single-precision/wiki  . You may be asked to permit running this app from an unknown publisher - please see https://github.com/hn-88/OpenSpace-AppImage/wiki/How-to-run-unsigned-apps-on-Mac . Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20Mac%20build"
+          -n "Automated build of OpenSpace - patched to single-precision - (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see documentation at https://github.com/hn-88/OpenSpace-single-precision/wiki  . You may be asked to permit running this app from an unknown publisher - please see https://github.com/hn-88/OpenSpace-AppImage/wiki/How-to-run-unsigned-apps-on-Mac . Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20Mac%20build"
     
         # Upload .app asset (overwrite if exists)
         gh release upload "$RELEASE_TAG" "$MINZIP_FILE" --clobber
