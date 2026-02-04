@@ -134,6 +134,7 @@ jobs:
         cmake --build . --config ${{env.BUILD_TYPE}} -- -quiet
         df -h
 
+    
     - name: run macdeployqt
       shell: bash
       run: |
@@ -162,13 +163,30 @@ jobs:
         QT_PATH=$(qmake -query QT_INSTALL_LIBS)
         echo "Qt Lib Path detected: $QT_PATH"
         
-        # Fix rpaths in the executable BEFORE running macdeployqt
-        echo "### 0. Fixing rpaths in executable..."
+        # Check existing rpaths to avoid duplicates
+        echo "### 0. Checking and fixing rpaths in executable..."
         mkdir -p "$FRAMEWORKS_PATH"
         
-        # Add proper rpath entries to find Qt frameworks
-        install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP_EXECUTABLE" 2>/dev/null || true
-        install_name_tool -add_rpath "$QT_PATH" "$APP_EXECUTABLE" 2>/dev/null || true
+        echo "Current rpaths:"
+        otool -l "$APP_EXECUTABLE" | grep -A 3 LC_RPATH || echo "No rpaths found"
+        
+        # Check if rpath already exists before adding
+        EXISTING_RPATHS=$(otool -l "$APP_EXECUTABLE" | grep -A 2 LC_RPATH | grep path | awk '{print $2}')
+        
+        # Only add if not already present
+        if ! echo "$EXISTING_RPATHS" | grep -q "@executable_path/../Frameworks"; then
+            echo "Adding @executable_path/../Frameworks rpath..."
+            install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP_EXECUTABLE"
+        else
+            echo "@executable_path/../Frameworks rpath already exists"
+        fi
+        
+        if ! echo "$EXISTING_RPATHS" | grep -q "$QT_PATH"; then
+            echo "Adding Qt library path rpath..."
+            install_name_tool -add_rpath "$QT_PATH" "$APP_EXECUTABLE"
+        else
+            echo "Qt library rpath already exists"
+        fi
         
         echo "### Running macdeployqt..."
         # Run macdeployqt with proper Qt path
@@ -246,10 +264,14 @@ jobs:
         echo "Checking linkage of main binary:"
         otool -L "$APP_EXECUTABLE" | head -20
         
+        echo "Final rpaths:"
+        otool -l "$APP_EXECUTABLE" | grep -A 3 LC_RPATH
+        
         echo "### 5. Signing..."
         codesign --force --deep --sign - "$APP_BUNDLE_PATH" || true
         
         echo "Deployment complete!"
+        
     - name: zip the app
       run: |
         cd $HOME/source/OpenSpace/bin/Release
