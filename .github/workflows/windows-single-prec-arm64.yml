@@ -101,8 +101,33 @@ jobs:
     - name: Configure CMake
       run: |
         cd "$env:openSpaceHome"
-            cmake -S . -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake"  -DVCPKG_TARGET_TRIPLET=arm64-windows -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_PREFIX_PATH=C:/Qt/6.9.3/msvc2019_arm64 -DQt6_DIR=C:/Qt/6.9.3/msvc2019_arm64/lib/cmake/Qt6 -DQT_HOST_PATH=C:/Qt/6.9.3/msvc2019_64 -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DZLIB_USE_STATIC_LIBS=OFF -DOPENSPACE_ENABLE_ALL_MODULES=OFF -DOPENSPACE_MODULE_BASE=ON -DOPENSPACE_MODULE_SPACE=ON -DOPENSPACE_MODULE_GLOBEBROWSING=ON -DOPENSPACE_MODULE_VIDEO=OFF -DOPENSPACE_MODULE_SPOUT=OFF -DSGCT_SPOUT_SUPPORT=OFF -DSGCT_NDI_SUPPORT=OFF -DSGCT_SCALABLE_SUPPORT=OFF
-  
+        cmake -S . -B build `
+          -G "Visual Studio 17 2022" `
+          -A ARM64 `
+          -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET=arm64-windows `
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL `
+          -DCMAKE_PREFIX_PATH=C:/Qt/6.9.3/msvc2022_arm64 `
+          -DQt6_DIR=C:/Qt/6.9.3/msvc2022_arm64/lib/cmake/Qt6 `
+          -DQT_HOST_PATH=C:/Qt/6.9.3/msvc2022_64 `
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" `
+          -DASSIMP_BUILD_MINIZIP=1 `
+          -DBUILD_TESTS=OFF `
+          -DOPENSPACE_HAVE_TESTS=OFF `
+          -DSGCT_BUILD_TESTS=OFF `
+          -DGHOUL_HIGH_DEBUG_MODE=OFF `
+          -DGHOUL_HAVE_TESTS=OFF `
+          -DZLIB_USE_STATIC_LIBS=OFF `
+          -DOPENSPACE_ENABLE_ALL_MODULES=OFF `
+          -DOPENSPACE_MODULE_BASE=ON `
+          -DOPENSPACE_MODULE_SPACE=ON `
+          -DOPENSPACE_MODULE_GLOBEBROWSING=ON `
+          -DOPENSPACE_MODULE_VIDEO=OFF `
+          -DOPENSPACE_MODULE_SPOUT=OFF `
+          -DSGCT_SPOUT_SUPPORT=OFF `
+          -DSGCT_NDI_SUPPORT=OFF `
+          -DSGCT_SCALABLE_SUPPORT=OFF
+          
 
     - name: Patch dr_mp3 for MSVC ARM64 (disable SIMD)
       if: runner.os == 'Windows' && runner.arch == 'ARM64'
