@@ -90,6 +90,7 @@ jobs:
         .\vcpkg install zlib:arm64-windows
         .\vcpkg install boost:arm64-windows
         .\vcpkg install assimp:arm64-windows
+        .\vcpkg install gdal:arm64-windows
     
     - name: Verify vcpkg installation
       run: |
@@ -117,7 +118,6 @@ jobs:
           -DSGCT_BUILD_TESTS=OFF `
           -DGHOUL_HIGH_DEBUG_MODE=OFF `
           -DGHOUL_HAVE_TESTS=OFF `
-          -DZLIB_USE_STATIC_LIBS=OFF `
           -DOPENSPACE_ENABLE_ALL_MODULES=OFF `
           -DOPENSPACE_MODULE_BASE=ON `
           -DOPENSPACE_MODULE_SPACE=ON `
