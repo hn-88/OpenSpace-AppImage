@@ -134,7 +134,7 @@ jobs:
         cmake --build . --config ${{env.BUILD_TYPE}} -- -quiet
         df -h
 
-        
+    
     - name: run macdeployqt
       shell: bash
       run: |
@@ -174,33 +174,76 @@ jobs:
         # Run macdeployqt - it will handle Qt frameworks
         macdeployqt "$APP_BUNDLE_PATH" -verbose=1 -always-overwrite || true
         
-        echo "### 1. Manually Bundling QtDBus..."
+        echo "### 1. Checking what Qt frameworks were bundled..."
+        ls -la "$FRAMEWORKS_PATH" | grep Qt || echo "No Qt frameworks found"
+        
+        echo "### 2. Manually Bundling QtDBus..."
         QTDBUS_SOURCE="$QT_PATH/QtDBus.framework"
         QTDBUS_DEST="$FRAMEWORKS_PATH/QtDBus.framework"
         
-        if [ ! -d "$QTDBUS_DEST" ] && [ -d "$QTDBUS_SOURCE" ]; then
+        echo "Checking QtDBus source structure:"
+        ls -la "$QTDBUS_SOURCE/" 2>/dev/null || echo "QtDBus source not found"
+        
+        if [ -d "$QTDBUS_SOURCE" ]; then
+            # Remove existing if present
+            if [ -d "$QTDBUS_DEST" ]; then
+                echo "Removing existing QtDBus framework..."
+                rm -rf "$QTDBUS_DEST"
+            fi
+            
             echo "Copying QtDBus.framework..."
             cp -R "$QTDBUS_SOURCE" "$FRAMEWORKS_PATH/"
             chmod -R u+w "$QTDBUS_DEST"
             
-            # Find the actual QtDBus binary (could be symlink or direct)
-            QTDBUS_LIB=$(find "$QTDBUS_DEST" -type f -name "QtDBus" ! -path "*/Headers/*" | head -1)
+            echo "QtDBus destination structure:"
+            ls -laR "$QTDBUS_DEST"
             
-            if [ -n "$QTDBUS_LIB" ] && [ -f "$QTDBUS_LIB" ]; then
-                echo "Found QtDBus binary at: $QTDBUS_LIB"
-                # Get the version path (A, Current, etc)
-                VERSION_DIR=$(echo "$QTDBUS_LIB" | sed 's|.*/Versions/\([^/]*\)/.*|\1|')
-                install_name_tool -id "@rpath/QtDBus.framework/Versions/$VERSION_DIR/QtDBus" "$QTDBUS_LIB"
-                echo "QtDBus bundled successfully."
+            # Find and fix the QtDBus binary
+            # Look for the actual binary file (not symlinks initially)
+            QTDBUS_BINARIES=$(find "$QTDBUS_DEST" -type f -name "QtDBus" ! -path "*/Headers/*")
+            
+            echo "Found QtDBus binaries:"
+            echo "$QTDBUS_BINARIES"
+            
+            for QTDBUS_LIB in $QTDBUS_BINARIES; do
+                if [ -f "$QTDBUS_LIB" ]; then
+                    echo "Processing: $QTDBUS_LIB"
+                    
+                    # Check current install name
+                    echo "Current install name:"
+                    otool -D "$QTDBUS_LIB"
+                    
+                    # Fix install name
+                    install_name_tool -id "@rpath/QtDBus.framework/Versions/A/QtDBus" "$QTDBUS_LIB"
+                    
+                    echo "New install name:"
+                    otool -D "$QTDBUS_LIB"
+                fi
+            done
+            
+            # Verify the framework structure
+            echo "Final QtDBus framework structure:"
+            ls -la "$QTDBUS_DEST/Versions/" 2>/dev/null || echo "No Versions directory"
+            
+            # Check if the expected path exists
+            if [ -f "$QTDBUS_DEST/Versions/A/QtDBus" ]; then
+                echo "✓ QtDBus binary exists at Versions/A/QtDBus"
             else
-                echo "WARNING: Cannot find QtDBus binary"
-                ls -la "$QTDBUS_DEST"
+                echo "✗ QtDBus binary NOT found at Versions/A/QtDBus"
+                # Try to find where it actually is
+                find "$QTDBUS_DEST" -name "QtDBus" -type f
             fi
+            
+            # Also check what QtGui is looking for
+            echo "Checking QtGui dependencies:"
+            otool -L "$FRAMEWORKS_PATH/QtGui.framework/Versions/A/QtGui" | grep QtDBus
+            
         else
-            echo "QtDBus already exists or source not found."
+            echo "ERROR: QtDBus framework not found in $QT_PATH"
+            exit 1
         fi
         
-        echo "### 2. Fixing Third-Party Dependencies..."
+        echo "### 3. Fixing Third-Party Dependencies..."
         
         # Check if dylibbundler is available
         if ! command -v dylibbundler &> /dev/null; then
@@ -209,7 +252,6 @@ jobs:
         fi
         
         # Before running dylibbundler, fix the rpath to avoid duplicates
-        # dylibbundler will try to change rpaths, so we need the right format
         CURRENT_RPATHS=$(otool -l "$APP_EXECUTABLE" | grep -A 2 LC_RPATH | grep "path" | awk '{print $2}')
         
         # Remove any existing @executable_path/../Frameworks variants to avoid duplicates
@@ -227,7 +269,6 @@ jobs:
         
         if command -v dylibbundler &> /dev/null; then
             echo "Running dylibbundler..."
-            # Don't let dylibbundler modify rpaths since we've already set them correctly
             dylibbundler \
                 -b \
                 -x "$APP_EXECUTABLE" \
@@ -238,12 +279,12 @@ jobs:
             echo "WARNING: dylibbundler not available, skipping"
         fi
         
-        echo "### 3. Cleaning up Qt artifacts..."
+        echo "### 4. Cleaning up Qt artifacts..."
         find "$APP_BUNDLE_PATH" -name "*_debug.dylib" -delete 2>/dev/null || true
         find "$APP_BUNDLE_PATH" -name "*.prl" -delete 2>/dev/null || true
         find "$APP_BUNDLE_PATH" -type d -name "Headers" -exec rm -rf "{}" + 2>/dev/null || true
         
-        echo "### 4. Remove duplicate rpaths..."
+        echo "### 5. Remove duplicate rpaths..."
         # After dylibbundler, check for and remove any duplicate rpaths
         FINAL_RPATHS=$(otool -l "$APP_EXECUTABLE" | grep -A 2 LC_RPATH | grep "path" | awk '{print $2}')
         SEEN_RPATHS=()
@@ -269,12 +310,26 @@ jobs:
             fi
         done
         
-        echo "### 5. Final Verification..."
-        if [ -d "$FRAMEWORKS_PATH/QtDBus.framework" ]; then
-            echo "VERIFIED: QtDBus framework is present."
+        echo "### 6. Final Verification..."
+        
+        # Critical check: verify QtDBus is where it's expected
+        EXPECTED_QTDBUS="$FRAMEWORKS_PATH/QtDBus.framework/Versions/A/QtDBus"
+        if [ -f "$EXPECTED_QTDBUS" ]; then
+            echo "✓ VERIFIED: QtDBus exists at expected path"
+            ls -lh "$EXPECTED_QTDBUS"
+            file "$EXPECTED_QTDBUS"
         else
-            echo "WARNING: QtDBus missing after processing."
+            echo "✗ ERROR: QtDBus NOT found at expected path: $EXPECTED_QTDBUS"
+            echo "Searching for QtDBus..."
+            find "$FRAMEWORKS_PATH" -name "QtDBus" -type f
+            exit 1
         fi
+        
+        # Check all bundled frameworks
+        echo "All bundled Qt frameworks:"
+        ls -d "$FRAMEWORKS_PATH"/Qt*.framework 2>/dev/null | while read fw; do
+            echo "  - $(basename $fw)"
+        done
         
         echo "Checking linkage of main binary:"
         otool -L "$APP_EXECUTABLE" | head -20
@@ -282,12 +337,13 @@ jobs:
         echo "Final rpaths:"
         otool -l "$APP_EXECUTABLE" | grep -A 3 LC_RPATH
         
-        echo "### 6. Signing..."
+        echo "### 7. Signing..."
         # Re-sign after all modifications
         codesign --remove-signature "$APP_BUNDLE_PATH" 2>/dev/null || true
         codesign --force --deep --sign - "$APP_BUNDLE_PATH"
         
-        echo "Deployment complete!"        
+        echo "Deployment complete!"
+        
     - name: zip the app
       run: |
         cd $HOME/source/OpenSpace/bin/Release
@@ -319,7 +375,8 @@ jobs:
         # Usually, License/Readme files sit next to the .app in the zip.
         # We will prepare a 'staging' folder to zip everything together cleanly.
         mkdir -p deploy_staging
-        mv "$APP_BUNDLE_PATH" deploy_staging/
+        mkdir -p deploy_staging/bin
+        mv "$APP_BUNDLE_PATH" deploy_staging/bin
 
         # Copy text files next to the App (so user sees them upon unzipping)
         cp ACKNOWLEDGMENTS.md deploy_staging/
