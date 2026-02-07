@@ -181,65 +181,56 @@ jobs:
         QTDBUS_SOURCE="$QT_PATH/QtDBus.framework"
         QTDBUS_DEST="$FRAMEWORKS_PATH/QtDBus.framework"
         
+        if [ -L "$QTDBUS_SOURCE" ]; then
+            echo "QtDBus source is a symlink, resolving..."
+            QTDBUS_SOURCE=$(readlink -f "$QTDBUS_SOURCE" 2>/dev/null || greadlink -f "$QTDBUS_SOURCE" 2>/dev/null || echo "$QTDBUS_SOURCE")
+            echo "Resolved to: $QTDBUS_SOURCE"
+        fi
+        
         echo "Checking QtDBus source structure:"
         ls -la "$QTDBUS_SOURCE/" 2>/dev/null || echo "QtDBus source not found"
         
         if [ -d "$QTDBUS_SOURCE" ]; then
             # Remove existing if present
-            if [ -d "$QTDBUS_DEST" ]; then
+            if [ -e "$QTDBUS_DEST" ]; then
                 echo "Removing existing QtDBus framework..."
                 rm -rf "$QTDBUS_DEST"
             fi
             
-            echo "Copying QtDBus.framework..."
-            cp -R "$QTDBUS_SOURCE" "$FRAMEWORKS_PATH/"
+            echo "Copying QtDBus.framework (following symlinks)..."
+            # Use -L to follow symlinks
+            cp -RL "$QTDBUS_SOURCE" "$FRAMEWORKS_PATH/"
             chmod -R u+w "$QTDBUS_DEST"
             
-            echo "QtDBus destination structure:"
-            ls -laR "$QTDBUS_DEST"
-            
-            # Find and fix the QtDBus binary
-            # Look for the actual binary file (not symlinks initially)
-            QTDBUS_BINARIES=$(find "$QTDBUS_DEST" -type f -name "QtDBus" ! -path "*/Headers/*")
-            
-            echo "Found QtDBus binaries:"
-            echo "$QTDBUS_BINARIES"
-            
-            for QTDBUS_LIB in $QTDBUS_BINARIES; do
-                if [ -f "$QTDBUS_LIB" ]; then
-                    echo "Processing: $QTDBUS_LIB"
-                    
-                    # Check current install name
-                    echo "Current install name:"
-                    otool -D "$QTDBUS_LIB"
-                    
-                    # Fix install name
-                    install_name_tool -id "@rpath/QtDBus.framework/Versions/A/QtDBus" "$QTDBUS_LIB"
-                    
-                    echo "New install name:"
-                    otool -D "$QTDBUS_LIB"
-                fi
-            done
-            
-            # Verify the framework structure
-            echo "Final QtDBus framework structure:"
+            echo "QtDBus destination structure after copy:"
+            ls -la "$QTDBUS_DEST"
             ls -la "$QTDBUS_DEST/Versions/" 2>/dev/null || echo "No Versions directory"
             
-            # Check if the expected path exists
+            # Find and fix the QtDBus binary
             if [ -f "$QTDBUS_DEST/Versions/A/QtDBus" ]; then
-                echo "✓ QtDBus binary exists at Versions/A/QtDBus"
+                QTDBUS_LIB="$QTDBUS_DEST/Versions/A/QtDBus"
+                echo "✓ Found QtDBus binary at: $QTDBUS_LIB"
+                
+                # Check current install name
+                echo "Current install name:"
+                otool -D "$QTDBUS_LIB"
+                
+                # Fix install name
+                install_name_tool -id "@rpath/QtDBus.framework/Versions/A/QtDBus" "$QTDBUS_LIB"
+                
+                echo "New install name:"
+                otool -D "$QTDBUS_LIB"
+                
+                echo "QtDBus bundled successfully."
             else
                 echo "✗ QtDBus binary NOT found at Versions/A/QtDBus"
-                # Try to find where it actually is
+                echo "Searching for QtDBus binary..."
                 find "$QTDBUS_DEST" -name "QtDBus" -type f
+                exit 1
             fi
             
-            # Also check what QtGui is looking for
-            echo "Checking QtGui dependencies:"
-            otool -L "$FRAMEWORKS_PATH/QtGui.framework/Versions/A/QtGui" | grep QtDBus
-            
         else
-            echo "ERROR: QtDBus framework not found in $QT_PATH"
+            echo "ERROR: QtDBus framework not found at $QTDBUS_SOURCE"
             exit 1
         fi
         
