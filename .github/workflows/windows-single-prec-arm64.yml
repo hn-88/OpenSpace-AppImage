@@ -40,7 +40,7 @@ jobs:
         cd build
         
     
-    - name: Install dependencies
+    - name: Install QT dependencies
       # https://github.com/OpenSpace/OpenSpace-Docs/blob/3ddcca71b5ff4700ab1f75c5a961ed07c455cb68/dev/compiling/index.md
       shell: pwsh
       run: |
@@ -86,11 +86,13 @@ jobs:
         cd vcpkg
         .\bootstrap-vcpkg.bat
         # Using DYNAMIC linking to match Qt
-        .\vcpkg install curl[ssl]:arm64-windows
-        .\vcpkg install zlib:arm64-windows
-        .\vcpkg install boost:arm64-windows
-        .\vcpkg install assimp:arm64-windows
-        .\vcpkg install gdal:arm64-windows
+        # Install all packages in one go to allow the solver to handle dependencies correctly
+        .\vcpkg install `
+          curl[ssl]:arm64-windows `
+          zlib:arm64-windows `
+          boost:arm64-windows `
+          assimp:arm64-windows `
+          gdal:arm64-windows
     
     - name: Verify vcpkg installation
       run: |
