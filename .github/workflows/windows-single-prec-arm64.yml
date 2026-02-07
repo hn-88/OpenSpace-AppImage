@@ -85,14 +85,32 @@ jobs:
         git clone https://github.com/Microsoft/vcpkg.git
         cd vcpkg
         .\bootstrap-vcpkg.bat
-        # Using DYNAMIC linking to match Qt
-        # Install all packages in one go to allow the solver to handle dependencies correctly
-        .\vcpkg install `
-          curl[ssl]:arm64-windows `
-          zlib:arm64-windows `
-          boost:arm64-windows `
-          assimp:arm64-windows `
-          gdal:arm64-windows
+        
+        # Retry logic for transient failures
+        $maxAttempts = 3
+        $attempt = 1
+        $success = $false
+        
+        while (-not $success -and $attempt -le $maxAttempts) {
+          Write-Host "Attempt $attempt of $maxAttempts..."
+          try {
+            .\vcpkg install `
+              curl[ssl]:arm64-windows `
+              zlib:arm64-windows `
+              boost:arm64-windows `
+              assimp:arm64-windows `
+              gdal:arm64-windows
+            $success = $true
+          }
+          catch {
+            if ($attempt -eq $maxAttempts) {
+              throw
+            }
+            Write-Host "Installation failed, waiting 30 seconds before retry..."
+            Start-Sleep -Seconds 30
+            $attempt++
+          }
+        }
     
     - name: Verify vcpkg installation
       run: |
