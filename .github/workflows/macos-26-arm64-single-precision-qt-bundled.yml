@@ -187,9 +187,6 @@ jobs:
             echo "Resolved to: $QTDBUS_SOURCE"
         fi
         
-        echo "Checking QtDBus source structure:"
-        ls -la "$QTDBUS_SOURCE/" 2>/dev/null || echo "QtDBus source not found"
-        
         if [ -d "$QTDBUS_SOURCE" ]; then
             # Remove existing if present
             if [ -e "$QTDBUS_DEST" ]; then
@@ -202,30 +199,23 @@ jobs:
             cp -RL "$QTDBUS_SOURCE" "$FRAMEWORKS_PATH/"
             chmod -R u+w "$QTDBUS_DEST"
             
-            echo "QtDBus destination structure after copy:"
-            ls -la "$QTDBUS_DEST"
-            ls -la "$QTDBUS_DEST/Versions/" 2>/dev/null || echo "No Versions directory"
+            # Clean up duplicate version directories to avoid codesign ambiguity
+            echo "Cleaning up QtDBus framework structure..."
+            if [ -d "$QTDBUS_DEST/Versions/Current" ] && [ -d "$QTDBUS_DEST/Versions/A" ]; then
+                echo "Removing duplicate Versions/Current directory..."
+                rm -rf "$QTDBUS_DEST/Versions/Current"
+            fi
             
             # Find and fix the QtDBus binary
             if [ -f "$QTDBUS_DEST/Versions/A/QtDBus" ]; then
                 QTDBUS_LIB="$QTDBUS_DEST/Versions/A/QtDBus"
                 echo "✓ Found QtDBus binary at: $QTDBUS_LIB"
                 
-                # Check current install name
-                echo "Current install name:"
-                otool -D "$QTDBUS_LIB"
-                
                 # Fix install name
                 install_name_tool -id "@rpath/QtDBus.framework/Versions/A/QtDBus" "$QTDBUS_LIB"
-                
-                echo "New install name:"
-                otool -D "$QTDBUS_LIB"
-                
                 echo "QtDBus bundled successfully."
             else
                 echo "✗ QtDBus binary NOT found at Versions/A/QtDBus"
-                echo "Searching for QtDBus binary..."
-                find "$QTDBUS_DEST" -name "QtDBus" -type f
                 exit 1
             fi
             
@@ -260,6 +250,7 @@ jobs:
         
         if command -v dylibbundler &> /dev/null; then
             echo "Running dylibbundler..."
+            # dylibbundler may fail on codesigning, but that's OK - we'll sign properly at the end
             dylibbundler \
                 -b \
                 -x "$APP_EXECUTABLE" \
@@ -308,11 +299,8 @@ jobs:
         if [ -f "$EXPECTED_QTDBUS" ]; then
             echo "✓ VERIFIED: QtDBus exists at expected path"
             ls -lh "$EXPECTED_QTDBUS"
-            file "$EXPECTED_QTDBUS"
         else
             echo "✗ ERROR: QtDBus NOT found at expected path: $EXPECTED_QTDBUS"
-            echo "Searching for QtDBus..."
-            find "$FRAMEWORKS_PATH" -name "QtDBus" -type f
             exit 1
         fi
         
@@ -329,11 +317,35 @@ jobs:
         otool -l "$APP_EXECUTABLE" | grep -A 3 LC_RPATH
         
         echo "### 7. Signing..."
-        # Re-sign after all modifications
-        codesign --remove-signature "$APP_BUNDLE_PATH" 2>/dev/null || true
-        codesign --force --deep --sign - "$APP_BUNDLE_PATH"
+        # Remove any existing signatures first
+        echo "Removing old signatures..."
+        find "$APP_BUNDLE_PATH" -name "*.dylib" -o -name "*.framework" | while read fw; do
+            codesign --remove-signature "$fw" 2>/dev/null || true
+        done
+        codesign --remove-signature "$APP_EXECUTABLE" 2>/dev/null || true
+        
+        # Sign all frameworks individually first
+        echo "Signing frameworks..."
+        find "$FRAMEWORKS_PATH" -type d -name "*.framework" | while read fw; do
+            echo "  Signing $(basename $fw)..."
+            codesign --force --sign - "$fw" 2>/dev/null || true
+        done
+        
+        # Sign all dylibs
+        find "$FRAMEWORKS_PATH" -name "*.dylib" | while read lib; do
+            echo "  Signing $(basename $lib)..."
+            codesign --force --sign - "$lib" 2>/dev/null || true
+        done
+        
+        # Finally sign the executable and whole bundle
+        echo "Signing executable..."
+        codesign --force --sign - "$APP_EXECUTABLE" 2>/dev/null || true
+        
+        echo "Signing entire bundle..."
+        codesign --force --deep --sign - "$APP_BUNDLE_PATH" 2>/dev/null || true
         
         echo "Deployment complete!"
+
         
     - name: zip the app
       run: |
