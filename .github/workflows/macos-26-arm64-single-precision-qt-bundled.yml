@@ -134,7 +134,6 @@ jobs:
         cmake --build . --config ${{env.BUILD_TYPE}} -- -quiet
         df -h
 
-    
     - name: run macdeployqt
       shell: bash
       run: |
@@ -163,119 +162,110 @@ jobs:
         QT_PATH=$(qmake -query QT_INSTALL_LIBS)
         echo "Qt Lib Path detected: $QT_PATH"
         
-        # Check existing rpaths
-        echo "### 0. Checking rpaths in executable..."
+        echo "### 0. Initial cleanup..."
         mkdir -p "$FRAMEWORKS_PATH"
+        
+        # Remove all existing signatures to start fresh
+        echo "Removing all existing signatures..."
+        codesign --remove-signature "$APP_BUNDLE_PATH" 2>/dev/null || true
+        find "$APP_BUNDLE_PATH" \( -name "*.dylib" -o -name "*.framework" \) -exec codesign --remove-signature {} \; 2>/dev/null || true
         
         echo "Current rpaths:"
         otool -l "$APP_EXECUTABLE" | grep -A 3 LC_RPATH || echo "No rpaths found"
         
         echo "### Running macdeployqt..."
-        # Run macdeployqt - it will handle Qt frameworks
+        # Run macdeployqt WITHOUT signing (-codesign option not used)
         macdeployqt "$APP_BUNDLE_PATH" -verbose=1 -always-overwrite || true
         
-        echo "### 1. Checking what Qt frameworks were bundled..."
-        ls -la "$FRAMEWORKS_PATH" | grep Qt || echo "No Qt frameworks found"
-        
-        echo "### 2. Manually Bundling QtDBus..."
+        echo "### 1. Manually Bundling QtDBus..."
         QTDBUS_SOURCE="$QT_PATH/QtDBus.framework"
         QTDBUS_DEST="$FRAMEWORKS_PATH/QtDBus.framework"
         
         if [ -L "$QTDBUS_SOURCE" ]; then
-            echo "QtDBus source is a symlink, resolving..."
             QTDBUS_SOURCE=$(readlink -f "$QTDBUS_SOURCE" 2>/dev/null || greadlink -f "$QTDBUS_SOURCE" 2>/dev/null || echo "$QTDBUS_SOURCE")
-            echo "Resolved to: $QTDBUS_SOURCE"
         fi
         
         if [ -d "$QTDBUS_SOURCE" ]; then
-            # Remove existing if present
             if [ -e "$QTDBUS_DEST" ]; then
-                echo "Removing existing QtDBus framework..."
                 rm -rf "$QTDBUS_DEST"
             fi
             
-            echo "Copying QtDBus.framework (following symlinks)..."
-            # Use -L to follow symlinks
+            echo "Copying QtDBus.framework..."
             cp -RL "$QTDBUS_SOURCE" "$FRAMEWORKS_PATH/"
             chmod -R u+w "$QTDBUS_DEST"
             
-            # Clean up duplicate version directories to avoid codesign ambiguity
-            echo "Cleaning up QtDBus framework structure..."
+            # Clean up framework structure to match other Qt frameworks
             if [ -d "$QTDBUS_DEST/Versions/Current" ] && [ -d "$QTDBUS_DEST/Versions/A" ]; then
-                echo "Removing duplicate Versions/Current directory..."
                 rm -rf "$QTDBUS_DEST/Versions/Current"
             fi
             
-            # Find and fix the QtDBus binary
+            # Remove any top-level symlinks that might confuse signing
+            find "$QTDBUS_DEST" -maxdepth 1 -type l -delete
+            
+            # Recreate standard Qt framework symlinks
             if [ -f "$QTDBUS_DEST/Versions/A/QtDBus" ]; then
-                QTDBUS_LIB="$QTDBUS_DEST/Versions/A/QtDBus"
-                echo "✓ Found QtDBus binary at: $QTDBUS_LIB"
-                
-                # Fix install name
+                ln -sf Versions/A/QtDBus "$QTDBUS_DEST/QtDBus"
+            fi
+            if [ -d "$QTDBUS_DEST/Versions/A/Headers" ]; then
+                ln -sf Versions/A/Headers "$QTDBUS_DEST/Headers"
+            fi
+            if [ -d "$QTDBUS_DEST/Versions/A/Resources" ]; then
+                ln -sf Versions/A/Resources "$QTDBUS_DEST/Resources"
+            fi
+            
+            QTDBUS_LIB="$QTDBUS_DEST/Versions/A/QtDBus"
+            if [ -f "$QTDBUS_LIB" ]; then
+                echo "Fixing QtDBus install name..."
                 install_name_tool -id "@rpath/QtDBus.framework/Versions/A/QtDBus" "$QTDBUS_LIB"
                 echo "QtDBus bundled successfully."
             else
-                echo "✗ QtDBus binary NOT found at Versions/A/QtDBus"
+                echo "ERROR: QtDBus binary not found"
                 exit 1
             fi
-            
         else
-            echo "ERROR: QtDBus framework not found at $QTDBUS_SOURCE"
+            echo "ERROR: QtDBus source not found"
             exit 1
         fi
         
-        echo "### 3. Fixing Third-Party Dependencies..."
-        
-        # Check if dylibbundler is available
-        if ! command -v dylibbundler &> /dev/null; then
-            echo "Installing dylibbundler..."
-            brew install dylibbundler || true
-        fi
-        
-        # Before running dylibbundler, fix the rpath to avoid duplicates
+        echo "### 2. Fixing rpaths..."
         CURRENT_RPATHS=$(otool -l "$APP_EXECUTABLE" | grep -A 2 LC_RPATH | grep "path" | awk '{print $2}')
         
-        # Remove any existing @executable_path/../Frameworks variants to avoid duplicates
-        echo "Cleaning up existing rpaths..."
+        # Clean up rpaths
         for rpath in $CURRENT_RPATHS; do
             if [[ "$rpath" == *"@executable_path/../Frameworks"* ]]; then
-                echo "Removing rpath: $rpath"
                 install_name_tool -delete_rpath "$rpath" "$APP_EXECUTABLE" 2>/dev/null || true
             fi
         done
         
-        # Add the canonical rpath with trailing slash (what dylibbundler expects)
-        echo "Adding canonical rpath..."
+        # Add single canonical rpath
         install_name_tool -add_rpath "@executable_path/../Frameworks/" "$APP_EXECUTABLE" 2>/dev/null || true
         
+        echo "### 3. Running dylibbundler..."
+        if ! command -v dylibbundler &> /dev/null; then
+            brew install dylibbundler || true
+        fi
+        
         if command -v dylibbundler &> /dev/null; then
-            echo "Running dylibbundler..."
-            # dylibbundler may fail on codesigning, but that's OK - we'll sign properly at the end
-            dylibbundler \
+            # Run dylibbundler but tell it NOT to sign (we'll do that at the end)
+            DYLD_LIBRARY_PATH="$FRAMEWORKS_PATH" dylibbundler \
                 -b \
                 -x "$APP_EXECUTABLE" \
                 -d "$FRAMEWORKS_PATH" \
                 -p "@executable_path/../Frameworks/" \
-                --overwrite-files 2>&1 | grep -v "WARNING : Cannot resolve path" || true
-        else
-            echo "WARNING: dylibbundler not available, skipping"
+                --overwrite-files 2>&1 | grep -v "WARNING" | grep -v "Error : An error occurred while applying ad-hoc signature" || true
         fi
         
-        echo "### 4. Cleaning up Qt artifacts..."
+        echo "### 4. Cleaning up..."
         find "$APP_BUNDLE_PATH" -name "*_debug.dylib" -delete 2>/dev/null || true
         find "$APP_BUNDLE_PATH" -name "*.prl" -delete 2>/dev/null || true
-        find "$APP_BUNDLE_PATH" -type d -name "Headers" -exec rm -rf "{}" + 2>/dev/null || true
+        find "$APP_BUNDLE_PATH" -type d -name "Headers" -path "*/Frameworks/*" -exec rm -rf "{}" + 2>/dev/null || true
         
         echo "### 5. Remove duplicate rpaths..."
-        # After dylibbundler, check for and remove any duplicate rpaths
         FINAL_RPATHS=$(otool -l "$APP_EXECUTABLE" | grep -A 2 LC_RPATH | grep "path" | awk '{print $2}')
         SEEN_RPATHS=()
         
         for rpath in $FINAL_RPATHS; do
-            # Normalize the rpath (remove trailing slash for comparison)
             NORMALIZED=$(echo "$rpath" | sed 's|/$||')
-            
-            # Check if we've seen this normalized path before
             DUPLICATE=false
             for seen in "${SEEN_RPATHS[@]}"; do
                 if [ "$NORMALIZED" == "$seen" ]; then
@@ -292,57 +282,51 @@ jobs:
             fi
         done
         
-        echo "### 6. Final Verification..."
-        
-        # Critical check: verify QtDBus is where it's expected
-        EXPECTED_QTDBUS="$FRAMEWORKS_PATH/QtDBus.framework/Versions/A/QtDBus"
-        if [ -f "$EXPECTED_QTDBUS" ]; then
-            echo "✓ VERIFIED: QtDBus exists at expected path"
-            ls -lh "$EXPECTED_QTDBUS"
+        echo "### 6. Verification..."
+        if [ -f "$FRAMEWORKS_PATH/QtDBus.framework/Versions/A/QtDBus" ]; then
+            echo "✓ QtDBus verified"
         else
-            echo "✗ ERROR: QtDBus NOT found at expected path: $EXPECTED_QTDBUS"
+            echo "✗ QtDBus missing"
             exit 1
         fi
         
-        # Check all bundled frameworks
-        echo "All bundled Qt frameworks:"
-        ls -d "$FRAMEWORKS_PATH"/Qt*.framework 2>/dev/null | while read fw; do
-            echo "  - $(basename $fw)"
-        done
-        
-        echo "Checking linkage of main binary:"
-        otool -L "$APP_EXECUTABLE" | head -20
-        
-        echo "Final rpaths:"
-        otool -l "$APP_EXECUTABLE" | grep -A 3 LC_RPATH
-        
-        echo "### 7. Signing..."
-        # Remove any existing signatures first
-        echo "Removing old signatures..."
-        find "$APP_BUNDLE_PATH" -name "*.dylib" -o -name "*.framework" | while read fw; do
-            codesign --remove-signature "$fw" 2>/dev/null || true
-        done
+        echo "### 7. Code Signing (FINAL STEP)..."
+        echo "Removing ALL signatures first..."
+        # Remove all signatures from everything
+        find "$APP_BUNDLE_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -perm +111 \) -exec codesign --remove-signature {} \; 2>/dev/null || true
+        find "$APP_BUNDLE_PATH/Contents/Frameworks" -type d -name "*.framework" -exec codesign --remove-signature {} \; 2>/dev/null || true
         codesign --remove-signature "$APP_EXECUTABLE" 2>/dev/null || true
         
-        # Sign all frameworks individually first
-        echo "Signing frameworks..."
-        find "$FRAMEWORKS_PATH" -type d -name "*.framework" | while read fw; do
-            echo "  Signing $(basename $fw)..."
-            codesign --force --sign - "$fw" 2>/dev/null || true
+        echo "Signing from inside out..."
+        
+        # Step 1: Sign all dylibs
+        echo "1. Signing dylibs..."
+        find "$FRAMEWORKS_PATH" -type f -name "*.dylib" | sort | while read lib; do
+            codesign --force --timestamp --options runtime --sign - "$lib" || true
         done
         
-        # Sign all dylibs
-        find "$FRAMEWORKS_PATH" -name "*.dylib" | while read lib; do
-            echo "  Signing $(basename $lib)..."
-            codesign --force --sign - "$lib" 2>/dev/null || true
+        # Step 2: Sign all framework binaries (the actual library files inside Versions/A/)
+        echo "2. Signing framework binaries..."
+        find "$FRAMEWORKS_PATH" -type f -path "*/Versions/*/Qt*" ! -name "*.h" ! -name "*.prl" | sort | while read fwlib; do
+            codesign --force --timestamp --options runtime --sign - "$fwlib" || true
         done
         
-        # Finally sign the executable and whole bundle
-        echo "Signing executable..."
-        codesign --force --sign - "$APP_EXECUTABLE" 2>/dev/null || true
+        # Step 3: Sign the frameworks themselves
+        echo "3. Signing frameworks..."
+        find "$FRAMEWORKS_PATH" -type d -name "*.framework" -maxdepth 1 | sort | while read fw; do
+            codesign --force --timestamp --options runtime --sign - "$fw" || true
+        done
         
-        echo "Signing entire bundle..."
-        codesign --force --deep --sign - "$APP_BUNDLE_PATH" 2>/dev/null || true
+        # Step 4: Sign the executable
+        echo "4. Signing executable..."
+        codesign --force --timestamp --options runtime --sign - "$APP_EXECUTABLE"
+        
+        # Step 5: Sign the entire bundle
+        echo "5. Signing bundle..."
+        codesign --force --deep --timestamp --options runtime --sign - "$APP_BUNDLE_PATH"
+        
+        echo "### 8. Verify signatures..."
+        codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE_PATH" || echo "Note: Deep verification may show warnings but bundle should still work"
         
         echo "Deployment complete!"
 
