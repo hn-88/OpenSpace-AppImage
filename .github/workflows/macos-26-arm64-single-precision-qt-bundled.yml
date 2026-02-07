@@ -168,13 +168,13 @@ jobs:
         # Remove all existing signatures to start fresh
         echo "Removing all existing signatures..."
         codesign --remove-signature "$APP_BUNDLE_PATH" 2>/dev/null || true
-        find "$APP_BUNDLE_PATH" \( -name "*.dylib" -o -name "*.framework" \) -exec codesign --remove-signature {} \; 2>/dev/null || true
+        find "$APP_BUNDLE_PATH" \( -name "*.dylib" -o -name "*.framework" -o -name "*.app" \) -exec codesign --remove-signature {} \; 2>/dev/null || true
         
         echo "Current rpaths:"
         otool -l "$APP_EXECUTABLE" | grep -A 3 LC_RPATH || echo "No rpaths found"
         
         echo "### Running macdeployqt..."
-        # Run macdeployqt WITHOUT signing (-codesign option not used)
+        # Run macdeployqt WITHOUT signing
         macdeployqt "$APP_BUNDLE_PATH" -verbose=1 -always-overwrite || true
         
         echo "### 1. Manually Bundling QtDBus..."
@@ -194,12 +194,12 @@ jobs:
             cp -RL "$QTDBUS_SOURCE" "$FRAMEWORKS_PATH/"
             chmod -R u+w "$QTDBUS_DEST"
             
-            # Clean up framework structure to match other Qt frameworks
+            # Clean up framework structure
             if [ -d "$QTDBUS_DEST/Versions/Current" ] && [ -d "$QTDBUS_DEST/Versions/A" ]; then
                 rm -rf "$QTDBUS_DEST/Versions/Current"
             fi
             
-            # Remove any top-level symlinks that might confuse signing
+            # Remove any top-level symlinks
             find "$QTDBUS_DEST" -maxdepth 1 -type l -delete
             
             # Recreate standard Qt framework symlinks
@@ -215,7 +215,6 @@ jobs:
             
             QTDBUS_LIB="$QTDBUS_DEST/Versions/A/QtDBus"
             if [ -f "$QTDBUS_LIB" ]; then
-                echo "Fixing QtDBus install name..."
                 install_name_tool -id "@rpath/QtDBus.framework/Versions/A/QtDBus" "$QTDBUS_LIB"
                 echo "QtDBus bundled successfully."
             else
@@ -230,14 +229,12 @@ jobs:
         echo "### 2. Fixing rpaths..."
         CURRENT_RPATHS=$(otool -l "$APP_EXECUTABLE" | grep -A 2 LC_RPATH | grep "path" | awk '{print $2}')
         
-        # Clean up rpaths
         for rpath in $CURRENT_RPATHS; do
             if [[ "$rpath" == *"@executable_path/../Frameworks"* ]]; then
                 install_name_tool -delete_rpath "$rpath" "$APP_EXECUTABLE" 2>/dev/null || true
             fi
         done
         
-        # Add single canonical rpath
         install_name_tool -add_rpath "@executable_path/../Frameworks/" "$APP_EXECUTABLE" 2>/dev/null || true
         
         echo "### 3. Running dylibbundler..."
@@ -246,7 +243,6 @@ jobs:
         fi
         
         if command -v dylibbundler &> /dev/null; then
-            # Run dylibbundler but tell it NOT to sign (we'll do that at the end)
             DYLD_LIBRARY_PATH="$FRAMEWORKS_PATH" dylibbundler \
                 -b \
                 -x "$APP_EXECUTABLE" \
@@ -275,7 +271,6 @@ jobs:
             done
             
             if [ "$DUPLICATE" = true ]; then
-                echo "Removing duplicate rpath: $rpath"
                 install_name_tool -delete_rpath "$rpath" "$APP_EXECUTABLE" 2>/dev/null || true
             else
                 SEEN_RPATHS+=("$NORMALIZED")
@@ -292,9 +287,9 @@ jobs:
         
         echo "### 7. Code Signing (FINAL STEP)..."
         echo "Removing ALL signatures first..."
-        # Remove all signatures from everything
         find "$APP_BUNDLE_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -perm +111 \) -exec codesign --remove-signature {} \; 2>/dev/null || true
         find "$APP_BUNDLE_PATH/Contents/Frameworks" -type d -name "*.framework" -exec codesign --remove-signature {} \; 2>/dev/null || true
+        find "$APP_BUNDLE_PATH/Contents/Frameworks" -type d -name "*.app" -exec codesign --remove-signature {} \; 2>/dev/null || true
         codesign --remove-signature "$APP_EXECUTABLE" 2>/dev/null || true
         
         echo "Signing from inside out..."
@@ -305,7 +300,7 @@ jobs:
             codesign --force --timestamp --options runtime --sign - "$lib" || true
         done
         
-        # Step 2: Sign all framework binaries (the actual library files inside Versions/A/)
+        # Step 2: Sign all framework binaries
         echo "2. Signing framework binaries..."
         find "$FRAMEWORKS_PATH" -type f -path "*/Versions/*/Qt*" ! -name "*.h" ! -name "*.prl" | sort | while read fwlib; do
             codesign --force --timestamp --options runtime --sign - "$fwlib" || true
@@ -317,20 +312,32 @@ jobs:
             codesign --force --timestamp --options runtime --sign - "$fw" || true
         done
         
-        # Step 4: Sign the executable
-        echo "4. Signing executable..."
+        # Step 4: Sign any helper apps (like "OpenSpace Helper.app")
+        echo "4. Signing helper apps..."
+        find "$FRAMEWORKS_PATH" -type d -name "*.app" | sort | while read helper; do
+            echo "  Signing $(basename "$helper")..."
+            # Sign the helper's executable first
+            HELPER_EXEC="$helper/Contents/MacOS/"*
+            if [ -f "$HELPER_EXEC" ]; then
+                codesign --force --timestamp --options runtime --sign - "$HELPER_EXEC" || true
+            fi
+            # Then sign the helper bundle
+            codesign --force --deep --timestamp --options runtime --sign - "$helper"
+        done
+        
+        # Step 5: Sign the main executable
+        echo "5. Signing main executable..."
         codesign --force --timestamp --options runtime --sign - "$APP_EXECUTABLE"
         
-        # Step 5: Sign the entire bundle
-        echo "5. Signing bundle..."
+        # Step 6: Sign the entire bundle
+        echo "6. Signing entire bundle..."
         codesign --force --deep --timestamp --options runtime --sign - "$APP_BUNDLE_PATH"
         
         echo "### 8. Verify signatures..."
         codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE_PATH" || echo "Note: Deep verification may show warnings but bundle should still work"
         
         echo "Deployment complete!"
-
-        
+            
     - name: zip the app
       run: |
         cd $HOME/source/OpenSpace/bin/Release
