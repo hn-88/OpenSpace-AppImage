@@ -4,32 +4,23 @@ on: workflow_dispatch
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  # This yml is copied from https://github.com/hn-88/OpenSpace-AppleSiliconMac/blob/main/.github/workflows/hn-xcode16-build-hn-arm64.yml
-  # and modified.
   BUILD_TYPE: Release
   OPENSPACE_VERSION: "0.21.3plus"
   THIS_REPO_PATH: "/Users/runner/work/OpenSpace-AppImage/OpenSpace-AppImage" 
   
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
     runs-on: macos-26
 
     steps:
     - uses: actions/checkout@v4
     
     - name: get openspace code for a particular release
-      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
       run: |
         df -h
         openSpaceHome="$HOME/source/OpenSpace"
         git clone --recursive https://github.com/OpenSpace/OpenSpace.git "$openSpaceHome"
         cd "$openSpaceHome"
-        # use the main branch instead # git checkout "releases/v${OPENSPACE_VERSION}" --recurse-submodules
-        # git checkout "d4d323ac491d50a4c37935b5dce8688c97353930" --recurse-submodules
         git checkout master --recurse-submodules
         mkdir build
         cd build
@@ -51,7 +42,6 @@ jobs:
         python3 smart_patcher.py MacOS-patches.txt        
         
     - name: get the single precision patches
-      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome"
@@ -74,7 +64,6 @@ jobs:
         echo "Running smart_patcher for shader edits..."
         python smart_patcher.py changes-to-shadersv2.diff
         
-    
     - name: Update Homebrew and Install GLM
       run: |
         brew update
@@ -92,19 +81,14 @@ jobs:
             
     - name: Install dependencies
       timeout-minutes: 30
-      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6 dylibbundler
         df -h
 
     - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
-        # https://stackoverflow.com/questions/16700415/cmake-generate-xcode-project-from-existing-sources
-        # CMAKE_PREFIX_PATH to /opt/homebrew - https://stackoverflow.com/questions/68105648/configure-cmake-to-work-with-homebrew-libraries-instead-system-provided-librarie
         cmake -G Xcode \
                   -Wno-dev \
                   -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
@@ -125,16 +109,13 @@ jobs:
                   "$openSpaceHome"
     
     - name: Build
-      # Build your program with the given configuration
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
-        # echo "Check to see if we have enough disk space ... " only 8 GB used out of 120+ GB
-        # df -h
         cmake --build . --config ${{env.BUILD_TYPE}} -- -quiet
         df -h
 
-    - name: run macdeployqt
+    - name: run macdeployqt and recursive bundling
       shell: bash
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
@@ -170,18 +151,15 @@ jobs:
         codesign --remove-signature "$APP_BUNDLE_PATH" 2>/dev/null || true
         find "$APP_BUNDLE_PATH" \( -name "*.dylib" -o -name "*.framework" -o -name "*.app" \) -exec codesign --remove-signature {} \; 2>/dev/null || true
         
-        echo "Current rpaths:"
-        otool -l "$APP_EXECUTABLE" | grep -A 3 LC_RPATH || echo "No rpaths found"
-        
         echo "### Running macdeployqt..."
         # Run macdeployqt WITHOUT signing
         macdeployqt "$APP_BUNDLE_PATH" -verbose=1 -always-overwrite || true
         
         echo "### 1. Manually Bundling QtDBus..."
+        # (Keeping your original manual fix for QtDBus structure as it is specific and working)
         QTDBUS_SOURCE="$QT_PATH/QtDBus.framework"
         QTDBUS_DEST="$FRAMEWORKS_PATH/QtDBus.framework"
         
-        # Resolve symlink if needed
         if [ -L "$QTDBUS_SOURCE" ]; then
             QTDBUS_SOURCE_REAL=$(readlink -f "$QTDBUS_SOURCE" 2>/dev/null || greadlink -f "$QTDBUS_SOURCE" 2>/dev/null)
             if [ -n "$QTDBUS_SOURCE_REAL" ] && [ -d "$QTDBUS_SOURCE_REAL" ]; then
@@ -190,143 +168,173 @@ jobs:
         fi
         
         if [ -d "$QTDBUS_SOURCE" ]; then
-            # Remove existing if present
-            if [ -e "$QTDBUS_DEST" ]; then
-                rm -rf "$QTDBUS_DEST"
-            fi
-            
+            if [ -e "$QTDBUS_DEST" ]; then rm -rf "$QTDBUS_DEST"; fi
             echo "Creating proper QtDBus.framework structure..."
-            
-            # Create framework structure matching other Qt frameworks
             mkdir -p "$QTDBUS_DEST/Versions/A"
-            
-            # Copy the actual binary (follow symlinks to get the real file)
             if [ -f "$QTDBUS_SOURCE/Versions/A/QtDBus" ]; then
                 cp "$QTDBUS_SOURCE/Versions/A/QtDBus" "$QTDBUS_DEST/Versions/A/"
             elif [ -L "$QTDBUS_SOURCE/QtDBus" ]; then
-                # If QtDBus is a symlink at the top level, follow it
                 cp -L "$QTDBUS_SOURCE/QtDBus" "$QTDBUS_DEST/Versions/A/QtDBus"
-            else
-                echo "ERROR: Cannot find QtDBus binary"
-                exit 1
             fi
-            
-            # Copy Resources if they exist
             if [ -d "$QTDBUS_SOURCE/Versions/A/Resources" ]; then
                 cp -R "$QTDBUS_SOURCE/Versions/A/Resources" "$QTDBUS_DEST/Versions/A/"
             elif [ -d "$QTDBUS_SOURCE/Resources" ] && [ ! -L "$QTDBUS_SOURCE/Resources" ]; then
                 cp -R "$QTDBUS_SOURCE/Resources" "$QTDBUS_DEST/Versions/A/"
             fi
-            
-            # Make everything writable
             chmod -R u+w "$QTDBUS_DEST"
-            
-            # Create standard framework symlinks (match other Qt frameworks)
             cd "$QTDBUS_DEST"
             ln -sf Versions/A/QtDBus QtDBus
-            if [ -d "Versions/A/Resources" ]; then
-                ln -sf Versions/A/Resources Resources
-            fi
+            if [ -d "Versions/A/Resources" ]; then ln -sf Versions/A/Resources Resources; fi
             cd "$openSpaceHome"
-            
-            # Fix the binary's install name
             QTDBUS_LIB="$QTDBUS_DEST/Versions/A/QtDBus"
             if [ -f "$QTDBUS_LIB" ]; then
-                echo "Fixing QtDBus install name..."
                 install_name_tool -id "@rpath/QtDBus.framework/Versions/A/QtDBus" "$QTDBUS_LIB"
-                echo "QtDBus bundled successfully."
-            else
-                echo "ERROR: QtDBus binary not found after copying"
-                exit 1
             fi
-            
-            # Verify the structure matches other Qt frameworks
-            echo "QtDBus framework structure:"
-            ls -la "$QTDBUS_DEST"
-            echo "QtDBus Versions directory:"
-            ls -la "$QTDBUS_DEST/Versions"
-            
         else
             echo "ERROR: QtDBus source not found"
-            exit 1
         fi
+
+        # ==============================================================================
+        # REPLACEMENT SECTION: RECURSIVE DEPENDENCY WALKING + RPATH CLEANUP
+        # ==============================================================================
         
-        echo "### 2. Fixing rpaths..."
-        CURRENT_RPATHS=$(otool -l "$APP_EXECUTABLE" | grep -A 2 LC_RPATH | grep "path" | awk '{print $2}')
+        echo "### 3. Advanced Dependency Bundling & RPath Cleanup"
         
-        for rpath in $CURRENT_RPATHS; do
-            if [[ "$rpath" == *"@executable_path/../Frameworks"* ]]; then
-                install_name_tool -delete_rpath "$rpath" "$APP_EXECUTABLE" 2>/dev/null || true
+        # Where to search for missing libs
+        SEARCH_PATHS=(
+            "/opt/homebrew/lib"
+            "/usr/local/lib"
+            "$QT_PATH"
+        )
+        echo "Search paths for dependencies: ${SEARCH_PATHS[*]}"
+
+        # --- PART A: HELPER FUNCTIONS ---
+
+        find_library_path() {
+            local lib_name=$(basename "$1")
+            if [ -f "$1" ]; then echo "$1"; return 0; fi
+            for path in "${SEARCH_PATHS[@]}"; do
+                if [ -f "$path/$lib_name" ]; then echo "$path/$lib_name"; return 0; fi
+            done
+            return 1
+        }
+
+        clean_rpaths() {
+            local binary="$1"
+            # Get raw list of rpaths
+            local raw_rpaths=$(otool -l "$binary" | grep -A2 LC_RPATH | grep "path " | sed 's/ *path \(.*\) (offset.*)/\1/')
+            
+            declare -a seen_paths
+            
+            while read -r rpath; do
+                [ -z "$rpath" ] && continue
+                # Normalize: Remove trailing slash
+                local norm_rpath="${rpath%/}"
+                local is_duplicate=0
+                for seen in "${seen_paths[@]}"; do
+                    if [ "$seen" == "$norm_rpath" ]; then is_duplicate=1; break; fi
+                done
+                
+                if [ $is_duplicate -eq 1 ]; then
+                    install_name_tool -delete_rpath "$rpath" "$binary" 2>/dev/null || true
+                else
+                    if [ "$rpath" != "$norm_rpath" ]; then
+                         install_name_tool -delete_rpath "$rpath" "$binary" 2>/dev/null || true
+                         install_name_tool -add_rpath "$norm_rpath" "$binary" 2>/dev/null || true
+                    fi
+                    seen_paths+=("$norm_rpath")
+                fi
+            done <<< "$raw_rpaths"
+        }
+
+        # --- PART B: RECURSIVE DEPENDENCY WALKING ---
+        
+        echo "Starting Recursive Dependency Scan..."
+        ITERATION=0
+        MAX_ITERATIONS=10
+        
+        while [ $ITERATION -lt $MAX_ITERATIONS ]; do
+            ITERATION=$((ITERATION+1))
+            echo "--- Scan Iteration $ITERATION ---"
+            CHANGES_MADE=false
+
+            # Find all binaries (Executable + Dylibs + .so)
+            BINARIES=$(find "$APP_BUNDLE_PATH" -type f \( -perm +111 -o -name "*.dylib" -o -name "*.so" \) | grep -v "Headers" | grep -v ".prl" | grep -v ".h")
+
+            for BINARY in $BINARIES; do
+                DEPS=$(otool -L "$BINARY" | grep -v ":" | awk '{print $1}')
+                for DEP in $DEPS; do
+                    if [[ "$DEP" == "/System/"* ]] || [[ "$DEP" == "/usr/lib/"* ]]; then continue; fi
+                    
+                    DEP_NAME=$(basename "$DEP")
+                    IS_Bundled=false
+                    if [ -f "$FRAMEWORKS_PATH/$DEP_NAME" ]; then IS_Bundled=true; fi
+
+                    # Case 1: Dependency is NOT bundled yet
+                    if [ "$IS_Bundled" = false ]; then
+                        SOURCE_PATH=$(find_library_path "$DEP" || find_library_path "$DEP_NAME")
+                        
+                        if [ -n "$SOURCE_PATH" ]; then
+                            echo "    + Bundling missing dependency: $DEP_NAME"
+                            cp "$SOURCE_PATH" "$FRAMEWORKS_PATH/"
+                            # CRITICAL: Make writable for install_name_tool and signing
+                            chmod 755 "$FRAMEWORKS_PATH/$DEP_NAME"
+                            install_name_tool -id "@rpath/$DEP_NAME" "$FRAMEWORKS_PATH/$DEP_NAME"
+                            CHANGES_MADE=true
+                        else
+                            if [[ "$DEP" != "@rpath"* ]] && [[ "$DEP" != "@executable_path"* ]]; then
+                                echo "    ! WARNING: Could not find source for $DEP"
+                            fi
+                        fi
+                    fi
+                    
+                    # Case 2: Fix the Linkage
+                    if [[ "$DEP" != "@rpath/$DEP_NAME" ]] && [[ "$DEP" != "@executable_path"* ]] && [[ "$DEP" != "@loader_path"* ]]; then
+                         # Make sure binary is writable before modification
+                         chmod u+w "$BINARY"
+                         echo "    * Relinking $DEP -> @rpath/$DEP_NAME in $(basename "$BINARY")"
+                         install_name_tool -change "$DEP" "@rpath/$DEP_NAME" "$BINARY" 2>/dev/null || true
+                    fi
+                done
+            done
+
+            if [ "$CHANGES_MADE" = false ]; then
+                echo "Dependency walk complete."
+                break
             fi
         done
+
+        # --- PART C: FINAL CLEANUP ---
         
-        install_name_tool -add_rpath "@executable_path/../Frameworks/" "$APP_EXECUTABLE" 2>/dev/null || true
-        
-        echo "### 3. Running dylibbundler..."
-        if ! command -v dylibbundler &> /dev/null; then
-            brew install dylibbundler || true
-        fi
-        
-        if command -v dylibbundler &> /dev/null; then
-            DYLD_LIBRARY_PATH="$FRAMEWORKS_PATH" dylibbundler \
-                -b \
-                -x "$APP_EXECUTABLE" \
-                -d "$FRAMEWORKS_PATH" \
-                -p "@executable_path/../Frameworks/" \
-                --overwrite-files 2>&1 | grep -v "WARNING" | grep -v "Error : An error occurred while applying ad-hoc signature" || true
-        fi
-        
-        echo "### 4. Cleaning up..."
+        echo "### 4. Cleaning up artifacts..."
         find "$APP_BUNDLE_PATH" -name "*_debug.dylib" -delete 2>/dev/null || true
         find "$APP_BUNDLE_PATH" -name "*.prl" -delete 2>/dev/null || true
         find "$APP_BUNDLE_PATH" -type d -name "Headers" -path "*/Frameworks/*" -exec rm -rf "{}" + 2>/dev/null || true
+
+        echo "### 5. Cleaning RPaths..."
+        clean_rpaths "$APP_EXECUTABLE"
+        install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP_EXECUTABLE" 2>/dev/null || true
         
-        echo "### 5. Remove duplicate rpaths..."
-        FINAL_RPATHS=$(otool -l "$APP_EXECUTABLE" | grep -A 2 LC_RPATH | grep "path" | awk '{print $2}')
-        SEEN_RPATHS=()
-        
-        for rpath in $FINAL_RPATHS; do
-            NORMALIZED=$(echo "$rpath" | sed 's|/$||')
-            DUPLICATE=false
-            for seen in "${SEEN_RPATHS[@]}"; do
-                if [ "$NORMALIZED" == "$seen" ]; then
-                    DUPLICATE=true
-                    break
-                fi
-            done
-            
-            if [ "$DUPLICATE" = true ]; then
-                install_name_tool -delete_rpath "$rpath" "$APP_EXECUTABLE" 2>/dev/null || true
-            else
-                SEEN_RPATHS+=("$NORMALIZED")
-            fi
+        find "$FRAMEWORKS_PATH" -type f -name "*.dylib" | while read dylib; do
+            clean_rpaths "$dylib"
         done
         
         echo "### 6. Verification..."
-        if [ -f "$FRAMEWORKS_PATH/QtDBus.framework/Versions/A/QtDBus" ]; then
-            echo "✓ QtDBus verified"
-        else
-            echo "✗ QtDBus missing"
-            exit 1
-        fi
+        if [ -f "$FRAMEWORKS_PATH/QtDBus.framework/Versions/A/QtDBus" ]; then echo "✓ QtDBus verified"; else echo "✗ QtDBus missing"; exit 1; fi
+        if [ -f "$FRAMEWORKS_PATH/libgeos.3.14.1.dylib" ] || [ -f "$FRAMEWORKS_PATH/libgeos_c.1.dylib" ]; then echo "✓ GEOS verified"; fi
         
+        # ==============================================================================
+        # END OF REPLACEMENT SECTION
+        # ==============================================================================
+
         echo "### 7. Code Signing (FINAL STEP)..."
         echo "CRITICAL: Removing ALL existing signatures to avoid Team ID conflicts..."
         
-        # Remove signatures from EVERYTHING
         echo "Removing signatures from all dylibs..."
         find "$FRAMEWORKS_PATH" -type f -name "*.dylib" -exec codesign --remove-signature {} \; 2>/dev/null || true
-        
-        echo "Removing signatures from all framework binaries..."
         find "$FRAMEWORKS_PATH" -type f -path "*/Versions/*/Qt*" ! -name "*.h" ! -name "*.prl" -exec codesign --remove-signature {} \; 2>/dev/null || true
-        
-        echo "Removing signatures from all frameworks..."
         find "$FRAMEWORKS_PATH" -type d -name "*.framework" -exec codesign --remove-signature {} \; 2>/dev/null || true
-        
-        echo "Removing signatures from all helper apps..."
         find "$FRAMEWORKS_PATH" -type d -name "*.app" -exec codesign --remove-signature {} \; 2>/dev/null || true
-        
-        echo "Removing signature from main executable..."
         codesign --remove-signature "$APP_EXECUTABLE" 2>/dev/null || true
         
         echo "Signing from inside out..."
@@ -352,13 +360,11 @@ jobs:
         # Step 4: Sign any helper apps
         echo "4. Signing helper apps..."
         find "$FRAMEWORKS_PATH" -type d -name "*.app" | sort | while read helper; do
-            # Sign the helper's executable first
             for HELPER_EXEC in "$helper/Contents/MacOS/"*; do
                 if [ -f "$HELPER_EXEC" ]; then
                     codesign --force --sign - "$HELPER_EXEC" 2>/dev/null || true
                 fi
             done
-            # Then sign the helper bundle
             codesign --force --deep --sign - "$helper" 2>/dev/null || true
         done
         
@@ -371,7 +377,6 @@ jobs:
         codesign --force --deep --sign - "$APP_BUNDLE_PATH"
         
         echo "### 8. Verify signatures..."
-        echo "Verifying bundle signature..."
         codesign --verify --verbose "$APP_BUNDLE_PATH" && echo "✓ Signature valid" || echo "✗ Signature verification failed (may still work)"
         
         echo "Deployment complete!"
@@ -387,8 +392,6 @@ jobs:
       with:
         # Artifact name
         name: OpenSpace-MacOS15-AppleSilicon-app
-        # optional, default is artifact
-        # A file, directory or wildcard pattern that describes what to upload
         path: /Users/runner/source/OpenSpace/bin/Release/OpenSpaceapp.zip
 
     - name: Prepare and deploy (MacOS)
@@ -400,18 +403,14 @@ jobs:
 
         # Define variables
         APP_NAME="OpenSpace"
-        # CMake on macOS often places the .app bundle in bin/Release or just Release depending on configuration
-        # Adjust this path if your build places it elsewhere (e.g., just "Release/$APP_NAME.app")
         APP_BUNDLE_PATH="bin/Release/$APP_NAME.app"
                 
-        # Copy documentation files to the root of the DMG/Zip (outside the app) or inside Resources.
-        # Usually, License/Readme files sit next to the .app in the zip.
-        # We will prepare a 'staging' folder to zip everything together cleanly.
+        # Prepare staging folder
         mkdir -p deploy_staging
         mkdir -p deploy_staging/bin
         mv "$APP_BUNDLE_PATH" deploy_staging/bin
 
-        # Copy text files next to the App (so user sees them upon unzipping)
+        # Copy text files
         cp ACKNOWLEDGMENTS.md deploy_staging/
         cp CITATION.cff deploy_staging/
         cp CODE_OF_CONDUCT.md deploy_staging/
@@ -420,7 +419,7 @@ jobs:
         cp LICENSE.md deploy_staging/
         cp README.md deploy_staging/
 
-        # Copy top-level configuration and data folders
+        # Copy data folders
         cp -R config deploy_staging/
         cp -R data deploy_staging/
         cp -R modules deploy_staging/
@@ -428,7 +427,6 @@ jobs:
         cp -R shaders deploy_staging/
         cp openspace.cfg deploy_staging/
         
-        # Copy sync folder if it exists (handling the variable %sync% from original script)
         if [ ! -z "$sync" ]; then
              cp -R $sync deploy_staging/
         fi
@@ -437,9 +435,6 @@ jobs:
         echo "### Create main zip file"
         cd deploy_staging
         
-        # Zip the bundle and the text files. 
-        # -y preserves symlinks (CRITICAL for Qt frameworks inside the .app)
-        # -r recursive
         zip -r -9 -y ../OpenSpace-minimal-daily-mac-qt-bundled.zip . \
           -x "*.git*" \
           -x "*.DS_Store"
@@ -449,10 +444,7 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        # Artifact name
         name: OpenSpace-MacOS15-AppleSilicon-minimal
-        # optional, default is artifact
-        # A file, directory or wildcard pattern that describes what to upload
         path: /Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac-qt-bundled.zip
 
     - name: Upload .app to GitHub Release
@@ -461,20 +453,14 @@ jobs:
         APP_FILE=/Users/runner/source/OpenSpace/bin/Release/OpenSpaceapp.zip
         MINZIP_FILE=/Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac-qt-bundled.zip
     
-        # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
           gh release create "$RELEASE_TAG" -t "OpenSpace MacOS AppleSilicon Daily Build" -n "Automated daily .app build of OpenSpace."
     
-        # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
           -t "OpenSpace-single-precision MacOS AppleSilicon Build" \
           -n "Automated build of OpenSpace - patched to single-precision - (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see documentation at https://github.com/hn-88/OpenSpace-single-precision/wiki  . You may be asked to permit running this app from an unknown publisher - please see https://github.com/hn-88/OpenSpace-AppImage/wiki/How-to-run-unsigned-apps-on-Mac . Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20Mac%20build"
     
-        # Upload .app asset (overwrite if exists)
         gh release upload "$RELEASE_TAG" "$MINZIP_FILE" --clobber
         
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
-
-      
-    
