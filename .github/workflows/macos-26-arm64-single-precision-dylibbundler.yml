@@ -137,7 +137,7 @@ jobs:
     - name: Bundle and sign app
       shell: bash
       run: |
-        set +e  # Don't exit on errors - we'll handle them
+        set +e  # Don't exit on errors
         
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome"
@@ -152,52 +152,138 @@ jobs:
             brew install dylibbundler
         fi
         
-        echo "### Bundling ALL dependencies with dylibbundler..."
-        echo "Note: Signing errors from dylibbundler are expected and will be fixed later"
-        
-        # Run dylibbundler - it will bundle everything recursively
-        # We ignore errors because signing will fail, but bundling will succeed
+        echo "### Running dylibbundler (pass 1 - main dependencies)..."
         dylibbundler \
           -od \
           -b \
           -x "$APP_EXECUTABLE" \
           -d "$FRAMEWORKS_PATH" \
-          -p "@executable_path/../Frameworks/" || echo "dylibbundler completed (signing errors are OK)"
+          -p "@executable_path/../Frameworks/" || true
         
         echo ""
-        echo "### Fixing code signatures..."
-        echo "Removing all existing signatures..."
+        echo "### Running dylibbundler (pass 2 - dependencies of dependencies)..."
+        # Run on all bundled dylibs to catch their dependencies
+        find "$FRAMEWORKS_PATH" -name "*.dylib" | while read lib; do
+          dylibbundler \
+            -od \
+            -b \
+            -x "$lib" \
+            -d "$FRAMEWORKS_PATH" \
+            -p "@executable_path/../Frameworks/" 2>&1 | grep -v "ERROR" || true
+        done
         
-        # Remove ALL signatures to avoid Team ID conflicts
+        echo ""
+        echo "### Running dylibbundler (pass 3 - framework dependencies)..."
+        # Run on Qt frameworks to catch QtDBus
+        find "$FRAMEWORKS_PATH" -type f -path "*/Versions/*/Qt*" ! -name "*.h" | while read qtlib; do
+          dylibbundler \
+            -od \
+            -b \
+            -x "$qtlib" \
+            -d "$FRAMEWORKS_PATH" \
+            -p "@executable_path/../Frameworks/" 2>&1 | grep -v "ERROR" || true
+        done
+        
+        echo ""
+        echo "### Fixing any remaining broken install names..."
+        # Fix any libraries that have wrong install names
+        for lib in "$FRAMEWORKS_PATH"/*.dylib; do
+          if [ -f "$lib" ]; then
+            # Get all dependencies
+            otool -L "$lib" | grep "@rpath" | awk '{print $1}' | while read dep; do
+              # Extract just the library name
+              depname=$(basename "$dep")
+              # Check if this library exists in Frameworks
+              if [ -f "$FRAMEWORKS_PATH/$depname" ]; then
+                echo "Fixing $depname reference in $(basename $lib)"
+                install_name_tool -change "$dep" "@executable_path/../Frameworks/$depname" "$lib" 2>/dev/null || true
+              else
+                # Try to find it with a glob pattern (handles version numbers)
+                basedepname=$(echo "$depname" | sed 's/\.[0-9].*//')
+                found=$(find "$FRAMEWORKS_PATH" -name "${basedepname}*" -type f | head -1)
+                if [ -n "$found" ]; then
+                  echo "Fixing $(basename $found) reference in $(basename $lib)"
+                  install_name_tool -change "$dep" "@executable_path/../Frameworks/$(basename $found)" "$lib" 2>/dev/null || true
+                fi
+              fi
+            done
+          fi
+        done
+        
+        # Fix the main executable too
+        otool -L "$APP_EXECUTABLE" | grep "@rpath" | awk '{print $1}' | while read dep; do
+          depname=$(basename "$dep")
+          if [ -f "$FRAMEWORKS_PATH/$depname" ]; then
+            echo "Fixing $depname reference in main executable"
+            install_name_tool -change "$dep" "@executable_path/../Frameworks/$depname" "$APP_EXECUTABLE" 2>/dev/null || true
+          fi
+        done
+        
+        echo ""
+        echo "### Removing duplicate rpaths..."
+        # Get all rpaths from the executable
+        CURRENT_RPATHS=$(otool -l "$APP_EXECUTABLE" | grep -A 2 "LC_RPATH" | grep "path" | awk '{print $2}')
+        
+        # Track seen rpaths (normalized without trailing slash)
+        declare -A SEEN_RPATHS
+        
+        # Check each rpath
+        for rpath in $CURRENT_RPATHS; do
+          # Normalize (remove trailing slash)
+          NORMALIZED=$(echo "$rpath" | sed 's|/$||')
+          
+          # If we've seen this normalized path before, it's a duplicate
+          if [ -n "${SEEN_RPATHS[$NORMALIZED]}" ]; then
+            echo "Removing duplicate rpath: $rpath"
+            install_name_tool -delete_rpath "$rpath" "$APP_EXECUTABLE" 2>/dev/null || true
+          else
+            SEEN_RPATHS[$NORMALIZED]=1
+          fi
+        done
+        
+        # Show final rpaths
+        echo "Final rpaths:"
+        otool -l "$APP_EXECUTABLE" | grep -A 2 "LC_RPATH" | grep "path" || echo "No rpaths found"
+        
+        echo ""
+        echo "### Checking for missing dependencies..."
+        echo "Libraries in Frameworks:"
+        ls "$FRAMEWORKS_PATH" | grep -E "\.(dylib|framework)$" | sort
+        
+        echo ""
+        echo "Checking for unresolved @rpath references..."
+        UNRESOLVED=$(find "$FRAMEWORKS_PATH" -name "*.dylib" -exec otool -L {} \; | grep "@rpath" | sort -u)
+        if [ -n "$UNRESOLVED" ]; then
+          echo "⚠ Warning: Found unresolved @rpath references:"
+          echo "$UNRESOLVED"
+        else
+          echo "✓ No unresolved @rpath references found"
+        fi
+        
+        echo ""
+        echo "### Removing all signatures..."
         find "$FRAMEWORKS_PATH" -type f \( -name "*.dylib" -o -perm +111 \) \
           -exec codesign --remove-signature {} \; 2>/dev/null || true
-        
         find "$FRAMEWORKS_PATH" -type d \( -name "*.framework" -o -name "*.app" \) \
           -exec codesign --remove-signature {} \; 2>/dev/null || true
-        
         codesign --remove-signature "$APP_EXECUTABLE" 2>/dev/null || true
         
         echo ""
-        echo "### Signing everything (this may take a minute)..."
+        echo "### Signing everything..."
         
         # Sign all dylibs
-        echo "Signing dylibs..."
         find "$FRAMEWORKS_PATH" -type f -name "*.dylib" | while read lib; do
           codesign --force --sign - "$lib" 2>/dev/null || true
         done
         
         # Sign all frameworks
-        echo "Signing frameworks..."
         find "$FRAMEWORKS_PATH" -type d -name "*.framework" | while read fw; do
-          # Sign framework binary first
           find "$fw" -type f -path "*/Versions/*/Qt*" ! -name "*.h" \
             -exec codesign --force --sign - {} \; 2>/dev/null || true
-          # Then sign framework
           codesign --force --sign - "$fw" 2>/dev/null || true
         done
         
         # Sign helper apps
-        echo "Signing helper apps..."
         find "$FRAMEWORKS_PATH" -type d -name "*.app" | while read app; do
           find "$app/Contents/MacOS" -type f \
             -exec codesign --force --sign - {} \; 2>/dev/null || true
@@ -205,29 +291,10 @@ jobs:
         done
         
         # Sign main executable
-        echo "Signing main executable..."
         codesign --force --sign - "$APP_EXECUTABLE"
         
         # Sign entire bundle
-        echo "Signing bundle..."
         codesign --force --deep --sign - "$APP_BUNDLE_PATH"
-        
-        echo ""
-        echo "### Verification..."
-        echo "Checking for QtDBus..."
-        if [ -f "$FRAMEWORKS_PATH/QtDBus.framework/Versions/A/QtDBus" ] || \
-           [ -f "$FRAMEWORKS_PATH/libQtDBus.dylib" ] || \
-           find "$FRAMEWORKS_PATH" -name "*QtDBus*" -o -name "*qtdbus*" | grep -q .; then
-            echo "✓ QtDBus found"
-        else
-            echo "⚠ QtDBus not found - checking dependencies..."
-            otool -L "$FRAMEWORKS_PATH/QtGui.framework/Versions/A/QtGui" | grep -i dbus || echo "QtGui doesn't depend on QtDBus"
-        fi
-        
-        echo ""
-        echo "All bundled libraries:"
-        ls -1 "$FRAMEWORKS_PATH" | head -20
-        echo "... (total: $(ls -1 "$FRAMEWORKS_PATH" | wc -l) items)"
         
         echo ""
         echo "✓ Deployment complete!"
