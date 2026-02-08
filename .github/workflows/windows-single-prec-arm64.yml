@@ -99,27 +99,83 @@ jobs:
         Write-Host "=== Checking arm64-windows triplet ==="
         Get-Content "triplets\arm64-windows.cmake" | Select-String -Pattern "VCPKG_CRT_LINKAGE"
     
-    # --- FIX START: Remove conflicting bundled libraries ---
-    - name: Remove bundled x64 dependencies
+  # --- FIX START: "Imposter Strategy" for Dependencies ---
+    - name: Swap bundled x64 libs for vcpkg ARM64 libs
       shell: pwsh
       run: |
-        Write-Host "Removing bundled dependencies to enforce vcpkg usage for ARM64..."
+        $vcpkgRoot = "$env:GITHUB_WORKSPACE/vcpkg/installed/arm64-windows"
+        $osRoot = "$env:openSpaceHome"
         
-        # Remove bundled GDAL (fixes gdal_i.lib x64 conflict and link errors)
-        if (Test-Path "$env:openSpaceHome/modules/globebrowsing/ext/gdal") {
-             Remove-Item -Recurse -Force "$env:openSpaceHome/modules/globebrowsing/ext/gdal"
-             Write-Host "Removed bundled GDAL."
+        Write-Host "Swapping bundled x64 dependencies with vcpkg ARM64 versions..."
+
+        # ---------------------------------------------------------------------
+        # 1. CURL
+        # ---------------------------------------------------------------------
+        # OpenSpace expects headers in ext/curl/include and libs in ext/curl/lib
+        # We replace the headers to ensure ABI compatibility, and swap the lib file.
+        
+        $curlLibDir = "$osRoot/ext/curl/lib"
+        $curlIncDir = "$osRoot/ext/curl/include/curl"
+
+        # Clear existing bundled binaries and headers
+        if (Test-Path $curlLibDir) { Remove-Item "$curlLibDir/*" -Recurse -Force }
+        if (Test-Path $curlIncDir) { Remove-Item "$curlIncDir/*" -Recurse -Force }
+        
+        # Ensure directories exist (fixes CMake "non-existent path" error)
+        New-Item -ItemType Directory -Force -Path $curlLibDir | Out-Null
+        New-Item -ItemType Directory -Force -Path $curlIncDir | Out-Null
+
+        # Copy vcpkg library (Imposter: masquerade as the expected library name)
+        # OpenSpace typically links 'libcurl.lib'. Vcpkg provides 'libcurl.lib'.
+        Copy-Item "$vcpkgRoot/lib/libcurl.lib" "$curlLibDir/libcurl.lib" -Force
+        Write-Host "Replaced libcurl.lib"
+
+        # Copy vcpkg headers
+        Copy-Item "$vcpkgRoot/include/curl/*" "$curlIncDir" -Recurse -Force
+        Write-Host "Replaced Curl headers"
+
+        # ---------------------------------------------------------------------
+        # 2. GDAL
+        # ---------------------------------------------------------------------
+        # OpenSpace expects 'gdal_i.lib' (import lib). Vcpkg provides 'gdal.lib'.
+        
+        $gdalLibDir = "$osRoot/modules/globebrowsing/ext/gdal/lib"
+        $gdalIncDir = "$osRoot/modules/globebrowsing/ext/gdal/include"
+
+        if (Test-Path $gdalLibDir) { Remove-Item "$gdalLibDir/*" -Recurse -Force }
+        # Note: We don't delete the include dir entirely for GDAL as it might contain extra files,
+        # but we overwrite standard headers.
+        
+        New-Item -ItemType Directory -Force -Path $gdalLibDir | Out-Null
+
+        # Copy vcpkg 'gdal.lib' renaming it to 'gdal_i.lib' so OpenSpace finds it
+        Copy-Item "$vcpkgRoot/lib/gdal.lib" "$gdalLibDir/gdal_i.lib" -Force
+        Write-Host "Replaced gdal_i.lib"
+
+        # Copy GDAL headers (overwrite matches)
+        Copy-Item "$vcpkgRoot/include/gdal*.h" "$gdalIncDir/" -Force
+        Copy-Item "$vcpkgRoot/include/ogr*.h"  "$gdalIncDir/" -Force
+        Copy-Item "$vcpkgRoot/include/cpl*.h"  "$gdalIncDir/" -Force
+        Write-Host "Replaced GDAL headers"
+
+        # ---------------------------------------------------------------------
+        # 3. ZLIB (bundled in Ghoul or ext)
+        # ---------------------------------------------------------------------
+        # The build log showed a conflict with 'zlibstatic.lib'. 
+        # We find and replace any 'zlibstatic.lib' with the vcpkg import lib to satisfy the linker.
+        
+        $zlibFiles = Get-ChildItem -Path "$osRoot" -Recurse -Filter "zlibstatic.lib"
+        foreach ($file in $zlibFiles) {
+            Write-Host "Replacing bundled zlib: $($file.FullName)"
+            Copy-Item "$vcpkgRoot/lib/zlib.lib" $file.FullName -Force
         }
+
+        # ---------------------------------------------------------------------
+        # 4. Clean up Scalable / EasyBlend (x64 only)
+        # ---------------------------------------------------------------------
+        # We just remove this lib so it can't be linked. CMake should be set to OFF for SGCT_SCALABLE.
+        Get-ChildItem -Path "$osRoot" -Recurse -Filter "mplEasyBlendSDK.lib" | Remove-Item -Force
         
-        # Remove bundled Curl/Zlib (fixes inflate redefinition and libcurl x64 conflict)
-        if (Test-Path "$env:openSpaceHome/ext/curl") {
-             Remove-Item -Recurse -Force "$env:openSpaceHome/ext/curl"
-             Write-Host "Removed bundled Curl."
-        }
-        
-        # Remove bundled EasyBlend (Scalable) SDK (fixes mplEasyBlendSDK.lib x64 conflict)
-        # This forces SGCT to fail configuration if it tries to enable Scalable support, ensuring it stays OFF.
-        Get-ChildItem -Path "$env:openSpaceHome" -Recurse -Filter "mplEasyBlendSDK.lib" | Remove-Item -Force -Verbose
     # --- FIX END ---
 
     - name: Configure CMake
