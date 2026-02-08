@@ -286,58 +286,77 @@ jobs:
         fi
         
         echo "### 7. Code Signing (FINAL STEP)..."
-        echo "Removing ALL signatures first..."
-        find "$APP_BUNDLE_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -perm +111 \) -exec codesign --remove-signature {} \; 2>/dev/null || true
-        find "$APP_BUNDLE_PATH/Contents/Frameworks" -type d -name "*.framework" -exec codesign --remove-signature {} \; 2>/dev/null || true
-        find "$APP_BUNDLE_PATH/Contents/Frameworks" -type d -name "*.app" -exec codesign --remove-signature {} \; 2>/dev/null || true
+        echo "CRITICAL: Removing ALL existing signatures to avoid Team ID conflicts..."
+        
+        # Remove signatures from EVERYTHING - this is critical for avoiding Team ID mismatches
+        echo "Removing signatures from all dylibs..."
+        find "$FRAMEWORKS_PATH" -type f -name "*.dylib" -exec codesign --remove-signature {} \; 2>/dev/null || true
+        
+        echo "Removing signatures from all framework binaries..."
+        find "$FRAMEWORKS_PATH" -type f -path "*/Versions/*/Qt*" ! -name "*.h" ! -name "*.prl" -exec codesign --remove-signature {} \; 2>/dev/null || true
+        
+        echo "Removing signatures from all frameworks..."
+        find "$FRAMEWORKS_PATH" -type d -name "*.framework" -exec codesign --remove-signature {} \; 2>/dev/null || true
+        
+        echo "Removing signatures from all helper apps..."
+        find "$FRAMEWORKS_PATH" -type d -name "*.app" -exec codesign --remove-signature {} \; 2>/dev/null || true
+        
+        echo "Removing signature from main executable..."
         codesign --remove-signature "$APP_EXECUTABLE" 2>/dev/null || true
         
         echo "Signing from inside out..."
         
-        # Step 1: Sign all dylibs
+        # Step 1: Sign all dylibs (WITHOUT --options runtime to avoid notarization issues)
         echo "1. Signing dylibs..."
         find "$FRAMEWORKS_PATH" -type f -name "*.dylib" | sort | while read lib; do
-            codesign --force --timestamp --options runtime --sign - "$lib" || true
+            echo "  Signing $(basename "$lib")..."
+            codesign --force --sign - "$lib"
         done
         
         # Step 2: Sign all framework binaries
         echo "2. Signing framework binaries..."
         find "$FRAMEWORKS_PATH" -type f -path "*/Versions/*/Qt*" ! -name "*.h" ! -name "*.prl" | sort | while read fwlib; do
-            codesign --force --timestamp --options runtime --sign - "$fwlib" || true
+            echo "  Signing $(basename "$fwlib")..."
+            codesign --force --sign - "$fwlib"
         done
         
         # Step 3: Sign the frameworks themselves
         echo "3. Signing frameworks..."
         find "$FRAMEWORKS_PATH" -type d -name "*.framework" -maxdepth 1 | sort | while read fw; do
-            codesign --force --timestamp --options runtime --sign - "$fw" || true
+            echo "  Signing $(basename "$fw")..."
+            codesign --force --sign - "$fw"
         done
         
-        # Step 4: Sign any helper apps (like "OpenSpace Helper.app")
+        # Step 4: Sign any helper apps
         echo "4. Signing helper apps..."
         find "$FRAMEWORKS_PATH" -type d -name "*.app" | sort | while read helper; do
             echo "  Signing $(basename "$helper")..."
             # Sign the helper's executable first
-            HELPER_EXEC="$helper/Contents/MacOS/"*
-            if [ -f "$HELPER_EXEC" ]; then
-                codesign --force --timestamp --options runtime --sign - "$HELPER_EXEC" || true
-            fi
+            for HELPER_EXEC in "$helper/Contents/MacOS/"*; do
+                if [ -f "$HELPER_EXEC" ]; then
+                    codesign --force --sign - "$HELPER_EXEC"
+                fi
+            done
             # Then sign the helper bundle
-            codesign --force --deep --timestamp --options runtime --sign - "$helper"
+            codesign --force --deep --sign - "$helper"
         done
         
         # Step 5: Sign the main executable
         echo "5. Signing main executable..."
-        codesign --force --timestamp --options runtime --sign - "$APP_EXECUTABLE"
+        codesign --force --sign - "$APP_EXECUTABLE"
         
         # Step 6: Sign the entire bundle
         echo "6. Signing entire bundle..."
-        codesign --force --deep --timestamp --options runtime --sign - "$APP_BUNDLE_PATH"
+        codesign --force --deep --sign - "$APP_BUNDLE_PATH"
         
         echo "### 8. Verify signatures..."
-        codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE_PATH" || echo "Note: Deep verification may show warnings but bundle should still work"
+        echo "Verifying main executable signature..."
+        codesign --verify --verbose=2 "$APP_EXECUTABLE"
         
-        echo "Deployment complete!"
-            
+        echo "Verifying bundle signature..."
+        codesign --verify --verbose=2 "$APP_BUNDLE_PATH"
+        
+        echo "Deployment complete!"            
     - name: zip the app
       run: |
         cd $HOME/source/OpenSpace/bin/Release
