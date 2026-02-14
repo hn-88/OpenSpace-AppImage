@@ -50,11 +50,9 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
-        # use the patched branch to test
-        git checkout "molecule-bugfix" --recurse-submodules
-        # git checkout "${COMMIT_HASH}" --recurse-submodules
+        git checkout "${COMMIT_HASH}" --recurse-submodules
         # try the latest main branch, one of the newest commits
         mkdir build
         cd build
