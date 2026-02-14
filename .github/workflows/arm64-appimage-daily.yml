@@ -70,10 +70,11 @@ jobs:
         cd "$openSpaceHome/ext/ghoul"
         git checkout master --recurse-submodules
 
-    #- name: patch for ghoul issue
-    #  run: |
-    #    openSpaceHome="$HOME/source/OpenSpace"
-        # mv Ghoul-include-ghoul-misc-interpolator.inl "$openSpaceHome/ext/ghoul/include/ghoul/misc/interpolator.inl" -v
+    - name: patch for molecule issue
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        sudo apt-get install libsimde-dev
+        mv  molecule-ext-mold-src-core-md_intrinsics.h "$openSpaceHome/modules/molecule/ext/mold/src/core/md_intrinsics.h" -v
         
     
     - name: Install dependencies
