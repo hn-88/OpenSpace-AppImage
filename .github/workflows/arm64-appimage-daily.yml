@@ -75,11 +75,13 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         # sudo apt-get install libsimde-dev
         # mv  molecule-ext-mold-src-core-md_intrinsics.h "$openSpaceHome/modules/molecule/ext/mold/src/core/md_intrinsics.h" -v
-        rm -Rfv "$openSpaceHome/modules/molecule/ext/mold"
-        git clone https://github.com/scanberg/mdlib "$openSpaceHome/modules/molecule/ext/mold"
-        cd "$openSpaceHome/modules/molecule/ext/mold"
-        git checkout 70640d6eb436173a8a9b981cb580224305bfc793
+        # rm -Rfv "$openSpaceHome/modules/molecule/ext/mold"
+        # git clone https://github.com/scanberg/mdlib "$openSpaceHome/modules/molecule/ext/mold"
+        # cd "$openSpaceHome/modules/molecule/ext/mold"
+        # git checkout 70640d6eb436173a8a9b981cb580224305bfc793
         # checking out a more recent commit
+        # https://github.com/OpenSpace/OpenSpace/issues/3918
+        # https://github.com/OpenSpace/OpenSpace/issues/3915#issuecomment-3907061056
         
     
     - name: Install dependencies
@@ -101,7 +103,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
-        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"
+        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_MODULE_MOLECULE=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"
 
     - name: Build
       # Build your program with the given configuration
