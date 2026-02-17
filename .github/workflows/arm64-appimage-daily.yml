@@ -63,12 +63,12 @@ jobs:
         mkdir build
         cd build
 
-    - name: get updated ghoul
+    #- name: get updated ghoul
       # https://github.com/OpenSpace/OpenSpace/issues/3880
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome/ext/ghoul"
-        git checkout master --recurse-submodules
+     # run: |
+        #openSpaceHome="$HOME/source/OpenSpace"
+        #cd "$openSpaceHome/ext/ghoul"
+        #git checkout master --recurse-submodules
 
     - name: patch for molecule issue
       run: |
