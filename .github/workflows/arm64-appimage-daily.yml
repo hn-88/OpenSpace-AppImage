@@ -18,7 +18,7 @@ env:
   OPENSPACE_VERSION: "0.21.3+"
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "389842f76cab6c7a211faa90c3c157a28df24bd6" # Aug 5 2025
-  COMMIT_HASH: "23e80e4f21b3a0201cb4f95e4a5fc95cd6039734"
+  COMMIT_HASH: "e8fa72544c445b556018841eafb48116372c288d" # Feb 13 2026
   # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
   SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-22.04-arm"
   
