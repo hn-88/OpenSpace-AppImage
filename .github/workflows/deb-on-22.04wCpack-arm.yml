@@ -2,8 +2,8 @@ name: deb-on-22.04wCpack-arm
 
 on: 
   workflow_dispatch:      # allows manual trigger
-  schedule:
-    - cron: "50 6 * * *"   # runs daily at 06:50 UTC
+  #schedule:
+  #  - cron: "50 6 * * *"   # runs daily at 06:50 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
