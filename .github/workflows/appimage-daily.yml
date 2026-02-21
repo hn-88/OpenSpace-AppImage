@@ -80,6 +80,13 @@ jobs:
         cd ghoul
         git checkout "SamplerInit-fix"
 
+    - name: copy PowerScaling to powerscaling
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome/shaders"
+        cp -r PowerScaling powerscaling
+        cd shaders
+
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
