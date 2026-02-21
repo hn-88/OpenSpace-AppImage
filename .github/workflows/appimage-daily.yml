@@ -17,8 +17,8 @@ env:
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
   OPENSPACE_VERSION: "0.21.3plus"
   APPIMAGE_VERSION: "1"
-  # COMMIT_HASH: "5e3a972767fd515f725f97cfa280da79b1968047"
-  COMMIT_HASH: "master"
+  COMMIT_HASH: "e8fa72544c445b556018841eafb48116372c288d"
+  # COMMIT_HASH: "master"
   
 jobs:
   build:
@@ -71,20 +71,6 @@ jobs:
     - name: Enable sccache
       uses: mozilla-actions/sccache-action@v0.0.9
 
-    - name: Normalize PowerScaling shader directory casing
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        if [ ! -d "./shaders/powerscaling" ]; then
-          if [ -d "./shaders/PowerScaling" ]; then
-            mv ./shaders/PowerScaling ./shaders/powerscaling
-            echo "Renamed ./shaders/PowerScaling to ./shaders/powerscaling"
-          else
-            echo "Neither directory exists, skipping."
-          fi
-        else
-          echo "Directory ./shaders/powerscaling already exists, skipping."
-        fi
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
