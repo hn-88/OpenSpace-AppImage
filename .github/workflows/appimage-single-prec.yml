@@ -166,7 +166,7 @@ jobs:
 
         # turn AppDir into AppImage
         # DATE=$(date +%Y%m%dT%H%M%S)
-        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION}-daily ./appimagetool-*.AppImage ./appdir
+        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION}-single-prec ./appimagetool-*.AppImage ./appdir
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v4
