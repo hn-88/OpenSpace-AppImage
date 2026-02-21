@@ -75,7 +75,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/ext"
-        rm -rF ghoul
+        rm -Rf ghoul
         git clone --recursive https://github.com/hn-88/Ghoul ghoul
         cd ghoul
         git checkout "SamplerInit-fix"
