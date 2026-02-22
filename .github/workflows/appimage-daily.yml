@@ -84,8 +84,8 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/shaders"
-        cp -r PowerScaling powerscaling
-        cd shaders
+        cp -rv PowerScaling powerscaling
+        
 
 
     - name: Configure CMake
