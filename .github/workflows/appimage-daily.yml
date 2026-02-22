@@ -18,7 +18,8 @@ env:
   OPENSPACE_VERSION: "0.21.3plus"
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "e8fa72544c445b556018841eafb48116372c288d"
-  COMMIT_HASH: "master"
+  # COMMIT_HASH: "master"
+  COMMIT_HASH: "fix-GCC-builds"
   
 jobs:
   build:
@@ -50,7 +51,7 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
+        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
         git checkout "${COMMIT_HASH}" --recurse-submodules
         # try the latest main branch, one of the newest commits
