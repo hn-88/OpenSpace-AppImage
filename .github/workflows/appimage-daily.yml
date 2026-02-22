@@ -85,7 +85,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/shaders"
-        cp -rv PowerScaling powerscaling
+        # mv PowerScaling powerscaling
         
 
 
