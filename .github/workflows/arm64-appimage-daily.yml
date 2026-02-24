@@ -2,8 +2,8 @@ name: arm64-appimage-daily
 
 on: 
   workflow_dispatch:      # allows manual trigger
-  #schedule:
-  #  - cron: "0 2 * * *"   # runs daily at 02:00 UTC
+  schedule:
+    - cron: "18 2 * * *"   # runs daily at 02:18 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
