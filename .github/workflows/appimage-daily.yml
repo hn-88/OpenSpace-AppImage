@@ -72,14 +72,14 @@ jobs:
     - name: Enable sccache
       uses: mozilla-actions/sccache-action@v0.0.9
 
-    - name: get patched Ghoul
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome/ext"
-        rm -Rf ghoul
-        git clone --recursive https://github.com/hn-88/Ghoul ghoul
-        cd ghoul
-        git checkout "SamplerInit-simpler-fix"
+    #- name: get patched Ghoul
+      #run: |
+        #openSpaceHome="$HOME/source/OpenSpace"
+        #cd "$openSpaceHome/ext"
+        #rm -Rf ghoul
+        #git clone --recursive https://github.com/hn-88/Ghoul ghoul
+        #cd ghoul
+        #git checkout "SamplerInit-simpler-fix"
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
