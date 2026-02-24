@@ -122,7 +122,7 @@ index 07fdf76937..15abe03d1d 100644
 +
 +  # for Debian convention, package name should be in lowercase, and docdir path should be as below.
 +  set(CPACK_PACKAGE_NAME "openspace")
-+  set(CPACK_PACKAGE_VERSION "0.21.2")           # upstream version only
++  set(CPACK_PACKAGE_VERSION "0.21.3+")           # upstream version only
 +  # Generate a timestamp in the desired format: YYYY.MM.DD.HH.MM
 +  string(TIMESTAMP BUILD_TIMESTAMP "%Y.%m.%d.%H.%M")
 +  # --- Determine distro suffix ---
