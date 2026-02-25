@@ -93,7 +93,20 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
-  
+
+    - name: Add ARM64 SSE2NEON support for molecule module
+      if: runner.arch == 'ARM64'
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd $openSpaceHome
+        # Download sse2neon.h next to md_intrinsics.h
+        curl -fsSL https://raw.githubusercontent.com/DLTcollab/sse2neon/master/sse2neon.h \
+          -o ./modules/molecule/ext/mold/src/core/sse2neon.h
+    
+        # Patch md_intrinsics.h to use sse2neon on ARM64
+        sed -i 's|#include <x86intrin.h>|#if defined(__x86_64__) || defined(__i386__)\n#include <x86intrin.h>\n#elif defined(__aarch64__) || defined(__arm__)\n#include "sse2neon.h"\n#endif|' \
+          ./modules/molecule/ext/mold/src/core/md_intrinsics.h
+      
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
