@@ -104,8 +104,17 @@ jobs:
           -o ./modules/molecule/ext/mold/src/core/sse2neon.h
     
         # Patch md_intrinsics.h to use sse2neon on ARM64
-        sed -i 's|#include <x86intrin.h>|#if defined(__x86_64__) || defined(__i386__)\n#include <x86intrin.h>\n#elif defined(__aarch64__) || defined(__arm__)\n#include "sse2neon.h"\n#endif|' \
-          ./modules/molecule/ext/mold/src/core/md_intrinsics.h
+        echo 'import pathlib' > patchsse.py
+        echo 'p = pathlib.Path("./modules/molecule/ext/mold/src/core/md_intrinsics.h")' >> patchsse.py
+        echo 'old = "#include <x86intrin.h>"' >> patchsse.py
+        echo 'new = "#if defined(__x86_64__) || defined(__i386__)\n#include <x86intrin.h>\n#elif defined(__aarch64__) || defined(__arm__)\n#include \"sse2neon.h\"\n#endif"' >> patchsse.py
+        echo 'content = p.read_text()' >> patchsse.py
+        echo 'if old in content:' >> patchsse.py
+        echo '    p.write_text(content.replace(old, new, 1))' >> patchsse.py
+        echo '    print("Patched md_intrinsics.h")' >> patchsse.py
+        echo 'else:' >> patchsse.py
+        echo '    print("Pattern not found, skipping (already patched?)")' >> patchsse.py
+        python3 patchsse.py
       
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
