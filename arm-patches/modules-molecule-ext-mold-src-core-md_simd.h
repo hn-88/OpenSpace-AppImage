@@ -35,12 +35,11 @@ typedef struct md_i32x8_t {
 typedef struct md_i64x4_t {
     __m256i m256i;
 } md_i64x4_t;
-#endif /* !__aarch64__ */
-#if defined(__aarch64__)
-/* On ARM64: alias the AVX-width integer types to SSE-width so _Generic macros compile */
+#else
+/* On ARM64 alias to 128-bit types so _Generic entries remain valid */
 typedef md_i32x4_t md_i32x8_t;
 typedef md_i64x2_t md_i64x4_t;
-#endif /* __aarch64__ */
+#endif
 
 #   define md_f32x4_t __m128
 #   define md_f64x2_t __m128d
@@ -48,8 +47,8 @@ typedef md_i64x2_t md_i64x4_t;
 #   define md_f32x8_t __m256
 #   define md_f64x4_t __m256d
 #   else
-#   define md_f32x8_t __m128     /* sse2neon: use 128-bit on ARM64 */
-#   define md_f64x4_t __m128d    /* sse2neon: use 128-bit on ARM64 */
+#   define md_f32x8_t __m128
+#   define md_f64x4_t __m128d
 #   endif
 #   if defined(__AVX__) && !defined(__aarch64__)
 #       define md_simd_f32_t    md_f32x8_t
@@ -83,7 +82,7 @@ typedef md_i64x2_t md_i64x4_t;
 // Integers have to be explicitly handled since we use distinct types
 MD_SIMD_INLINE void md_simd_store_i32x4(int* x, md_i32x4_t val) { _mm_storeu_si128((__m128i*)x, val.m128i); }
 MD_SIMD_INLINE void md_simd_store_i64x2(int64_t* x, md_i64x2_t val) { _mm_storeu_si128((__m128i*)x, val.m128i); }
-#if !defined(__aarch64__) /* AVX 256-bit integer section - not available via sse2neon */
+#if !defined(__aarch64__) /* AVX 256-bit integer section */
 MD_SIMD_INLINE void md_simd_store_i32x8(int* x, md_i32x8_t val) { _mm256_storeu_si256((__m256i*)x, val.m256i); }
 MD_SIMD_INLINE void md_simd_store_i64x4(int64_t* x, md_i64x4_t val) { _mm256_storeu_si256((__m256i*)x, val.m256i); }
 
@@ -636,172 +635,394 @@ MD_SIMD_INLINE md_i64x4_t md_simd_blend_i64x4(md_i64x4_t a, md_i64x4_t b, md_i64
 }
 
 #define md_simd_load_f64x2 _mm_loadu_pd
+#if !defined(__aarch64__)
 #define md_simd_load_f64x4 _mm256_loadu_pd
+#else
+#define md_simd_load_f64x4 _mm_loadu_pd
+#endif
 #define md_simd_load_f32x4 _mm_loadu_ps
+#if !defined(__aarch64__)
 #define md_simd_load_f32x8 _mm256_loadu_ps
+#else
+#define md_simd_load_f32x8 _mm_loadu_ps
+#endif
 
 #define md_simd_store_f32x4 _mm_storeu_ps
 #define md_simd_store_f64x2 _mm_storeu_pd
+#if !defined(__aarch64__)
 #define md_simd_store_f32x8 _mm256_storeu_ps
+#else
+#define md_simd_store_f32x8 _mm_storeu_ps
+#endif
+#if !defined(__aarch64__)
 #define md_simd_store_f64x4 _mm256_storeu_pd
+#else
+#define md_simd_store_f64x4 _mm_storeu_pd
+#endif
 
 #define md_simd_set1_f32x4 _mm_set1_ps
 #define md_simd_set1_f64x2 _mm_set1_pd
+#if !defined(__aarch64__)
 #define md_simd_set1_f32x8 _mm256_set1_ps
+#else
+#define md_simd_set1_f32x8 _mm_set1_ps
+#endif
+#if !defined(__aarch64__)
 #define md_simd_set1_f64x4 _mm256_set1_pd
+#else
+#define md_simd_set1_f64x4 _mm_set1_pd
+#endif
 
 // @NOTE: Arguments are reversed compared to default intel intrinsics
 #define md_simd_set_f32x4(X,Y,Z,W)          _mm_set_ps(W,Z,Y,X)
 #define md_simd_set_f64x2(X,Y)              _mm_set_pd(Y,X)
+#if !defined(__aarch64__)
 #define md_simd_set_f32x8(X,Y,Z,W,Q,R,S,T)  _mm256_set_ps(T,S,R,Q,W,Z,Y,X)
+#else
+#define md_simd_set_f32x8(X,Y,Z,W,Q,R,S,T)  _mm_set_ps(W,Z,Y,X)
+#endif
+#if !defined(__aarch64__)
 #define md_simd_set_f64x4(X,Y,Z,W)          _mm256_set_pd(W,Z,Y,X)
+#else
+#define md_simd_set_f64x4(X,Y,Z,W)          _mm_set_pd(Y,X)
+#endif
 
 #define md_simd_zero_f32x4 _mm_setzero_ps
 #define md_simd_zero_f64x2 _mm_setzero_pd
+#if !defined(__aarch64__)
 #define md_simd_zero_f32x8 _mm256_setzero_ps
+#else
+#define md_simd_zero_f32x8 _mm_setzero_ps
+#endif
+#if !defined(__aarch64__)
 #define md_simd_zero_f64x4 _mm256_setzero_pd
+#else
+#define md_simd_zero_f64x4 _mm_setzero_pd
+#endif
 
 #define md_simd_and_f32x4 _mm_and_ps
 #define md_simd_and_f64x2 _mm_and_pd
+#if !defined(__aarch64__)
 #define md_simd_and_f32x8 _mm256_and_ps
+#else
+#define md_simd_and_f32x8 _mm_and_ps
+#endif
+#if !defined(__aarch64__)
 #define md_simd_and_f64x4 _mm256_and_pd
+#else
+#define md_simd_and_f64x4 _mm_and_pd
+#endif
 
 #define md_simd_or_f32x4 _mm_or_ps
 #define md_simd_or_f64x2 _mm_or_pd
+#if !defined(__aarch64__)
 #define md_simd_or_f32x8 _mm256_or_ps
+#else
+#define md_simd_or_f32x8 _mm_or_ps
+#endif
+#if !defined(__aarch64__)
 #define md_simd_or_f64x4 _mm256_or_pd
+#else
+#define md_simd_or_f64x4 _mm_or_pd
+#endif
 
 #define md_simd_xor_f32x4 _mm_xor_ps
 #define md_simd_xor_f64x2 _mm_xor_pd
+#if !defined(__aarch64__)
 #define md_simd_xor_f32x8 _mm256_xor_ps
 #define md_simd_xor_f64x4 _mm256_xor_pd
+#else
+#define md_simd_xor_f32x8 _mm_xor_ps
+#define md_simd_xor_f64x4 _mm_xor_pd
+#endif
 
-#endif /* !__aarch64__ */
+#endif /* !__aarch64__ AVX integer */
 MD_SIMD_INLINE md_f32x4_t md_simd_and_not_f32x4(md_f32x4_t a, md_f32x4_t b) { return _mm_andnot_ps(b, a); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_and_not_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm256_andnot_ps(b, a); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_and_not_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm_andnot_ps(b, a); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_and_not_f64x2(md_f64x2_t a, md_f64x2_t b) { return _mm_andnot_pd(b, a); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_and_not_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm256_andnot_pd(b, a); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_and_not_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm_andnot_pd(b, a); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_abs_f32x4(md_f32x4_t a) { return _mm_and_ps(a, _mm_castsi128_ps(_mm_set1_epi32(0x7FFFFFFF))); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_abs_f32x8(md_f32x8_t a) { return _mm256_and_ps(a, _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF))); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_abs_f32x8(md_f32x8_t a) { return _mm_and_ps(a, _mm_castsi128_ps(_mm_set1_epi32(0x7FFFFFFF))); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_abs_f64x2(md_f64x2_t a) { return _mm_and_pd(a, _mm_castsi128_pd(_mm_set1_epi64x(0x7FFFFFFFFFFFFFFF))); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_abs_f64x4(md_f64x4_t a) { return _mm256_and_pd(a, _mm256_castsi256_pd(_mm256_set1_epi64x(0x7FFFFFFFFFFFFFFF))); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_abs_f64x4(md_f64x4_t a) { return _mm_and_pd(a, _mm_castsi128_pd(_mm_set1_epi64x(0x7FFFFFFFFFFFFFFF))); }
+#endif
 
 #define md_simd_add_f32x4 _mm_add_ps
 #define md_simd_add_f64x2 _mm_add_pd
+#if !defined(__aarch64__)
 #define md_simd_add_f32x8 _mm256_add_ps
 #define md_simd_add_f64x4 _mm256_add_pd
+#else
+#define md_simd_add_f32x8 _mm_add_ps
+#define md_simd_add_f64x4 _mm_add_pd
+#endif
 
 #define md_simd_sub_f32x4 _mm_sub_ps
 #define md_simd_sub_f64x2 _mm_sub_pd
+#if !defined(__aarch64__)
 #define md_simd_sub_f32x8 _mm256_sub_ps
 #define md_simd_sub_f64x4 _mm256_sub_pd
+#else
+#define md_simd_sub_f32x8 _mm_sub_ps
+#define md_simd_sub_f64x4 _mm_sub_pd
+#endif
 
 #define md_simd_min_f64x2 _mm_min_pd   
+#if !defined(__aarch64__)
 #define md_simd_min_f64x4 _mm256_min_pd
+#else
+#define md_simd_min_f64x4 _mm_min_pd
+#endif
 #define md_simd_min_f32x4 _mm_min_ps   
+#if !defined(__aarch64__)
 #define md_simd_min_f32x8 _mm256_min_ps
+#else
+#define md_simd_min_f32x8 _mm_min_ps
+#endif
 
 #define md_simd_max_f64x2 _mm_max_pd   
+#if !defined(__aarch64__)
 #define md_simd_max_f64x4 _mm256_max_pd
+#else
+#define md_simd_max_f64x4 _mm_max_pd
+#endif
 #define md_simd_max_f32x4 _mm_max_ps   
+#if !defined(__aarch64__)
 #define md_simd_max_f32x8 _mm256_max_ps
+#else
+#define md_simd_max_f32x8 _mm_max_ps
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_cmp_gt_f32x4(md_f32x4_t a, md_f32x4_t b) { return _mm_cmpgt_ps  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_cmp_gt_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm256_cmp_ps (a, b, _CMP_GT_OQ); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_cmp_gt_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm_cmpgt_ps(a, b); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_cmp_gt_f64x2(md_f64x2_t a, md_f64x2_t b) { return _mm_cmpgt_pd  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_cmp_gt_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm256_cmp_pd (a, b, _CMP_GT_OQ); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_cmp_gt_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm_cmpgt_pd(a, b); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_cmp_ge_f32x4(md_f32x4_t a, md_f32x4_t b) { return _mm_cmpge_ps  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_cmp_ge_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm256_cmp_ps (a, b, _CMP_GE_OQ); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_cmp_ge_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm_cmpge_ps(a, b); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_cmp_ge_f64x2(md_f64x2_t a, md_f64x2_t b) { return _mm_cmpge_pd  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_cmp_ge_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm256_cmp_pd (a, b, _CMP_GE_OQ); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_cmp_ge_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm_cmpge_pd(a, b); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_cmp_lt_f32x4(md_f32x4_t a, md_f32x4_t b) { return _mm_cmplt_ps  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_cmp_lt_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm256_cmp_ps (a, b, _CMP_LT_OQ); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_cmp_lt_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm_cmplt_ps(a, b); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_cmp_lt_f64x2(md_f64x2_t a, md_f64x2_t b) { return _mm_cmplt_pd  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_cmp_lt_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm256_cmp_pd (a, b, _CMP_LT_OQ); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_cmp_lt_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm_cmplt_pd(a, b); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_cmp_le_f32x4(md_f32x4_t a, md_f32x4_t b) { return _mm_cmple_ps  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_cmp_le_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm256_cmp_ps (a, b, _CMP_LE_OQ); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_cmp_le_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm_cmple_ps(a, b); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_cmp_le_f64x2(md_f64x2_t a, md_f64x2_t b) { return _mm_cmple_pd  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_cmp_le_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm256_cmp_pd (a, b, _CMP_LE_OQ); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_cmp_le_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm_cmple_pd(a, b); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_cmp_eq_f32x4(md_f32x4_t a, md_f32x4_t b) { return _mm_cmpeq_ps  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_cmp_eq_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm256_cmp_ps (a, b, _CMP_EQ_OQ); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_cmp_eq_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm_cmpeq_ps(a, b); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_cmp_eq_f64x2(md_f64x2_t a, md_f64x2_t b) { return _mm_cmpeq_pd  (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_cmp_eq_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm256_cmp_pd (a, b, _CMP_EQ_OQ); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_cmp_eq_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm_cmpeq_pd(a, b); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_cmp_ne_f32x4(md_f32x4_t a, md_f32x4_t b) { return _mm_cmpneq_ps (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_cmp_ne_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm256_cmp_ps (a, b, _CMP_NEQ_OQ); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_cmp_ne_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm_cmpneq_ps(a, b); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_cmp_ne_f64x2(md_f64x2_t a, md_f64x2_t b) { return _mm_cmpneq_pd (a, b); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_cmp_ne_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm256_cmp_pd (a, b, _CMP_NEQ_OQ); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_cmp_ne_f64x4(md_f64x4_t a, md_f64x4_t b) { return _mm_cmpneq_pd(a, b); }
+#endif
 
 // FLOAT SPECIFIC
 // for mul, there are operations defined for int as well, but the semantics differ: it multiplies the lanes as expected
 // but the results are stored in two lanes rather than storing the truncated value in each lane.
 
 #define md_simd_mul_f32x4 _mm_mul_ps
+#if !defined(__aarch64__)
 #define md_simd_mul_f32x8 _mm256_mul_ps
+#else
+#define md_simd_mul_f32x8 _mm_mul_ps
+#endif
 #define md_simd_mul_f64x2 _mm_mul_pd
+#if !defined(__aarch64__)
 #define md_simd_mul_f64x4 _mm256_mul_pd
+#else
+#define md_simd_mul_f64x4 _mm_mul_pd
+#endif
 
 #define md_simd_div_f32x4 _mm_div_ps
+#if !defined(__aarch64__)
 #define md_simd_div_f32x8 _mm256_div_ps
+#else
+#define md_simd_div_f32x8 _mm_div_ps
+#endif
 #define md_simd_div_f64x2 _mm_div_pd
+#if !defined(__aarch64__)
 #define md_simd_div_f64x4 _mm256_div_pd
+#else
+#define md_simd_div_f64x4 _mm_div_pd
+#endif
 
-#ifdef __FMA__
+#if defined(__FMA__) && !defined(__aarch64__)
 #define md_simd_fmadd_f32x4 _mm_fmadd_ps
 #define md_simd_fmadd_f32x8 _mm256_fmadd_ps
 #define md_simd_fmadd_f64x2 _mm_fmadd_pd
 #define md_simd_fmadd_f64x4 _mm256_fmadd_pd
 #else
 MD_SIMD_INLINE md_f32x4_t md_simd_fmadd_f32x4(md_f32x4_t a, md_f32x4_t b, md_f32x4_t c) { return _mm_add_ps(_mm_mul_ps(a,b), c); }
-MD_SIMD_INLINE md_f32x8_t md_simd_fmadd_f32x8(md_f32x8_t a, md_f32x8_t b, md_f32x8_t c) { return _mm256_add_ps(_mm256_mul_ps(a,b), c); }
+MD_SIMD_INLINE md_f32x8_t md_simd_fmadd_f32x8(md_f32x8_t a, md_f32x8_t b, md_f32x8_t c) { return _mm_add_ps(_mm_mul_ps(a,b), c); }
 MD_SIMD_INLINE md_f64x2_t md_simd_fmadd_f64x2(md_f64x2_t a, md_f64x2_t b, md_f64x2_t c) { return _mm_add_pd(_mm_mul_pd(a,b), c); }
-MD_SIMD_INLINE md_f64x4_t md_simd_fmadd_f64x4(md_f64x4_t a, md_f64x4_t b, md_f64x4_t c) { return _mm256_add_pd(_mm256_mul_pd(a,b), c); }
+MD_SIMD_INLINE md_f64x4_t md_simd_fmadd_f64x4(md_f64x4_t a, md_f64x4_t b, md_f64x4_t c) { return _mm_add_pd(_mm_mul_pd(a,b), c); }
 #endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_round_f32x4(md_f32x4_t a) { return _mm_round_ps     (a, _MM_FROUND_NO_EXC | _MM_FROUND_TO_NEAREST_INT); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_round_f32x8(md_f32x8_t a) { return _mm256_round_ps  (a, _MM_FROUND_NO_EXC | _MM_FROUND_TO_NEAREST_INT); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_round_f32x8(md_f32x8_t a) { return _mm_round_ps     (a, _MM_FROUND_NO_EXC | _MM_FROUND_TO_NEAREST_INT); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_round_f64x2(md_f64x2_t a) { return _mm_round_pd     (a, _MM_FROUND_NO_EXC | _MM_FROUND_TO_NEAREST_INT); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_round_f64x4(md_f64x4_t a) { return _mm256_round_pd  (a, _MM_FROUND_NO_EXC | _MM_FROUND_TO_NEAREST_INT); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_round_f64x4(md_f64x4_t a) { return _mm_round_pd     (a, _MM_FROUND_NO_EXC | _MM_FROUND_TO_NEAREST_INT); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_floor_f32x4(md_f32x4_t a) { return _mm_round_ps     (a, _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_floor_f32x8(md_f32x8_t a) { return _mm256_round_ps  (a, _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_floor_f32x8(md_f32x8_t a) { return _mm_round_ps     (a, _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_floor_f64x2(md_f64x2_t a) { return _mm_round_pd     (a, _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_floor_f64x4(md_f64x4_t a) { return _mm256_round_pd  (a, _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_floor_f64x4(md_f64x4_t a) { return _mm_round_pd     (a, _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_ceil_f32x4(md_f32x4_t a) { return _mm_round_ps      (a, _MM_FROUND_NO_EXC | _MM_FROUND_CEIL); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_ceil_f32x8(md_f32x8_t a) { return _mm256_round_ps   (a, _MM_FROUND_NO_EXC | _MM_FROUND_CEIL); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_ceil_f32x8(md_f32x8_t a) { return _mm_round_ps      (a, _MM_FROUND_NO_EXC | _MM_FROUND_CEIL); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_ceil_f64x2(md_f64x2_t a) { return _mm_round_pd      (a, _MM_FROUND_NO_EXC | _MM_FROUND_CEIL); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_ceil_f64x4(md_f64x4_t a) { return _mm256_round_pd   (a, _MM_FROUND_NO_EXC | _MM_FROUND_CEIL); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_ceil_f64x4(md_f64x4_t a) { return _mm_round_pd      (a, _MM_FROUND_NO_EXC | _MM_FROUND_CEIL); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_fract_f32x4(md_f32x4_t a) { return _mm_sub_ps(a,    _mm_round_ps(a,     _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR)); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_fract_f32x8(md_f32x8_t a) { return _mm256_sub_ps(a, _mm256_round_ps(a,  _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR)); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_fract_f32x8(md_f32x8_t a) { return _mm_sub_ps(a,   _mm_round_ps(a,     _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR)); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_fract_f64x2(md_f64x2_t a) { return _mm_sub_pd(a,    _mm_round_pd(a,     _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR)); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_fract_f64x4(md_f64x4_t a) { return _mm256_sub_pd(a, _mm256_round_pd(a,  _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR)); }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_fract_f64x4(md_f64x4_t a) { return _mm_sub_pd(a,   _mm_round_pd(a,     _MM_FROUND_NO_EXC | _MM_FROUND_FLOOR)); }
+#endif
 
 MD_SIMD_INLINE md_f32x4_t md_simd_sign_f32x4(md_f32x4_t a) { return _mm_xor_ps(   _mm_and_ps(a,    _mm_set1_ps(-0.0f)),    _mm_set1_ps(1.0f));    }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_sign_f32x8(md_f32x8_t a) { return _mm256_xor_ps(_mm256_and_ps(a, _mm256_set1_ps(-0.0f)), _mm256_set1_ps(1.0f)); }
+#else
+MD_SIMD_INLINE md_f32x8_t md_simd_sign_f32x8(md_f32x8_t a) { return _mm_xor_ps(_mm_and_ps(a, _mm_set1_ps(-0.0f)), _mm_set1_ps(1.0f)); }
+#endif
 MD_SIMD_INLINE md_f64x2_t md_simd_sign_f64x2(md_f64x2_t a) { return _mm_xor_pd(   _mm_and_pd(a,    _mm_set1_pd(-0.0)),     _mm_set1_pd(1.0));     }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_f64x4_t md_simd_sign_f64x4(md_f64x4_t a) { return _mm256_xor_pd(_mm256_and_pd(a, _mm256_set1_pd(-0.0)),  _mm256_set1_pd(1.0));  }
+#else
+MD_SIMD_INLINE md_f64x4_t md_simd_sign_f64x4(md_f64x4_t a) { return _mm_xor_pd(_mm_and_pd(a, _mm_set1_pd(-0.0)), _mm_set1_pd(1.0)); }
+#endif
 
 #define md_simd_blend_f32x4 _mm_blendv_ps
 #define md_simd_blend_f64x2 _mm_blendv_pd
+#if !defined(__aarch64__)
 #define md_simd_blend_f32x8 _mm256_blendv_ps
 #define md_simd_blend_f64x4 _mm256_blendv_pd
+#else
+#define md_simd_blend_f32x8 _mm_blendv_ps
+#define md_simd_blend_f64x4 _mm_blendv_pd
+#endif
 
 #define md_simd_blend_mask_f32x4 _mm_blend_ps
 #define md_simd_blend_mask_f64x2 _mm_blend_pd
+#if !defined(__aarch64__)
 #define md_simd_blend_mask_f32x8 _mm256_blend_ps
 #define md_simd_blend_mask_f64x4 _mm256_blend_pd
+#else
+#define md_simd_blend_mask_f32x8 _mm_blend_ps
+#define md_simd_blend_mask_f64x4 _mm_blend_pd
+#endif
 
 #define md_simd_sqrt_f32x4 _mm_sqrt_ps
 #define md_simd_sqrt_f64x2 _mm_sqrt_pd
+#if !defined(__aarch64__)
 #define md_simd_sqrt_f32x8 _mm256_sqrt_ps
 #define md_simd_sqrt_f64x4 _mm256_sqrt_pd
+#else
+#define md_simd_sqrt_f32x8 _mm_sqrt_ps
+#define md_simd_sqrt_f64x4 _mm_sqrt_pd
+#endif
 
 MD_SIMD_INLINE float md_simd_hmin_f32x4(__m128 x) {
     __m128 a = _mm_min_ps(x, _mm_shuffle_ps(x, x, _MM_SHUFFLE(0, 0, 3, 2)));
@@ -815,6 +1036,7 @@ MD_SIMD_INLINE float md_simd_hmax_f32x4(__m128 x) {
     return _mm_cvtss_f32(_mm_max_ps(a,b));
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE double md_simd_hmin_f64x4(__m256d x) {
     __m256d a = _mm256_min_pd(x, _mm256_shuffle_pd(x, x, _MM_SHUFFLE(0, 0, 3, 2)));
     __m256d b = _mm256_min_pd(a, _mm256_shuffle_pd(a, a, _MM_SHUFFLE(0, 0, 0, 1)));
@@ -835,6 +1057,11 @@ MD_SIMD_INLINE double md_simd_hsum_f64x4(__m256d x) {
     __m128d high64 = _mm_unpackhi_pd(vlow, vlow);
     return           _mm_cvtsd_f64(_mm_add_sd(vlow, high64));  // reduce to scalar
 }
+#else
+MD_SIMD_INLINE double md_simd_hmin_f64x4(md_f64x4_t x) { return md_simd_hmin_f64x2(x); }
+MD_SIMD_INLINE double md_simd_hmax_f64x4(md_f64x4_t x) { return md_simd_hmax_f64x2(x); }
+MD_SIMD_INLINE double md_simd_hsum_f64x4(md_f64x4_t x) { return md_simd_hsum_f64x2(x); }
+#endif
 
 // https://stackoverflow.com/questions/6996764/fastest-way-to-do-horizontal-sse-vector-sum-or-other-reduction
 MD_SIMD_INLINE float md_simd_hsum_f32x4(__m128 x) {
@@ -849,14 +1076,28 @@ MD_SIMD_INLINE double md_simd_hsum_f64x2(md_f64x2_t x) { return _mm_cvtsd_f64(_m
 MD_SIMD_INLINE double md_simd_hmin_f64x2(md_f64x2_t x) { return _mm_cvtsd_f64(_mm_min_pd(x, _mm_shuffle_pd(x, x, _MM_SHUFFLE(0, 0, 0, 1)))); }
 MD_SIMD_INLINE double md_simd_hmax_f64x2(md_f64x2_t x) { return _mm_cvtsd_f64(_mm_max_pd(x, _mm_shuffle_pd(x, x, _MM_SHUFFLE(0, 0, 0, 1)))); }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE float md_simd_hsum_f32x8(md_f32x8_t x) { return md_simd_hsum_f32x4(_mm_add_ps(_mm256_castps256_ps128(x), _mm256_extractf128_ps(x, 0x1))); }
 MD_SIMD_INLINE float md_simd_hmin_f32x8(md_f32x8_t x) { return md_simd_hmin_f32x4(_mm_min_ps(_mm256_castps256_ps128(x), _mm256_extractf128_ps(x, 0x1))); }
 MD_SIMD_INLINE float md_simd_hmax_f32x8(md_f32x8_t x) { return md_simd_hmax_f32x4(_mm_max_ps(_mm256_castps256_ps128(x), _mm256_extractf128_ps(x, 0x1))); }
+#else
+MD_SIMD_INLINE float md_simd_hsum_f32x8(md_f32x8_t x) { return md_simd_hsum_f32x4(x); }
+MD_SIMD_INLINE float md_simd_hmin_f32x8(md_f32x8_t x) { return md_simd_hmin_f32x4(x); }
+MD_SIMD_INLINE float md_simd_hmax_f32x8(md_f32x8_t x) { return md_simd_hmax_f32x4(x); }
+#endif
 
 #define md_simd_movemask_f32x4 _mm_movemask_ps
+#if !defined(__aarch64__)
 #define md_simd_movemask_f32x8 _mm256_movemask_ps
+#else
+#define md_simd_movemask_f32x8 _mm_movemask_ps
+#endif
 #define md_simd_movemask_f64x2 _mm_movemask_pd
+#if !defined(__aarch64__)
 #define md_simd_movemask_f64x4 _mm256_movemask_pd
+#else
+#define md_simd_movemask_f64x4 _mm_movemask_pd
+#endif
 
 // CAST AND CONVERSIONS BETWEEN CORRESPONDING TYPES OF FLOAT AND INT
 // NAMING CONVENTION GIVES THE SOURCE OPERAND TYPE
@@ -871,47 +1112,89 @@ MD_SIMD_INLINE md_i32x8_t md_simd_cast_f32x8(md_f32x8_t a) {
     md_i32x8_t val = {_mm256_castps_si256(a)};
     return val;
 }
+#else
+MD_SIMD_INLINE md_i32x8_t md_simd_cast_f32x8(md_f32x8_t a) {
+    md_i32x8_t val = {_mm_castps_si128(a)};
+    return val;
+}
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_cast_f64x2(md_f64x2_t a) {
     md_i64x2_t val = {_mm_castpd_si128(a)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_cast_f64x4(md_f64x4_t a) {
     md_i64x4_t val = {_mm256_castpd_si256(a)};
     return val;
 }
+#else
+MD_SIMD_INLINE md_i64x4_t md_simd_cast_f64x4(md_f64x4_t a) {
+    md_i64x4_t val = {_mm_castpd_si128(a)};
+    return val;
+}
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_convert_f32x4(md_f32x4_t a) {
     md_i32x4_t val = {_mm_cvtps_epi32(a)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_convert_f32x8(md_f32x8_t a) {
     md_i32x8_t val = {_mm256_cvtps_epi32(a)};
     return val;
 }
+#else
+MD_SIMD_INLINE md_i32x8_t md_simd_convert_f32x8(md_f32x8_t a) {
+    md_i32x8_t val = {_mm_cvtps_epi32(a)};
+    return val;
+}
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_convert_f64x2(md_f64x2_t a) {
     md_i64x2_t val = {_mm_cvtpd_epi64(a)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_convert_f64x4(md_f64x4_t a) {
     md_i64x4_t val = {_mm256_cvtpd_epi64(a)};
     return val;
 }
+#else
+MD_SIMD_INLINE md_i64x4_t md_simd_convert_f64x4(md_f64x4_t a) {
+    md_i64x4_t val = {_mm_cvtpd_epi64(a)};
+    return val;
+}
+#endif
 
 #define md_simd_cast_i32x4(X) _mm_castsi128_ps(X.m128i)
+#if !defined(__aarch64__)
 #define md_simd_cast_i32x8(X) _mm256_castsi256_ps(X.m256i)
+#else
+#define md_simd_cast_i32x8(X) _mm_castsi128_ps(X.m128i)
+#endif
 #define md_simd_cast_i64x2(X) _mm_castsi128_pd(X.m128i)
+#if !defined(__aarch64__)
 #define md_simd_cast_i64x4(X) _mm256_castsi256_pd(X.m256i)
+#else
+#define md_simd_cast_i64x4(X) _mm_castsi128_pd(X.m128i)
+#endif
 
 #define md_simd_convert_i32x4(X) _mm_cvtepi32_ps(X.m128i)
+#if !defined(__aarch64__)
 #define md_simd_convert_i32x8(X) _mm256_cvtepi32_ps(X.m256i)
+#else
+#define md_simd_convert_i32x8(X) _mm_cvtepi32_ps(X.m128i)
+#endif
 #define md_simd_convert_i64x2(X) _mm_cvtepi64_pd(X.m128i)
+#if !defined(__aarch64__)
 #define md_simd_convert_i64x4(X) _mm256_cvtepi64_pd(X.m256i)
-#endif /* !__aarch64__ */
+#else
+#define md_simd_convert_i64x4(X) _mm_cvtepi64_pd(X.m128i)
+#endif
 
 #endif
 
@@ -1051,7 +1334,6 @@ MD_SIMD_INLINE md_f64x2_t md_simd_div(md_f64x2_t a, md_f64x2_t b) { return md_si
 MD_SIMD_INLINE md_f64x4_t md_simd_div(md_f64x4_t a, md_f64x4_t b) { return md_simd_div_f64x4(a, b); }
 
 MD_SIMD_INLINE md_i32x4_t md_simd_cast(md_f32x4_t v) { return md_simd_cast_f32x4(v); }
-#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_cast(md_f32x8_t v) { return md_simd_cast_f32x8(v); }
 MD_SIMD_INLINE md_i64x2_t md_simd_cast(md_f64x2_t v) { return md_simd_cast_f64x2(v); }
 MD_SIMD_INLINE md_i64x4_t md_simd_cast(md_f64x4_t v) { return md_simd_cast_f64x4(v); }
@@ -1070,7 +1352,6 @@ MD_SIMD_INLINE md_f32x4_t md_simd_convert(md_i32x4_t v) { return md_simd_convert
 MD_SIMD_INLINE md_f32x8_t md_simd_convert(md_i32x8_t v) { return md_simd_convert_i32x8(v); }
 MD_SIMD_INLINE md_f64x2_t md_simd_convert(md_i64x2_t v) { return md_simd_convert_i64x2(v); }
 MD_SIMD_INLINE md_f64x4_t md_simd_convert(md_i64x4_t v) { return md_simd_convert_i64x4(v); }
-#endif /* !__aarch64__ */
 
 // @TODO: Complete this
 
@@ -1648,4 +1929,3 @@ MD_SIMD_INLINE md_f64x4_t md_simd_convert(md_i64x4_t v) { return md_simd_convert
 #define md_simd_cast_i64    md_simd_cast_i64x2
 
 #endif
-
