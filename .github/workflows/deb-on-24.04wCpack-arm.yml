@@ -115,6 +115,31 @@ jobs:
         echo 'else:' >> patchsse.py
         echo '    print("Pattern not found, skipping (already patched?)")' >> patchsse.py
         python3 patchsse.py
+
+        # Patch md_simd.h to recognize aarch64 as x86_64 via sse2neon
+        echo 'import pathlib' > patch_simd.py
+        echo 'p = pathlib.Path("./modules/molecule/ext/mold/src/core/md_simd.h")' >> patch_simd.py
+        echo 'old = "#if defined(__x86_64__)"' >> patch_simd.py
+        echo 'new = "#if defined(__x86_64__) || defined(__aarch64__)"' >> patch_simd.py
+        echo 'content = p.read_text()' >> patch_simd.py
+        echo 'if old in content:' >> patch_simd.py
+        echo '    p.write_text(content.replace(old, new, 1))' >> patch_simd.py
+        echo '    print("Patched md_simd.h")' >> patch_simd.py
+        echo 'else:' >> patch_simd.py
+        echo '    print("Pattern not found, skipping (already patched?)")' >> patch_simd.py
+        python3 patch_simd.py
+
+        echo 'import pathlib' > patch_simd2.py
+        echo 'p = pathlib.Path("./modules/molecule/ext/mold/src/core/md_simd.h")' >> patch_simd2.py
+        echo 'old = "#ifdef __x86_64__"' >> patch_simd2.py
+        echo 'new = "#if defined(__x86_64__) || defined(__aarch64__)"' >> patch_simd2.py
+        echo 'content = p.read_text()' >> patch_simd2.py
+        echo 'if old in content:' >> patch_simd2.py
+        echo '    p.write_text(content.replace(old, new, 1))' >> patch_simd2.py
+        echo '    print("Patched md_simd.h ifdef")' >> patch_simd2.py
+        echo 'else:' >> patch_simd2.py
+        echo '    print("Pattern not found, skipping (already patched?)")' >> patch_simd2.py
+        python3 patch_simd2.py
       
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
