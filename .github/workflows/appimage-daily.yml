@@ -65,7 +65,7 @@ jobs:
         sudo apt update
         sudo apt install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev
         sudo apt install software-properties-common
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo add-apt-repository universe
         sudo apt install gcc-13 g++-13
         sudo apt-get install libasound2 libasound2-data libasound2-plugins
 
