@@ -116,6 +116,8 @@ jobs:
         echo '    print("Pattern not found, skipping (already patched?)")' >> patchsse.py
         python3 patchsse.py
 
+    - name: copy patched md_simd.h
+      run: |
         # Patch md_simd.h to recognize aarch64 as x86_64 via sse2neon
         cp -vf arm-patches/modules-molecule-ext-mold-src-core-md_simd.h "$openSpaceHome/modules/molecule/ext/mold/src/core/md_simd.h" 
         
