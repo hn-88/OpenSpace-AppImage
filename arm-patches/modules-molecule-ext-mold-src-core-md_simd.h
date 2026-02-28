@@ -82,9 +82,12 @@ typedef md_i64x2_t md_i64x4_t;
 // Integers have to be explicitly handled since we use distinct types
 MD_SIMD_INLINE void md_simd_store_i32x4(int* x, md_i32x4_t val) { _mm_storeu_si128((__m128i*)x, val.m128i); }
 MD_SIMD_INLINE void md_simd_store_i64x2(int64_t* x, md_i64x2_t val) { _mm_storeu_si128((__m128i*)x, val.m128i); }
-#if !defined(__aarch64__) /* AVX 256-bit integer section */
+#if !defined(__aarch64__)
 MD_SIMD_INLINE void md_simd_store_i32x8(int* x, md_i32x8_t val) { _mm256_storeu_si256((__m256i*)x, val.m256i); }
+#if !defined(__aarch64__)
 MD_SIMD_INLINE void md_simd_store_i64x4(int64_t* x, md_i64x4_t val) { _mm256_storeu_si256((__m256i*)x, val.m256i); }
+#endif
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_load_i32x4(const int* x) {
     md_i32x4_t val = { _mm_loadu_si128((const __m128i*)x) };
@@ -96,15 +99,19 @@ MD_SIMD_INLINE md_i64x2_t md_simd_load_i64x2(const int64_t* x) {
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_load_i32x8(const int* x) {
     md_i32x8_t val = {_mm256_loadu_si256((const __m256i*)x)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_load_i64x4(const int64_t* x) {
     md_i64x4_t val = {_mm256_loadu_si256((const __m256i*)x)};
     return val;
 }
+#endif
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_set1_i32x4(int x) {
     md_i32x4_t val = {_mm_set1_epi32(x)};
@@ -116,15 +123,19 @@ MD_SIMD_INLINE md_i64x2_t md_simd_set1_i64x2(int64_t x) {
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_set1_i32x8(int x) {
     md_i32x8_t val = {_mm256_set1_epi32(x)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_set1_i64x4(int64_t x) {
     md_i64x4_t val = {_mm256_set1_epi64x(x)};
     return val;
 }
+#endif
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_set_i32x4(int x, int y, int z, int w) {
     md_i32x4_t val = {_mm_set_epi32(w, z, y, x)};
@@ -136,15 +147,19 @@ MD_SIMD_INLINE md_i64x2_t md_simd_set_i64x2(int64_t x, int64_t y) {
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_set_i32x8(int x, int y, int z, int w, int q, int r, int s, int t) {
     md_i32x8_t val = {_mm256_set_epi32(t, s, r, q, w, z, y, x)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_set_i64x4(int64_t x, int64_t y, int64_t z, int64_t w) {
     md_i64x4_t val = {_mm256_set_epi64x(w, z, y, x)};
     return val;
 }
+#endif
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_zero_i32x4() {
     md_i32x4_t val = {_mm_setzero_si128()};
@@ -156,27 +171,34 @@ MD_SIMD_INLINE md_i64x2_t md_simd_zero_i64x2() {
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_zero_i32x8() {
     md_i32x8_t val = {_mm256_setzero_si256()};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_zero_i64x4() {
     md_i64x4_t val = {_mm256_setzero_si256()};
     return val;
 }
+#endif
+#endif
 
+#if !defined(__aarch64__)
 #define MD_SIMD_EXTRACT_HI_SI128(X) _mm256_extractf128_si256(X, 1)
 #define MD_SIMD_EXTRACT_LO_SI128(X) _mm256_castsi256_si128(X)
 #define MD_SIMD_DOUBLE_PUMP1_SI128(X, OP) _mm256_set_m128i(OP(MD_SIMD_EXTRACT_HI_SI128(X)), OP(MD_SIMD_EXTRACT_LO_SI128(X)))
 #define MD_SIMD_DOUBLE_PUMP1_ARGS_SI128(X, OP, ...) _mm256_set_m128i(OP(MD_SIMD_EXTRACT_HI_SI128(X),##__VA_ARGS__), OP(MD_SIMD_EXTRACT_LO_SI128(X),##__VA_ARGS__))
 #define MD_SIMD_DOUBLE_PUMP2_SI128(A, B, OP) _mm256_set_m128i(OP(MD_SIMD_EXTRACT_HI_SI128(A), MD_SIMD_EXTRACT_HI_SI128(B)), OP(MD_SIMD_EXTRACT_LO_SI128(A), MD_SIMD_EXTRACT_LO_SI128(B)))
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_and_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_and_si128(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_and_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_and_si256(a.m256i, b.m256i)};
@@ -185,12 +207,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_and_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
     
 MD_SIMD_INLINE md_i64x2_t md_simd_and_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_and_si128(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_and_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_and_si256(a.m256i, b.m256i)};
@@ -199,12 +223,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_and_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_or_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_or_si128(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_or_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_or_si256(a.m256i, b.m256i)};
@@ -213,12 +239,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_or_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_or_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_or_si128(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_or_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_or_si256(a.m256i, b.m256i)};
@@ -227,12 +255,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_or_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_xor_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_xor_si128(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_xor_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_xor_si256(a.m256i, b.m256i)};
@@ -241,12 +271,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_xor_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_xor_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_xor_si128(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_xor_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_xor_si256(a.m256i, b.m256i)};
@@ -255,6 +287,7 @@ MD_SIMD_INLINE md_i64x4_t md_simd_xor_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_not_i32x4(md_i32x4_t a) {
     return md_simd_xor_i32x4(a, md_simd_set1_i32x4(-1));
@@ -277,6 +310,7 @@ MD_SIMD_INLINE md_i32x4_t md_simd_and_not_i32x4(md_i32x4_t a, md_i32x4_t b) {
 	return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_and_not_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_andnot_si256(b.m256i, a.m256i)};
@@ -285,12 +319,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_and_not_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_and_not_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_andnot_si128(b.m128i, a.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_and_not_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_andnot_si256(b.m256i, a.m256i)};
@@ -299,12 +335,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_and_not_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_add_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_add_epi32(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_add_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_add_epi32(a.m256i, b.m256i)};
@@ -313,12 +351,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_add_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_add_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_add_epi64(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_add_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_add_epi64(a.m256i, b.m256i)};
@@ -327,12 +367,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_add_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_sub_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_sub_epi32(a.m128i, b.m128i)};
 	return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_sub_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_sub_epi32(a.m256i, b.m256i)};
@@ -341,12 +383,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_sub_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_sub_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_sub_epi64(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_sub_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_sub_epi64(a.m256i, b.m256i)};
@@ -355,12 +399,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_sub_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_abs_i32x4(md_i32x4_t a) {
     md_i32x4_t val = {_mm_abs_epi32(a.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_abs_i32x8(md_i32x8_t a) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_abs_epi32(a.m256i)};
@@ -369,22 +415,26 @@ MD_SIMD_INLINE md_i32x8_t md_simd_abs_i32x8(md_i32x8_t a) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_abs_i64x2(md_i64x2_t a) {
     md_i64x2_t val = {_mm_abs_epi64(a.m128i)};
 	return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_abs_i64x4(md_i64x4_t a) {
     md_i64x4_t val = {_mm256_abs_epi64(a.m256i)};
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_min_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_min_epi32(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_min_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_min_epi32(a.m256i, b.m256i)};
@@ -393,12 +443,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_min_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_min_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_min_epi64(a.m128i, b.m128i)};
 	return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_min_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_min_epi64(a.m256i, b.m256i)};
@@ -407,12 +459,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_min_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_max_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_max_epi32(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_max_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_max_epi32(a.m256i, b.m256i)};
@@ -421,12 +475,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_max_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_max_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_max_epi64(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_max_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_max_epi64(a.m256i, b.m256i)};
@@ -435,12 +491,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_max_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_cmp_gt_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_cmpgt_epi32(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_cmp_gt_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_cmpgt_epi32(a.m256i, b.m256i)};
@@ -449,12 +507,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_cmp_gt_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_cmp_gt_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_cmpgt_epi64(a.m128i, b.m128i)};
 	return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_cmp_gt_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_cmpgt_epi64(a.m256i, b.m256i)};
@@ -463,12 +523,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_cmp_gt_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_cmp_eq_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_cmpeq_epi32(a.m128i, b.m128i)};
 	return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_cmp_eq_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_cmpeq_epi32(a.m256i, b.m256i)};
@@ -477,12 +539,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_cmp_eq_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_cmp_eq_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = {_mm_cmpeq_epi64(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_cmp_eq_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_cmpeq_epi64(a.m256i, b.m256i)};
@@ -491,12 +555,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_cmp_eq_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_cmp_neq_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = md_simd_not_i32x4(md_simd_cmp_eq_i32x4(a, b));
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_cmp_neq_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = md_simd_not_i32x8(md_simd_cmp_eq_i32x8(a, b));
@@ -506,12 +572,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_cmp_neq_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_cmp_neq_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = md_simd_not_i64x2(md_simd_cmp_eq_i64x2(a, b));
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_cmp_neq_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = md_simd_not_i64x4(md_simd_cmp_eq_i64x4(a, b));
@@ -521,12 +589,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_cmp_neq_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_cmp_lt_i32x4(md_i32x4_t a, md_i32x4_t b) {
     md_i32x4_t val = {_mm_cmplt_epi32(a.m128i, b.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_cmp_lt_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = md_simd_cmp_gt_i32x8(b, a);
@@ -535,12 +605,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_cmp_lt_i32x8(md_i32x8_t a, md_i32x8_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_cmp_lt_i64x2(md_i64x2_t a, md_i64x2_t b) {
     md_i64x2_t val = md_simd_not_i64x2(md_simd_cmp_gt_i64x2(a, b));
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_cmp_lt_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = md_simd_cmp_gt_i64x4(b, a);
@@ -549,12 +621,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_cmp_lt_i64x4(md_i64x4_t a, md_i64x4_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_shift_left_i32x4(md_i32x4_t a, int32_t b) {
     md_i32x4_t val = {_mm_slli_epi32(a.m128i, b)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_shift_left_i32x8(md_i32x8_t a, int32_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_slli_epi32(a.m256i, b)};
@@ -563,12 +637,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_shift_left_i32x8(md_i32x8_t a, int32_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_shift_left_i64x2(md_i64x2_t a, int32_t b) {
     md_i64x2_t val = {_mm_slli_epi64(a.m128i, b)};
 	return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_shift_left_i64x4(md_i64x4_t a, int32_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_slli_epi64(a.m256i, b)};
@@ -577,12 +653,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_shift_left_i64x4(md_i64x4_t a, int32_t b) {
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_shift_right_i32x4(md_i32x4_t a, int32_t b) {
     md_i32x4_t val = {_mm_srli_epi32(a.m128i, b)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_shift_right_i32x8(md_i32x8_t a, int32_t b) {
 #ifdef __AVX2__
     md_i32x8_t val = {_mm256_srli_epi32(a.m256i, b)};
@@ -591,12 +669,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_shift_right_i32x8(md_i32x8_t a, int32_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_shift_right_i64x2(md_i64x2_t a, int32_t b) {
     md_i64x2_t val = {_mm_srli_epi64(a.m128i, b)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_shift_right_i64x4(md_i64x4_t a, int32_t b) {
 #ifdef __AVX2__
     md_i64x4_t val = {_mm256_srli_epi64(a.m256i, b)};
@@ -605,12 +685,14 @@ MD_SIMD_INLINE md_i64x4_t md_simd_shift_right_i64x4(md_i64x4_t a, int32_t b) {
 #endif
 	return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i32x4_t md_simd_blend_i32x4(md_i32x4_t a, md_i32x4_t b, md_i32x4_t mask) {
     md_i32x4_t val = {_mm_blendv_epi8(a.m128i, b.m128i, mask.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i32x8_t md_simd_blend_i32x8(md_i32x8_t a, md_i32x8_t b, md_i32x8_t mask) {
 #if __AVX2__
     md_i32x8_t val = {_mm256_blendv_epi8(a.m256i, b.m256i, mask.m256i)};
@@ -619,12 +701,14 @@ MD_SIMD_INLINE md_i32x8_t md_simd_blend_i32x8(md_i32x8_t a, md_i32x8_t b, md_i32
 #endif
     return val;
 }
+#endif
 
 MD_SIMD_INLINE md_i64x2_t md_simd_blend_i64x2(md_i64x2_t a, md_i64x2_t b, md_i64x2_t mask) {
     md_i64x2_t val = {_mm_blendv_epi8(a.m128i, b.m128i, mask.m128i)};
     return val;
 }
 
+#if !defined(__aarch64__)
 MD_SIMD_INLINE md_i64x4_t md_simd_blend_i64x4(md_i64x4_t a, md_i64x4_t b, md_i64x4_t mask) {
 #if __AVX2__
     md_i64x4_t val = {_mm256_blendv_epi8(a.m256i, b.m256i, mask.m256i)};
@@ -633,6 +717,7 @@ MD_SIMD_INLINE md_i64x4_t md_simd_blend_i64x4(md_i64x4_t a, md_i64x4_t b, md_i64
 #endif
     return val;
 }
+#endif
 
 #define md_simd_load_f64x2 _mm_loadu_pd
 #if !defined(__aarch64__)
@@ -736,7 +821,6 @@ MD_SIMD_INLINE md_i64x4_t md_simd_blend_i64x4(md_i64x4_t a, md_i64x4_t b, md_i64
 #define md_simd_xor_f64x4 _mm_xor_pd
 #endif
 
-#endif /* !__aarch64__ AVX integer */
 MD_SIMD_INLINE md_f32x4_t md_simd_and_not_f32x4(md_f32x4_t a, md_f32x4_t b) { return _mm_andnot_ps(b, a); }
 #if !defined(__aarch64__)
 MD_SIMD_INLINE md_f32x8_t md_simd_and_not_f32x8(md_f32x8_t a, md_f32x8_t b) { return _mm256_andnot_ps(b, a); }
@@ -1058,9 +1142,9 @@ MD_SIMD_INLINE double md_simd_hsum_f64x4(__m256d x) {
     return           _mm_cvtsd_f64(_mm_add_sd(vlow, high64));  // reduce to scalar
 }
 #else
-MD_SIMD_INLINE double md_simd_hmin_f64x4(md_f64x4_t x) { return md_simd_hmin_f64x2(x); }
-MD_SIMD_INLINE double md_simd_hmax_f64x4(md_f64x4_t x) { return md_simd_hmax_f64x2(x); }
-MD_SIMD_INLINE double md_simd_hsum_f64x4(md_f64x4_t x) { return md_simd_hsum_f64x2(x); }
+MD_SIMD_INLINE double md_simd_hmin_f64x4(md_f64x4_t x) { return _mm_cvtsd_f64(_mm_min_pd(x, _mm_shuffle_pd(x, x, _MM_SHUFFLE(0,0,0,1)))); }
+MD_SIMD_INLINE double md_simd_hmax_f64x4(md_f64x4_t x) { return _mm_cvtsd_f64(_mm_max_pd(x, _mm_shuffle_pd(x, x, _MM_SHUFFLE(0,0,0,1)))); }
+MD_SIMD_INLINE double md_simd_hsum_f64x4(md_f64x4_t x) { return _mm_cvtsd_f64(_mm_add_pd(x, _mm_shuffle_pd(x, x, _MM_SHUFFLE(0,0,0,1)))); }
 #endif
 
 // https://stackoverflow.com/questions/6996764/fastest-way-to-do-horizontal-sse-vector-sum-or-other-reduction
@@ -1236,8 +1320,8 @@ MD_SIMD_INLINE md_f32x4_t md_simd_cubic_spline_f32x4(md_f32x4_t p0, md_f32x4_t p
     const md_f32x4_t t3 = md_simd_mul_f32x4(t2, t);
     const md_f32x4_t v0 = md_simd_mul_f32x4(md_simd_sub_f32x4(p2, p0), s);
     const md_f32x4_t v1 = md_simd_mul_f32x4(md_simd_sub_f32x4(p3, p1), s);
-    const md_f32x4_t x0 = md_simd_add_f32x4(md_simd_mul_f32x4(md_simd_set1_f32x4(2), md_simd_sub_f32x4(p1, p2)), md_simd_add_f32x4(v0, v1));
-    const md_f32x4_t x1 = md_simd_sub_f32x4(md_simd_mul_f32x4(md_simd_set1_f32x4(3), md_simd_sub_f32x4(p2, p1)), md_simd_add_f32x4(md_simd_mul_f32x4(md_simd_set1_f32x4(2), v0), v1));
+    const md_f32x4_t x0 = md_simd_add_f32x4(md_simd_mul_f32x4(md_simd_set1_f32x4(2.0f), md_simd_sub_f32x4(p1, p2)), md_simd_add_f32x4(v0, v1));
+    const md_f32x4_t x1 = md_simd_sub_f32x4(md_simd_mul_f32x4(md_simd_set1_f32x4(3.0f), md_simd_sub_f32x4(p2, p1)), md_simd_add_f32x4(md_simd_mul_f32x4(md_simd_set1_f32x4(2.0f), v0), v1));
     const md_f32x4_t r0 = md_simd_add_f32x4(md_simd_mul_f32x4(x0, t3), md_simd_mul_f32x4(x1, t2));
     const md_f32x4_t r1 = md_simd_add_f32x4(md_simd_mul_f32x4(v0, t1), p1);
     return md_simd_add_f32x4(r0, r1);
@@ -1248,8 +1332,8 @@ MD_SIMD_INLINE md_f32x8_t md_simd_cubic_spline_f32x8(md_f32x8_t p0, md_f32x8_t p
     const md_f32x8_t t3 = md_simd_mul_f32x8(t2, t);
     const md_f32x8_t v0 = md_simd_mul_f32x8(md_simd_sub_f32x8(p2, p0), s);
     const md_f32x8_t v1 = md_simd_mul_f32x8(md_simd_sub_f32x8(p3, p1), s);
-    const md_f32x8_t x0 = md_simd_add_f32x8(md_simd_mul_f32x8(md_simd_set1_f32x8(2), md_simd_sub_f32x8(p1, p2)), md_simd_add_f32x8(v0, v1));
-    const md_f32x8_t x1 = md_simd_sub_f32x8(md_simd_mul_f32x8(md_simd_set1_f32x8(3), md_simd_sub_f32x8(p2, p1)), md_simd_add_f32x8(md_simd_mul_f32x8(md_simd_set1_f32x8(2), v0), v1));
+    const md_f32x8_t x0 = md_simd_add_f32x8(md_simd_mul_f32x8(md_simd_set1_f32x8(2.0f), md_simd_sub_f32x8(p1, p2)), md_simd_add_f32x8(v0, v1));
+    const md_f32x8_t x1 = md_simd_sub_f32x8(md_simd_mul_f32x8(md_simd_set1_f32x8(3.0f), md_simd_sub_f32x8(p2, p1)), md_simd_add_f32x8(md_simd_mul_f32x8(md_simd_set1_f32x8(2.0f), v0), v1));
     const md_f32x8_t r0 = md_simd_add_f32x8(md_simd_mul_f32x8(x0, t3), md_simd_mul_f32x8(x1, t2));
     const md_f32x8_t r1 = md_simd_add_f32x8(md_simd_mul_f32x8(v0, t), p1);
     return md_simd_add_f32x8(r0, r1);
@@ -1260,8 +1344,8 @@ MD_SIMD_INLINE md_f64x2_t md_simd_cubic_spline_f64x2(md_f64x2_t p0, md_f64x2_t p
     const md_f64x2_t t3 = md_simd_mul_f64x2(t2, t);
     const md_f64x2_t v0 = md_simd_mul_f64x2(md_simd_sub_f64x2(p2, p0), s);
     const md_f64x2_t v1 = md_simd_mul_f64x2(md_simd_sub_f64x2(p3, p1), s);
-    const md_f64x2_t x0 = md_simd_add_f64x2(md_simd_mul_f64x2(md_simd_set1_f64x2(2), md_simd_sub_f64x2(p1, p2)), md_simd_add_f64x2(v0, v1));
-    const md_f64x2_t x1 = md_simd_sub_f64x2(md_simd_mul_f64x2(md_simd_set1_f64x2(3), md_simd_sub_f64x2(p2, p1)), md_simd_add_f64x2(md_simd_mul_f64x2(md_simd_set1_f64x2(2), v0), v1));
+    const md_f64x2_t x0 = md_simd_add_f64x2(md_simd_mul_f64x2(md_simd_set1_f64x2(2.0f), md_simd_sub_f64x2(p1, p2)), md_simd_add_f64x2(v0, v1));
+    const md_f64x2_t x1 = md_simd_sub_f64x2(md_simd_mul_f64x2(md_simd_set1_f64x2(3.0f), md_simd_sub_f64x2(p2, p1)), md_simd_add_f64x2(md_simd_mul_f64x2(md_simd_set1_f64x2(2.0f), v0), v1));
     const md_f64x2_t r0 = md_simd_add_f64x2(md_simd_mul_f64x2(x0, t3), md_simd_mul_f64x2(x1, t2));
     const md_f64x2_t r1 = md_simd_add_f64x2(md_simd_mul_f64x2(v0, t), p1);
     return md_simd_add_f64x2(r0, r1);
@@ -1272,8 +1356,8 @@ MD_SIMD_INLINE md_f64x4_t md_simd_cubic_spline_f64x4(md_f64x4_t p0, md_f64x4_t p
     const md_f64x4_t t3 = md_simd_mul_f64x4(t2, t);
     const md_f64x4_t v0 = md_simd_mul_f64x4(md_simd_sub_f64x4(p2, p0), s);
     const md_f64x4_t v1 = md_simd_mul_f64x4(md_simd_sub_f64x4(p3, p1), s);
-    const md_f64x4_t x0 = md_simd_add_f64x4(md_simd_mul_f64x4(md_simd_set1_f64x4(2), md_simd_sub_f64x4(p1, p2)), md_simd_add_f64x4(v0, v1));
-    const md_f64x4_t x1 = md_simd_sub_f64x4(md_simd_mul_f64x4(md_simd_set1_f64x4(3), md_simd_sub_f64x4(p2, p1)), md_simd_add_f64x4(md_simd_mul_f64x4(md_simd_set1_f64x4(2), v0), v1));
+    const md_f64x4_t x0 = md_simd_add_f64x4(md_simd_mul_f64x4(md_simd_set1_f64x4(2.0f), md_simd_sub_f64x4(p1, p2)), md_simd_add_f64x4(v0, v1));
+    const md_f64x4_t x1 = md_simd_sub_f64x4(md_simd_mul_f64x4(md_simd_set1_f64x4(3.0f), md_simd_sub_f64x4(p2, p1)), md_simd_add_f64x4(md_simd_mul_f64x4(md_simd_set1_f64x4(2.0f), v0), v1));
     const md_f64x4_t r0 = md_simd_add_f64x4(md_simd_mul_f64x4(x0, t3), md_simd_mul_f64x4(x1, t2));
     const md_f64x4_t r1 = md_simd_add_f64x4(md_simd_mul_f64x4(v0, t), p1);
     return md_simd_add_f64x4(r0, r1);
