@@ -122,6 +122,7 @@ jobs:
                   -DCMAKE_PREFIX_PATH=/opt/homebrew \
                   -DBUILD_TESTS=OFF \
                   -DCOMPILE_WARNING_AS_ERROR=OFF \
+                  -DOPENSPACE_MODULE_MOLECULE=OFF \
                   -DOPENSPACE_HAVE_TESTS=OFF \
                   -DSGCT_BUILD_TESTS=OFF \
                   -DSGCT_DEP_INCLUDE_LIBPNG=OFF \
