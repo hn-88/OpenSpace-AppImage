@@ -94,27 +94,43 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
-    - name: Add ARM64 SSE2NEON support for molecule module
-      if: runner.arch == 'ARM64'
+    - name: Replace MSVC conditional with unified cxx_std_23
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cd $openSpaceHome
-        # Download sse2neon.h next to md_intrinsics.h
-        curl -fsSL https://raw.githubusercontent.com/DLTcollab/sse2neon/master/sse2neon.h \
-          -o ./modules/molecule/ext/mold/src/core/sse2neon.h
-    
-        # Patch md_intrinsics.h to use sse2neon on ARM64
-        echo 'import pathlib' > patchsse.py
-        echo 'p = pathlib.Path("./modules/molecule/ext/mold/src/core/md_intrinsics.h")' >> patchsse.py
-        echo 'old = "#include <x86intrin.h>"' >> patchsse.py
-        echo 'new = "#if defined(__x86_64__) || defined(__i386__)\n#include <x86intrin.h>\n#elif defined(__aarch64__) || defined(__arm__)\n#include \"sse2neon.h\"\n#endif"' >> patchsse.py
-        echo 'content = p.read_text()' >> patchsse.py
-        echo 'if old in content:' >> patchsse.py
-        echo '    p.write_text(content.replace(old, new, 1))' >> patchsse.py
-        echo '    print("Patched md_intrinsics.h")' >> patchsse.py
-        echo 'else:' >> patchsse.py
-        echo '    print("Pattern not found, skipping (already patched?)")' >> patchsse.py
-        python3 patchsse.py
+        cd "$openSpaceHome"
+        python3 - <<'EOF'
+        import re
+
+        files = [
+            "./support/coding/codegen/cmake/common-compile-settings/common-compile-settings.cmake",
+            "./support/cmake/common-compile-settings/common-compile-settings.cmake",
+            "./ext/ghoul/support/cmake/common-compile-settings/common-compile-settings.cmake",
+            "./apps/OpenSpace/ext/sgct/support/cmake/common-compile-settings/common-compile-settings.cmake",
+        ]
+
+        old = (
+            "    if (MSVC)\n"
+            "      target_compile_features(compile_settings INTERFACE cxx_std_23)\n"
+            "    else ()\n"
+            "      target_compile_features(compile_settings INTERFACE cxx_std_20)\n"
+            "    endif ()"
+        )
+
+        new = "      target_compile_features(compile_settings INTERFACE cxx_std_23)"
+
+        for path in files:
+            with open(path, "r") as f:
+                content = f.read()
+
+            if old in content:
+                content = content.replace(old, new)
+                with open(path, "w") as f:
+                    f.write(content)
+                print(f"Updated: {path}")
+            else:
+                print(f"WARNING: Pattern not found in {path}")
+
+        EOF
 
     - name: copy patched md_simd.h
       run: |
