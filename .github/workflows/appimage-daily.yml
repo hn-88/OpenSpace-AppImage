@@ -84,6 +84,8 @@ jobs:
 
     - name: Replace MSVC conditional with unified cxx_std_23
       run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome"
         python3 - <<'EOF'
         import re
 
