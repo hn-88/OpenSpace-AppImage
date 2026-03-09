@@ -49,11 +49,11 @@ jobs:
         $process = Start-Process -FilePath ".\bin\OpenSpace.exe" -ArgumentList "-p", "empty" -RedirectStandardOutput $outFile -RedirectStandardError $errFile -PassThru
         
         try {
-          # Give it up to 60 seconds to initialize or crash
-          Wait-Process -Id $process.Id -Timeout 60 -ErrorAction Stop
+          # Give it up to 600 seconds to initialize or crash
+          Wait-Process -Id $process.Id -Timeout 600 -ErrorAction Stop
           echo "OpenSpace exited with code $($process.ExitCode)"
         } catch {
-          echo "OpenSpace timed out after 60 seconds. Terminating process..."
+          echo "OpenSpace timed out after 600 seconds. Terminating process..."
           Stop-Process -Id $process.Id -Force
         }
         
