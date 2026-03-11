@@ -1,0 +1,170 @@
+name: check for whitespace in shaders
+
+on: 
+  workflow_dispatch:      # allows manual trigger
+  
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
+  # and modified.
+  BUILD_TYPE: Release
+  # As recommended here: https://github.com/marketplace/actions/sccache-action
+  OPENSPACE_VERSION: "0.21.3plus"
+  APPIMAGE_VERSION: "1"
+  # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
+  COMMIT_HASH: "master"
+  
+jobs:
+  build:
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    # You can convert this to a matrix build if you need cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: false
+        
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: false
+        docker-images: true
+        swap-storage: false
+    
+    - name: get openspace code for a particular release
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
+        cd "$openSpaceHome"
+        git checkout "${COMMIT_HASH}" --recurse-submodules
+        # try the latest main branch, one of the latest commits
+        mkdir build
+        cd build
+
+    - name: Scan for indented GLSL raw string literals
+      run: |
+        python3 - <<'PYEOF'
+        # Scans all .cpp and .h files for R"(...)" raw string literals that contain
+        # GLSL shader code with leading whitespace on lines like #version or #include.
+        # Such indentation is invisible in C++ but breaks the GLSL compiler, which
+        # requires #version to be the very first token with no preceding whitespace.
+
+        import re
+        import sys
+        from pathlib import Path
+
+        EXTENSIONS   = {'.cpp', '.h', '.hpp', '.cxx', '.cc'}
+        GLSL_MARKERS = [
+            '#version', 'void main(', 'layout(location', 'uniform ',
+            'in vec2', 'in vec3', 'in vec4', 'out vec2', 'out vec3', 'out vec4',
+            '#include', 'gl_Position', 'gl_VertexID', 'gl_FragColor',
+            'sampler2D', 'texture(', 'fragColor', 'in Data {', 'out Data {',
+        ]
+
+        RAW_RE = re.compile(r'R"\((.*?)\)"', re.DOTALL)
+
+        findings = []   # list of dicts with details per issue
+        files_scanned = 0
+        files_with_issues = set()
+
+        for path in sorted(Path('.').rglob('*')):
+            if path.suffix not in EXTENSIONS:
+                continue
+            if any(part.startswith('.') for part in path.parts):
+                continue  # skip hidden dirs like .git
+
+            try:
+                source = path.read_text(encoding='utf-8', errors='replace')
+            except Exception as e:
+                print(f"[WARN] Could not read {path}: {e}")
+                continue
+
+            files_scanned += 1
+
+            for string_num, m in enumerate(RAW_RE.finditer(source), 1):
+                body = m.group(1)
+
+                # Skip non-GLSL raw strings
+                if not any(marker in body for marker in GLSL_MARKERS):
+                    continue
+
+                lines = body.split('\n')
+
+                # Compute minimum indentation of non-empty lines
+                indents = [len(l) - len(l.lstrip()) for l in lines if l.strip()]
+                if not indents:
+                    continue
+                min_indent = min(indents)
+
+                if min_indent == 0:
+                    continue  # clean
+
+                # Find the source line number where this raw string starts
+                start_line = source[:m.start()].count('\n') + 1
+
+                # Collect the specific offending lines (those with problematic #directives)
+                offending = []
+                for rel_lineno, line in enumerate(lines, 1):
+                    stripped = line.lstrip()
+                    if stripped.startswith('#version') or stripped.startswith('#include'):
+                        if line != stripped:  # has leading whitespace
+                            offending.append((rel_lineno, line))
+
+                findings.append({
+                    'file':        str(path),
+                    'source_line': start_line,
+                    'string_num':  string_num,
+                    'min_indent':  min_indent,
+                    'total_lines': len(lines),
+                    'offending':   offending,
+                    'preview':     next((l.strip() for l in lines if l.strip()), ''),
+                })
+                files_with_issues.add(str(path))
+
+        # ── Report ──────────────────────────────────────────────────────────────────
+
+        print("=" * 70)
+        print("GLSL RAW STRING INDENTATION SCAN RESULTS")
+        print("=" * 70)
+        print(f"Files scanned : {files_scanned}")
+        print(f"Issues found  : {len(findings)}")
+        print(f"Files affected: {len(files_with_issues)}")
+        print()
+
+        if not findings:
+            print("[OK] No indented GLSL raw strings found. Codebase is clean.")
+            sys.exit(0)
+
+        print("[FAIL] The following raw string literals have leading whitespace in")
+        print("       GLSL code. This will cause shader compilation to fail at runtime")
+        print("       because the GLSL compiler requires #version at column 0.\n")
+
+        for i, f in enumerate(findings, 1):
+            print(f"  [{i}] {f['file']}  (raw string #{f['string_num']}, starts at source line {f['source_line']})")
+            print(f"       Minimum indent : {f['min_indent']} spaces")
+            print(f"       First line     : {f['preview']!r}")
+            if f['offending']:
+                print(f"       Offending #directives:")
+                for rel_ln, line in f['offending']:
+                    print(f"         relative line {rel_ln:3d}: {line!r}")
+            print()
+
+        print("-" * 70)
+        print(f"Total: {len(findings)} issue(s) across {len(files_with_issues)} file(s)")
+        print()
+        print("Fix: remove the leading indentation from inside each raw string literal.")
+        print("     The R\"(...)\" delimiters capture whitespace verbatim - the shader")
+        print("     source must start at column 0 regardless of surrounding C++ indent.")
+
+        sys.exit(1)  # fail the job so it shows up as red in the Actions UI
+        PYEOF
