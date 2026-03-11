@@ -182,7 +182,6 @@ jobs:
           shaders/*^
           ACKNOWLEDGMENTS.md^
           CITATION.cff^
-          CODE_OF_CONDUCT.md^
           COMMIT.md^
           CREDITS.md^
           LICENSE.md^
