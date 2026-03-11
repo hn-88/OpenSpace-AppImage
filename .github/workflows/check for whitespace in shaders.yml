@@ -53,6 +53,8 @@ jobs:
 
     - name: Scan for indented GLSL raw string literals
       run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd $openSpaceHome
         python3 - <<'PYEOF'
         # Scans all .cpp and .h files for R"(...)" raw string literals that contain
         # GLSL shader code with leading whitespace on lines like #version or #include.
