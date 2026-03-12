@@ -90,33 +90,11 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
-    - name: fix whitespace issue in helper.cpp
+    - name: test ShadowInfo info fix
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        python3 - <<'PYEOF'
-        import re, sys
-
-        FILEPATH = "src/rendering/helper.cpp"
-
-        with open(FILEPATH) as f:
-            content = f.read()
-
-        problems = []
-        for m in re.finditer(r'R"\((.*?)\)"', content, re.DOTALL):
-            for lineno, line in enumerate(m.group(1).split('\n'), 1):
-                if re.match(r'\s+#version', line):
-                    problems.append(f"  Line {lineno} inside raw string still has leading whitespace before #version: {line!r}")
-
-        if problems:
-            print("VERIFICATION FAILED:")
-            for p in problems:
-                print(p)
-            sys.exit(1)
-
-        print("[OK] Verification passed - no #version lines have leading whitespace.")
-        PYEOF
-
+        cp -vf appdir/src-rendering-framebufferrenderer.cpp "$openSpaceHome/src/rendering/framebufferrenderer.cpp"
+        
   
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -151,7 +129,7 @@ jobs:
         DATE=$(date +%Y%m%dT%H%M%S)
         cpack -G DEB 
         # mv -v openspace*.deb openspace_0.21.2-2~ubuntu24.04.1_amd64_${DATE}.deb 
-        mv -v openspace*.deb openspace_0.21.3+~ubuntu24.04_amd64_helperpatched.deb
+        mv -v openspace*.deb openspace_0.21.3+~ubuntu24.04_amd64_patched.deb
          # Test the rpaths when deb is built with
         # readelf -d deb_extract/usr/share/openspace/bin/OpenSpace | grep RPATH
         # ldd deb_extract/usr/share/openspace/bin/OpenSpace
