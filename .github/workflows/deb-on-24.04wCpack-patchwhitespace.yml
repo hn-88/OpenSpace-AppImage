@@ -90,10 +90,10 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
-    - name: test ShadowInfo info fix
+    - name: test assetmanager.cpp fix
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cp -vf appdir/src-rendering-framebufferrenderer.cpp "$openSpaceHome/src/rendering/framebufferrenderer.cpp"
+        cp -vf appdir/src-scene-assetmanager.cpp "$openSpaceHome/src/scene/assetmanager.cpp"
         
   
     - name: Configure CMake
