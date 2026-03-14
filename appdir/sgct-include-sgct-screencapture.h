@@ -42,6 +42,32 @@ public:
         std::unique_ptr<std::thread> captureThread;
         std::mutex* mutex = nullptr;
         std::atomic_bool isRunning = false; // needed for test if running without join
+
+        ScreenCaptureThreadInfo() = default;
+        ScreenCaptureThreadInfo(const ScreenCaptureThreadInfo&) = delete;
+        ScreenCaptureThreadInfo& operator=(const ScreenCaptureThreadInfo&) = delete;
+
+        ScreenCaptureThreadInfo(ScreenCaptureThreadInfo&& other) noexcept
+            : filename(std::move(other.filename))
+            , frameBufferImage(std::move(other.frameBufferImage))
+            , captureThread(std::move(other.captureThread))
+            , mutex(other.mutex)
+            , isRunning(other.isRunning.load(std::memory_order_relaxed))
+        {}
+
+        ScreenCaptureThreadInfo& operator=(ScreenCaptureThreadInfo&& other) noexcept {
+            if (this != &other) {
+                filename = std::move(other.filename);
+                frameBufferImage = std::move(other.frameBufferImage);
+                captureThread = std::move(other.captureThread);
+                mutex = other.mutex;
+                isRunning.store(
+                    other.isRunning.load(std::memory_order_relaxed),
+                    std::memory_order_relaxed
+                );
+            }
+            return *this;
+        }
     };
 
     ScreenCapture(const Window& window, ScreenCapture::EyeIndex ei, int bytesPerColor,
