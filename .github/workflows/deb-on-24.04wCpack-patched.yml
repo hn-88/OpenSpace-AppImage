@@ -1,4 +1,4 @@
-name: deb-on-24.04wCpack-patchwhitespace
+name: deb-on-24.04wCpack-patched
 
 on: 
   workflow_dispatch:      # allows manual trigger
@@ -51,12 +51,14 @@ jobs:
         mkdir build
         cd build
 
-    #- name: get updated ghoul
+    - name: get updated sgct to test
       # https://github.com/OpenSpace/OpenSpace/issues/3880
-      #run: |
-        #openSpaceHome="$HOME/source/OpenSpace"
-        #cd "$openSpaceHome/ext/ghoul"
-        #git checkout master --recurse-submodules
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -v appdir/sgct-src-screencapture.cpp "$openSpaceHome/apps/OpenSpace/ext/sgct/src/screencapture.cpp"
+        cp -v appdir/sgct-include-sgct-screencapture.h "$openSpaceHome/apps/OpenSpace/ext/sgct/include/sgct/screencapture.h"
+        cp -v appdir/sgct-src-image.cpp "$openSpaceHome/apps/OpenSpace/ext/sgct/src/image.cpp"
+        # git clone https://github.com/hn-88/sgct.git --recurse-submodules "$openSpaceHome/apps/OpenSpace/ext/sgct"
     
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
