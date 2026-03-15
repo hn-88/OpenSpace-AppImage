@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <chrono>
 #include <csetjmp>
-#include <cstdlib>
 #include <cstdio>
 #include <stdexcept>
 #include <string>
@@ -71,7 +70,6 @@ namespace sgct {
 Image::~Image() {
     if (_data) {
         stbi_image_free(_data);
-        _data = nullptr;
     }
 }
 
@@ -143,7 +141,6 @@ void Image::save(const std::filesystem::path& filename) {
         nullptr
     );
     if (!png) {
-        fclose(fp);
         throw Err(9009, "Failed to create PNG struct");
     }
 
@@ -152,7 +149,7 @@ void Image::save(const std::filesystem::path& filename) {
     //    0 = No compression
     //    1 = Best speed
     //    9 = Best compression
-    png_set_compression_level(png, -1);
+    png_set_compression_level(png, 1);
     png_set_filter(png, 0, PNG_FILTER_NONE);
     png_set_compression_mem_level(png, 8);
     png_set_compression_strategy(png, Z_DEFAULT_STRATEGY);
@@ -162,14 +159,11 @@ void Image::save(const std::filesystem::path& filename) {
 
     png_infop info = png_create_info_struct(png);
     if (!info) {
-        png_destroy_write_struct(&png, nullptr);
-        fclose(fp);
         throw Err(9010, "Failed to create PNG info struct");
     }
 
     if (setjmp(png_jmpbuf(png))) {
         png_destroy_write_struct(&png, &info);
-        fclose(fp);
         throw Err(9011, "One of the called PNG functions failed");
     }
 
@@ -272,16 +266,13 @@ void Image::allocateOrResizeData() {
 
     if (_data && _dataSize != dataSize) {
         // Reallocate if needed
-        stbi_image_free(_data);
+        delete[] _data;
         _data = nullptr;
         _dataSize = 0;
     }
 
     if (!_data) {
-        _data = static_cast<unsigned char*>(std::malloc(dataSize));
-        if (!_data) {
-            throw Err(9013, std::format("Failed to allocate {} bytes", dataSize));
-        }
+        _data = new unsigned char[dataSize];
         _dataSize = dataSize;
 
         Log::Debug(std::format(
