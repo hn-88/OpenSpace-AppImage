@@ -55,8 +55,8 @@ jobs:
       # https://github.com/OpenSpace/OpenSpace/issues/3880
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cp -v appdir/sgct-src-screencapture.cpp "$openSpaceHome/apps/OpenSpace/ext/sgct/src/screencapture.cpp"
-        cp -v appdir/sgct-include-sgct-screencapture.h "$openSpaceHome/apps/OpenSpace/ext/sgct/include/sgct/screencapture.h"
+        # cp -v appdir/sgct-src-screencapture.cpp "$openSpaceHome/apps/OpenSpace/ext/sgct/src/screencapture.cpp"
+        # cp -v appdir/sgct-include-sgct-screencapture.h "$openSpaceHome/apps/OpenSpace/ext/sgct/include/sgct/screencapture.h"
         cp -v appdir/sgct-src-image.cpp "$openSpaceHome/apps/OpenSpace/ext/sgct/src/image.cpp"
         # git clone https://github.com/hn-88/sgct.git --recurse-submodules "$openSpaceHome/apps/OpenSpace/ext/sgct"
     
@@ -92,10 +92,10 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
-    - name: test assetmanager.cpp fix
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cp -vf appdir/src-scene-assetmanager.cpp "$openSpaceHome/src/scene/assetmanager.cpp"
+    #- name: test assetmanager.cpp fix
+      #run: |
+        #openSpaceHome="$HOME/source/OpenSpace"
+        #cp -vf appdir/src-scene-assetmanager.cpp "$openSpaceHome/src/scene/assetmanager.cpp"
         
   
     - name: Configure CMake
