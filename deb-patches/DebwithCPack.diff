@@ -6,7 +6,7 @@ index 0000000000..38d881d3f2
 @@ -0,0 +1,39 @@
 +--- openspace6b0de70.cfg	2025-08-28 14:05:47.513914461 +0530
 ++++ openspace6b0de70-edited.cfg	2025-08-28 14:10:38.924187458 +0530
-+@@ -67,21 +67,21 @@
++@@ -67,22 +67,22 @@
 +   FONTS = "${DATA}/fonts",
 +   TASKS = "${DATA}/tasks",
 +   -- If the the 'OPENSPACE_SYNC' environment variable is defined on the system, use that
@@ -16,6 +16,7 @@ index 0000000000..38d881d3f2
 +   -- that environment variable
 +-  SYNC = os.getenv("OPENSPACE_SYNC") or "${BASE}/sync",
 ++  SYNC = os.getenv("OPENSPACE_SYNC") or "${USER}/sync",
++   SYNC_DYNAMIC = "${SYNC}/dynamically_downloaded",
 +   SCREENSHOTS = "${USER}/screenshots",
 +   WEB = "${DATA}/web",
 +   RECORDINGS = "${USER}/recordings",
@@ -34,7 +35,7 @@ index 0000000000..38d881d3f2
 +   GLOBEBROWSING = os.getenv("OPENSPACE_GLOBEBROWSING") or "${USER}/globebrowsing"
 + }
 + 
-+@@ -89,7 +89,7 @@
++@@ -90,7 +90,7 @@
 +   GlobeBrowsing = {
 +     TileCacheSize = 2048, -- for all globes (CPU and GPU memory)
 +     MRFCacheEnabled = false,
