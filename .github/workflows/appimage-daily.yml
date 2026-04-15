@@ -82,44 +82,7 @@ jobs:
         #cd ghoul
         #git checkout "SamplerInit-simpler-fix"
 
-    - name: Replace MSVC conditional with unified cxx_std_23
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        python3 - <<'EOF'
-        import re
-
-        files = [
-            "./support/coding/codegen/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./support/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./ext/ghoul/support/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./apps/OpenSpace/ext/sgct/support/cmake/common-compile-settings/common-compile-settings.cmake",
-        ]
-
-        old = (
-            "    if (MSVC)\n"
-            "      target_compile_features(compile_settings INTERFACE cxx_std_23)\n"
-            "    else ()\n"
-            "      target_compile_features(compile_settings INTERFACE cxx_std_20)\n"
-            "    endif ()"
-        )
-
-        new = "      target_compile_features(compile_settings INTERFACE cxx_std_23)"
-
-        for path in files:
-            with open(path, "r") as f:
-                content = f.read()
-
-            if old in content:
-                content = content.replace(old, new)
-                with open(path, "w") as f:
-                    f.write(content)
-                print(f"Updated: {path}")
-            else:
-                print(f"WARNING: Pattern not found in {path}")
-
-        EOF
-
+    
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -153,7 +116,7 @@ jobs:
         cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders,/documentation/,openspace.cfg} ./appdir/usr/
 
         # patch file created with diff -u openspace.cfg openspace.edited
-        patch ./appdir/usr/openspace.cfg < ./appdir/openspace6b0de70.cfg.patch
+        patch ./appdir/usr/openspace.cfg < ./appdir/openspacef12f5e2.cfg.patch
 
         # https://stackoverflow.com/questionopenspace.cfgs/43412885/fastest-way-to-delete-files-from-a-directory-tree-whose-names-contain-a-certain
         # delete source files from modules directory
