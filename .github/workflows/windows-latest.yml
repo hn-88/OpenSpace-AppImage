@@ -11,7 +11,7 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: RelWithDebInfo
-  OPENSPACE_VERSION: "0.21.2+"
+  OPENSPACE_VERSION: "0.21.4+"
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
   QT_DIR: C:/Qt/6.2.0/msvc2019_64
   QT6_DIR: C:/Qt/6.2.0/msvc2019_64
