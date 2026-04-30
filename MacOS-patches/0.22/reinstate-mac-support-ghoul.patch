@@ -1,0 +1,693 @@
+diff --git a/ext/ghoul/ext/CMakeLists.txt b/ext/ghoul/ext/CMakeLists.txt
+index 79ead538..ba77ac19 100644
+--- a/ext/ghoul/ext/CMakeLists.txt
++++ b/ext/ghoul/ext/CMakeLists.txt
+@@ -28,17 +28,6 @@ if (WIN32)
+   target_link_libraries(Ghoul PRIVATE "shlwapi" "WbemUuid.lib" "Ws2_32.lib")
+ endif ()
+ 
++if (APPLE)
++  begin_dependency("Core Libraries")
++  find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED)
++  find_library(CARBON_LIBRARY Carbon REQUIRED)
++  find_library(COCOA_LIBRARY Carbon REQUIRED)
++  find_library(APP_SERVICES_LIBRARY ApplicationServices REQUIRED)
++  target_include_directories(Ghoul SYSTEM PRIVATE "/Developer/Headers/FlatCarbon")
++  target_link_libraries(Ghoul PRIVATE ${CARBON_LIBRARY} ${COREFOUNDATION_LIBRARY} ${COCOA_LIBRARY} ${APP_SERVICES_LIBRARY})
++  end_dependency("Core Libraries")
++endif ()
++
+ if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+   begin_dependency("iNotify")
+   find_library(INOTIFY_LIBRARIES inotify PATHS "/usr/local/lib")
+@@ -152,29 +141,27 @@ if (GHOUL_MODULE_ASSIMP)
+ 
+   # We need to include this to be able to find the assimp/config.h file
+   target_include_directories(assimp PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/ext/assimp/include")
++  if (NOT APPLE)
++    target_precompile_headers(assimp PRIVATE
++      "$<$<COMPILE_LANGUAGE:CXX>:functional>"
++      "$<$<COMPILE_LANGUAGE:CXX>:istream>"
++      "$<$<COMPILE_LANGUAGE:CXX>:list>"
++      "$<$<COMPILE_LANGUAGE:CXX>:locale>"
++      "$<$<COMPILE_LANGUAGE:CXX>:map>"
++      "$<$<COMPILE_LANGUAGE:CXX>:ostream>"
++      "$<$<COMPILE_LANGUAGE:CXX>:set>"
++      "$<$<COMPILE_LANGUAGE:CXX>:sstream>"
++      "$<$<COMPILE_LANGUAGE:CXX>:vector>"
++      "$<$<COMPILE_LANGUAGE:CXX>:tuple>"
++      "$<$<COMPILE_LANGUAGE:CXX>:unordered_map>"
++      "$<$<COMPILE_LANGUAGE:CXX>:assimp/DefaultLogger.hpp>"
++      "$<$<COMPILE_LANGUAGE:CXX>:assimp/Exceptional.h>"
++      "$<$<COMPILE_LANGUAGE:CXX>:assimp/mesh.h>"
++      "$<$<COMPILE_LANGUAGE:CXX>:assimp/scene.h>"
++      "$<$<COMPILE_LANGUAGE:CXX>:assimp/StringUtils.h>"
++      "$<$<COMPILE_LANGUAGE:CXX>:assimp/types.h>"
++      "$<$<COMPILE_LANGUAGE:CXX>:assimp/XmlParser.h>"
++      <string.h>
++    )
++  endif ()
+-  target_precompile_headers(assimp PRIVATE
+-    "$<$<COMPILE_LANGUAGE:CXX>:functional>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:istream>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:list>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:locale>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:map>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:ostream>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:set>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:sstream>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:vector>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:tuple>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:unordered_map>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:assimp/DefaultLogger.hpp>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:assimp/Exceptional.h>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:assimp/mesh.h>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:assimp/scene.h>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:assimp/StringUtils.h>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:assimp/types.h>"
+-    "$<$<COMPILE_LANGUAGE:CXX>:assimp/XmlParser.h>"
+-    <string.h>
+-  )
+ 
+   if (MSVC)
+     target_compile_options(assimp PRIVATE "/W0")
+diff --git a/ext/ghoul/include/ghoul/filesystem/filesystem.h b/ext/ghoul/include/ghoul/filesystem/filesystem.h
+index b5b0940d..0833ef80 100644
+--- a/ext/ghoul/include/ghoul/filesystem/filesystem.h
++++ b/ext/ghoul/include/ghoul/filesystem/filesystem.h
+@@ -35,9 +35,9 @@
+ #include <string>
+ #include <vector>
+ 
++#if !defined(WIN32) && !defined(__APPLE__)
+-#ifndef WIN32
+ #include <thread>
++#endif
+-#endif // WIN32
+ 
+ namespace ghoul::filesystem {
+ 
+@@ -45,9 +45,6 @@ namespace ghoul::filesystem {
+ struct DirectoryHandle;
+ void readStarter(DirectoryHandle* directoryHandle);
+ void callbackHandler(DirectoryHandle* directoryHandle, const std::string& filePath);
++#elif defined(__APPLE__)
++struct DirectoryHandle;
++void callbackHandler(const std::string& path);
+ #endif // WIN32
+ 
+ class CacheManager;
+@@ -244,29 +241,7 @@ class FileSystem {
+     /// The list of tracked directories
+     std::map<std::filesystem::path, DirectoryHandle*> _directories;
+ 
++#elif defined(__APPLE__)
++    /// OS X specific deinitialize function
++    void deinitializeInternalApple();
++
++    /// OS X callback handler
++    static void callbackHandler(const std::string& path);
++
++    /// Friend callback handler calling the static callback handler
++    friend void callbackHandler(const std::string& path);
++
++    struct FileChangeInfo {
++        static int NextIdentifier;
++        int identifier;
++        std::filesystem::path path;
++        File::FileChangedCallback callback;
++    };
++    /// The list of all tracked files
++    std::vector<FileChangeInfo> _trackedFiles;
++
++    /// The list of tracked directories
++    std::map<std::string, DirectoryHandle*> _directories;
++
++#else // Linux
+-#else // ^^^^ WIN32 // !WIN32 vvvv
+     /// Linux specific initialize function
+     void initializeInternalLinux();
+ 
+@@ -289,7 +264,7 @@ class FileSystem {
+     };
+     /// The list of all tracked files
+     std::vector<FileChangeInfo> _trackedFiles;
++#endif
+-#endif // WIN32
+ 
+     static FileSystem* _instance;
+ };
+diff --git a/ext/ghoul/include/ghoul/glm.h b/ext/ghoul/include/ghoul/glm.h
+index b1571885..cfe4f575 100644
+--- a/ext/ghoul/include/ghoul/glm.h
++++ b/ext/ghoul/include/ghoul/glm.h
+@@ -29,13 +29,6 @@
+ #include <ghoul/format.h>
+ #include <ghoul/misc/stringconversion.h>
+ 
++#ifdef __APPLE__
++// The GLM header throw 'anonymous struct' warnings that we do not want. By marking the
++// following files as system headers, all warnings are ignored
++#pragma clang diagnostic push
++#pragma clang system_header
++#endif // __APPLE__
++
+ #ifdef __unix__
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic"
+@@ -50,11 +43,9 @@
+ #define GLM_ENABLE_EXPERIMENTAL
+ #endif // GLM_ENABLE_EXPERIMENTAL
+ 
++#ifndef __APPLE__
+ #ifndef GLM_FORCE_CTOR_INIT
+ #define GLM_FORCE_CTOR_INIT
+ #endif // GLM_FORCE_CTOR_INIT
++#endif
+ 
+ // Enabling swizzling breaks binary compatibility between glm::vecX and float* ?
+ // #ifndef GLM_SWIZZLE
+@@ -1071,10 +1062,6 @@ struct std::not_equal_to<glm::dvec4> {
+     }
+ };
+ 
++#ifdef __APPLE__
++#pragma clang diagnostic pop
++#endif
++
+ #ifdef __unix__
+ #pragma GCC diagnostic pop
+ #endif // __unix__
+diff --git a/ext/ghoul/include/ghoul/misc/memorypool.h b/ext/ghoul/include/ghoul/misc/memorypool.h
+index 001e90d5..f1f80a6d 100644
+--- a/ext/ghoul/include/ghoul/misc/memorypool.h
++++ b/ext/ghoul/include/ghoul/misc/memorypool.h
+@@ -30,13 +30,13 @@
+ #include <cstddef>
+ #include <memory>
+ 
++#if defined(__APPLE__) || (defined(__linux__) && defined(__clang__))
+-#if (defined(__linux__) && defined(__clang__))
+ #include <experimental/memory_resource>
+ namespace pmr = std::experimental::pmr;
++#else
+-#else // ^^^^ __linux__ && __clang__ // !(__linux__ && __clang__) vvvv
+ #include <memory_resource>
+ namespace pmr = std::pmr;
++#endif
+-#endif // __linux__ && __clang__
+ 
+ #include <vector>
+ 
+diff --git a/ext/ghoul/include/ghoul/opengl/ghoul_gl.h b/ext/ghoul/include/ghoul/opengl/ghoul_gl.h
+index 97b3a7a4..10e0c5c8 100644
+--- a/ext/ghoul/include/ghoul/opengl/ghoul_gl.h
++++ b/ext/ghoul/include/ghoul/opengl/ghoul_gl.h
+@@ -26,17 +26,9 @@
+ #ifndef __GHOUL___GHOUL_GL___H__
+ #define __GHOUL___GHOUL_GL___H__
+ 
++#ifdef __APPLE__
++#define GL_DO_NOT_WARN_IF_MULTI_GL_VERSION_HEADERS_INCLUDED
++#undef __gl_h_
++#endif
++
+ #ifdef __clang__
+ #pragma clang diagnostic push
++#ifndef __APPLE__
++// The Apple Clang compiler doesn't understand this warning yet
+ #pragma clang diagnostic ignored "-Wdeprecated-copy"
++#endif // __APPLE__
+ #elif defined(__GNUC__)
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wdeprecated-copy"
+diff --git a/ext/ghoul/src/CMakeLists.txt b/ext/ghoul/src/CMakeLists.txt
+index c24f1706..3658e507 100755
+--- a/ext/ghoul/src/CMakeLists.txt
++++ b/ext/ghoul/src/CMakeLists.txt
+@@ -112,7 +112,6 @@ target_sources(
+     filesystem/file.cpp
+     filesystem/filesystem.cpp
+     filesystem/filesystem.linux.cpp
++    filesystem/filesystem.osx.cpp
+     filesystem/filesystem.windows.cpp
+     io/model/modelanimation.cpp
+     io/model/modelgeometry.cpp
+diff --git a/ext/ghoul/src/filesystem/filesystem.cpp b/ext/ghoul/src/filesystem/filesystem.cpp
+index 3324a66d..6e5a3ac6 100644
+--- a/ext/ghoul/src/filesystem/filesystem.cpp
++++ b/ext/ghoul/src/filesystem/filesystem.cpp
+@@ -45,16 +45,13 @@
+ #include <cstring>
+ #include <dirent.h>
+ #include <pwd.h>
+-#include <sys/inotify.h>
+ #include <sys/param.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
+ #include <unistd.h>
+ #endif // WIN32
+ 
++#if !defined(WIN32) && !defined(__APPLE__)
++#include <sys/inotify.h>
++#endif // !defined(WIN32) && !defined(__APPLE__)
++
+ namespace {
+     constexpr std::string_view _loggerCat = "FileSystem";
+ } // namespace
+@@ -83,24 +80,22 @@ FileSystem::FileSystem() {
+     LINFO(std::format("Set temporary path ${{TEMPORARY}} to '{}'", temporaryPath));
+     registerPathToken("${TEMPORARY}", temporaryPath);
+ 
++#if !defined(WIN32) && !defined(__APPLE__)
+-#ifndef WIN32
+     // This code can't be moved to the initializer list as the inotifyWatcher function
+     // passed into the thread will be called immediately. This will try to access the
+     // FileSys global and lead to an assertion as the global object has not yet finished
+     _inotifyHandle = inotify_init();
+     _keepGoing = true;
+     _t = std::thread(inotifyWatcher);
++#endif
+-#endif // WIN32
+ }
+ 
+ FileSystem::~FileSystem() {
++#if defined WIN32
+-#ifdef WIN32
+     deinitializeInternalWindows();
++#elif defined __APPLE__
++    deinitializeInternalApple();
++#else
+-#else // ^^^^ WIN32 // !WIN32 vvvv
+     deinitializeInternalLinux();
++#endif
+-#endif // WIN32
+ }
+ 
+ void FileSystem::initialize() {
+diff --git a/ext/ghoul/src/filesystem/filesystem.linux.cpp b/ext/ghoul/src/filesystem/filesystem.linux.cpp
+index dd769230..1825535c 100644
+--- a/ext/ghoul/src/filesystem/filesystem.linux.cpp
++++ b/ext/ghoul/src/filesystem/filesystem.linux.cpp
+@@ -23,7 +23,7 @@
+  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
+  ****************************************************************************************/
+ 
++#if !defined(WIN32) && !defined(__APPLE__)
+-#ifndef WIN32
+ 
+ #include <ghoul/filesystem/filesystem.h>
+ 
+@@ -166,4 +166,4 @@ void FileSystem::inotifyWatcher() {
+ 
+ } // namespace ghoul::filesystem
+ 
++#endif // !defined(WIN32) && !defined(__APPLE__)
+-#endif // WIN32
+diff --git a/ext/ghoul/src/logging/consolelog.cpp b/ext/ghoul/src/logging/consolelog.cpp
+index 8f38a697..21d22c37 100755
+--- a/ext/ghoul/src/logging/consolelog.cpp
++++ b/ext/ghoul/src/logging/consolelog.cpp
+@@ -36,41 +36,6 @@
+ #include <Windows.h>
+ #endif // WIN32
+ 
++#ifdef __APPLE__
++#include <assert.h>
++#include <unistd.h>
++#include <sys/sysctl.h>
++
++// Function is taken from https://developer.apple.com/library/mac/qa/qa1361/_index.html
++// Returns true if the current process is being debugged (either running under the
++// debugger or has a debugger attached post facto).
++static bool runningInDebugger() {
++    int junk;
++    int mib[4];
++    struct kinfo_proc info;
++    size_t size;
++
++    // Initialize the flags so that, if sysctl fails for some bizarre
++    // reason, we get a predictable result.
++    info.kp_proc.p_flag = 0;
++
++    // Initialize mib, which tells sysctl the info we want, in this case
++    // we're looking for information about a specific process ID.
++    mib[0] = CTL_KERN;
++    mib[1] = KERN_PROC;
++    mib[2] = KERN_PROC_PID;
++    mib[3] = getpid();
++
++    // Call sysctl.
++    size = sizeof(info);
++    junk = sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, nullptr, 0);
++    ghoul_assert(junk == 0, "sysctl call failed");
++
++    // We're being debugged if the P_TRACED flag is set.
++    return ((info.kp_proc.p_flag & P_TRACED) != 0);
++}
++#endif // __APPLE__
++
+ namespace ghoul::logging {
+ 
+ ConsoleLog::ConsoleLog(ColorOutput colorOutput, LogLevel minimumLogLevel)
+@@ -196,7 +161,7 @@ void ConsoleLog::setColorForLevel(LogLevel level) {
+     const WORD Background = BACKGROUND_BLUE | BACKGROUND_GREEN |
+                             BACKGROUND_RED | BACKGROUND_INTENSITY;
+     SetConsoleTextAttribute(hConsole, colorIndex | (csbiInfo.wAttributes & Background));
++#elif defined __unix__
+-#elif // ^^^^ WIN32 // !WIN32 vvvv
+     switch (level) {
+         case LogLevel::Trace:
+             std::cout << "\033[0;37m";    // grey
+@@ -222,40 +187,7 @@ void ConsoleLog::setColorForLevel(LogLevel level) {
+         case LogLevel::AllLogging:
+             break;
+     }
++#elif __APPLE__
++    // The Xcode debugger is a bit strange with those control commands, so we have to
++    // disable them if where are being debugged
++    bool inDebugger = runningInDebugger();
++    if (inDebugger) {
++        return;
++    }
++
++    switch (level) {
++        case LogLevel::Trace:
++            std::cout << "\033[0;37m";    // grey
++            break;
++        case LogLevel::Debug:
++            std::cout << "\033[22;32m";   // green
++            break;
++        case LogLevel::Info:
++            std::cout << "\033[0m";       // white
++            break;
++        case LogLevel::Warning:
++            std::cout << "\033[01;40;33m";// yellow on black
++            break;
++        case LogLevel::Error:
++            std::cout << "\033[22;31m";   // red
++            break;
++        case LogLevel::Fatal:
++            std::cout << "\033[22;35m";   // blue
++            break;
++        case LogLevel::NoLogging:
++            std::cout << "\033[0m";       // white
++            break;
++        case LogLevel::AllLogging:
++            break;
++    }
++#endif
+-#endif // WIN32
+ }
+ 
+ void ConsoleLog::resetColor() {
+diff --git a/ext/ghoul/src/misc/clipboard.cpp b/ext/ghoul/src/misc/clipboard.cpp
+index 8c5fb1b6..165a62ba 100644
+--- a/ext/ghoul/src/misc/clipboard.cpp
++++ b/ext/ghoul/src/misc/clipboard.cpp
+@@ -89,13 +89,7 @@ std::string clipboardText([[maybe_unused]] SelectionArea selectionArea) {
+ 
+     text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
+     return text;
++#elif defined(__APPLE__)
++    std::string text;
++    if (exec("pbpaste", text)) {
++        return text.substr(0, text.length()); // remove a line ending
++    }
++    return "";
++#else
+-#else // ^^^^ WIN32 // !WIN32 vvvv
+     std::string_view s = [](SelectionArea selection) {
+         switch (selection) {
+             case SelectionArea::Clipboard: return "clipboard";
+@@ -135,7 +129,7 @@ std::string clipboardText([[maybe_unused]] SelectionArea selectionArea) {
+ 
+     // If all else fails
+     return "";
++#endif
+-#endif // WIN32
+ }
+ 
+ void setClipboardText(std::string_view text, [[maybe_unused]] SelectionArea selectionArea)
+@@ -166,13 +160,7 @@ void setClipboardText(std::string_view text, [[maybe_unused]] SelectionArea sele
+ 
+     SetClipboardData(CF_TEXT, hData);
+     CloseClipboard();
++#elif defined(__APPLE__)
++    std::string buf;
++    bool success = exec(std::format("echo \"{}\" | pbcopy", text), buf);
++    if (!success) {
++        throw RuntimeError("Error setting text to clipboard", "Clipboard");
++    }
++#else
+-#else // ^^^^ WIN32 // !WIN32 vvvv
+     std::string_view s = [](SelectionArea selection) {
+         switch (selection) {
+             case SelectionArea::Clipboard: return "clipboard";
+@@ -188,7 +176,7 @@ void setClipboardText(std::string_view text, [[maybe_unused]] SelectionArea sele
+     if (!success) {
+         throw RuntimeError("Error setting text to clipboard", "Clipboard");
+     }
++#endif
+-#endif // WIN32
+ }
+ 
+ } // namespace ghoul
+diff --git a/ext/ghoul/src/misc/stacktrace.cpp b/ext/ghoul/src/misc/stacktrace.cpp
+index d0260065..0e4e3314 100644
+--- a/ext/ghoul/src/misc/stacktrace.cpp
++++ b/ext/ghoul/src/misc/stacktrace.cpp
+@@ -28,12 +28,12 @@
+ 
+ #include <ghoul/misc/stacktrace.h>
+ 
++#if defined __unix__ || defined __APPLE__
+-#ifdef __unix__
+ #include <cstdio>
+ #include <cstdlib>
+ #include <cxxabi.h>
+ #include <execinfo.h>
++#endif
+-#endif // __unix__
+ 
+ namespace ghoul {
+ 
+@@ -44,7 +44,7 @@ std::vector<std::string> stackTrace() {
+ #endif // WIN32
+     std::vector<std::string> stackFrames;
+ 
++#if defined __unix__ || defined __APPLE__
+-#ifdef __unix__
+     const int MaxCallStackDepth = 128;
+ 
+     int callstack[MaxCallStackDepth] = {};
+@@ -121,7 +121,7 @@ std::vector<std::string> stackTrace() {
+         stackFrames.emplace_back(stackFrame.data());
+     }
+     free(strs);
++#elif WIN32
+-#elif WIN32  // ^^^^ __unix__ // !__unix__ vvvv
+     // Note that in order for the stackframes to work correctly on client machines,
+     // `_NT_SYMBOL_PATH` has to be defined as an environment variable
+ 
+@@ -129,7 +129,7 @@ std::vector<std::string> stackTrace() {
+     for (const std::stacktrace_entry& e : trace) {
+         stackFrames.push_back(std::to_string(e));
+     }
++#endif
+-#endif // __unix__
+ 
+     return stackFrames;
+ }
+diff --git a/ext/ghoul/src/misc/thread.cpp b/ext/ghoul/src/misc/thread.cpp
+index 6eb11676..dd9ab2df 100644
+--- a/ext/ghoul/src/misc/thread.cpp
++++ b/ext/ghoul/src/misc/thread.cpp
+@@ -78,7 +78,7 @@ int convertThreadPriorityLevel([[maybe_unused]] ThreadPriorityClass c,
+         case ThreadPriorityClass::High:   return HIGH_PRIORITY_CLASS;
+         default:                          throw MissingCaseException();
+     }
++#elif defined __APPLE__ || defined __FreeBSD__
+-#elif defined __FreeBSD__
+     switch (c) {
+         case ThreadPriorityClass::Idle:   return SCHED_OTHER;
+         case ThreadPriorityClass::Normal: return SCHED_OTHER;
+diff --git a/ext/ghoul/src/opengl/shaderpreprocessor.cpp b/ext/ghoul/src/opengl/shaderpreprocessor.cpp
+index 02db30d9..63552d01 100644
+--- a/ext/ghoul/src/opengl/shaderpreprocessor.cpp
++++ b/ext/ghoul/src/opengl/shaderpreprocessor.cpp
+@@ -526,13 +526,9 @@ namespace {
+ 
+ #ifdef WIN32
+         constexpr std::string_view os = "WIN32";
++#endif // WIN32
++#ifdef __APPLE__
++        constexpr std::string_view os = "APPLE";
++#endif // __APPLE__
++#ifdef __linux__
+-#else  // ^^^^ WIN32 // !WIN32 vvvv
+         constexpr std::string_view os = "linux";
++#endif // __linux__
+-#endif // WIN32
+         _output << std::format(
+             "#ifndef __OS__\n"
+             "#define __OS__ {0}\n"
+@@ -636,13 +632,12 @@ namespace {
+         ghoul_assert(it != _includedFiles.end(), "File not in included files");
+ 
+         std::string_view includeSep;
++    #ifndef __APPLE__
+-
+         // Sofar, only Nvidia on Windows supports empty statements in the shader
+         using Vendor = ghoul::systemcapabilities::OpenGLCapabilitiesComponent::Vendor;
+         if (OpenGLCap.gpuVendor() == Vendor::Nvidia) {
+             includeSep = "; // preprocessor add semicolon to isolate error messages";
+         }
++    #endif // __APPLE__
+ 
+         ptrdiff_t number = std::distance(_includedFiles.begin(), it);
+         _output << std::format(
+diff --git a/ext/ghoul/src/systemcapabilities/generalcapabilitiescomponent.cpp b/ext/ghoul/src/systemcapabilities/generalcapabilitiescomponent.cpp
+index 3e29312c..9b6cad74 100644
+--- a/ext/ghoul/src/systemcapabilities/generalcapabilitiescomponent.cpp
++++ b/ext/ghoul/src/systemcapabilities/generalcapabilitiescomponent.cpp
+@@ -42,14 +42,10 @@
+ typedef void (WINAPI* PGNSI)(LPSYSTEM_INFO);
+ typedef BOOL (WINAPI *PGPI)(DWORD, DWORD, DWORD, DWORD, DWORD);
+ #else // ^^^^ WIN32 // !WIN32 vvvv
++#ifdef __APPLE__
++#include <sys/sysctl.h>
++#else // ^^^^ __APPLE__ // !__APPLE__vvvv
+ #include <sys/types.h>
+ #include <sys/sysinfo.h>
++#include <cstring>
++#endif // __APPLE__
+ #include <sys/utsname.h>
+-#include <cstring>
+ #endif // WIN32
+ 
+ namespace ghoul {
+@@ -357,21 +353,11 @@ void GeneralCapabilitiesComponent::detectMemory() {
+     catch (const std::runtime_error& e) {
+         LWARNINGC("GeneralCapabilitiesComponent", e.what());
+     }
++#elif defined(__APPLE__)
++    int mib[2] = { CTL_HW, HW_MEMSIZE };
++    size_t len;
++    sysctl(mib, 2, nullptr, &len, nullptr, 0);
++    std::vector<char> p(len);
++    sysctl(mib, 2, p.data(), &len, nullptr, 0);
++
++    int64_t value;
++    std::memcpy(&value, p.data(), sizeof(int64_t));
++    _installedMainMemory = static_cast<unsigned int>((value / 1024) / 1024);
++#else
+-#else // ^^^^ WIN32 // !WIN32 vvvv
+     struct sysinfo memInfo;
+     sysinfo(&memInfo);
+     _installedMainMemory = static_cast<unsigned int>((memInfo.totalram / 1024) / 1024);
++#endif
+-#endif // WIN32
+ }
+ 
+ void GeneralCapabilitiesComponent::detectCPU() {
+@@ -483,86 +469,7 @@ void GeneralCapabilitiesComponent::detectCPU() {
+     GetNativeSystemInfo(&systemInfo);
+     _cores = systemInfo.dwNumberOfProcessors;
+ #endif // _M_ARM64
++#elif defined(__APPLE__)
++    int mib[2];
++    size_t len = 512;
++    int intValue;
++
++//    mib[0] = CTL_HW;
++//    mib[1] = USER_CS_PATH;
++//    mib[1] = HW_MODEL;
++//    mib[1] = HW_MACHINE_ARCH;
++
++//    sysctl(mib, 2, NULL, &len, NULL, 0);
++    char p[512];
++//    p = new char[len];
++//    sysctl(mib, 2, p, &len, NULL, 0);
++//    _cpu = p;
++//    delete[] p;
++
++    // CPU name
++//    sysctlbyname("machdep.cpu.brand_string", NULL, &len, NULL, 0);
++//    p = new char[len];
++    std::memset(p, 0, 512);
++    sysctlbyname("machdep.cpu.brand_string", p, &len, nullptr, 0);
++    _cpu = p;
++//    delete[] p;
++
++    // CPU features/extensions
++//    sysctlbyname("machdep.cpu.features", NULL, &len, NULL, 0);
++//    p = new char[len];
++    std::memset(p, 0, 512);
++    sysctlbyname("machdep.cpu.features", p, &len, nullptr, 0);
++    _extensions = p;
++//    delete[] p;
++
++    // It works using reinterpret_cast<char*>(&intValue) directly
++    // since the expected size is an integer. But to avoid risks
++    // of memory corruption I have chosen the C-style detection
++    // and conversion.
++
++    // Number of cores
++    mib[0] = CTL_HW;
++    mib[1] = HW_AVAILCPU;
++//    sysctl(mib, 2, NULL, &len, NULL, 0);
++//    p = new char[len];
++    std::memset(p, 0, 512);
++    sysctl(mib, 2, p, &len, nullptr, 0);
++    std::memcpy(&intValue, p, sizeof(int));
++    _cores = static_cast<unsigned int>(intValue);
++//    delete[] p;
++
++    // Cacheline size
++    mib[0] = CTL_HW;
++    mib[1] = HW_CACHELINE;
++//    sysctl(mib, 2, NULL, &len, NULL, 0);
++//    p = new char[len];
++    std::memset(p, 0, 512);
++    sysctl(mib, 2, p, &len, nullptr, 0);
++    std::memcpy(&intValue, p, sizeof(int));
++    _cacheLineSize = static_cast<unsigned int>(intValue);
++//    delete[] p;
++
++    // Cache size
++    mib[0] = CTL_HW;
++    mib[1] = HW_L2CACHESIZE;
++//    sysctl(mib, 2, NULL, &len, NULL, 0);
++//    p = new char[len];
++    std::memset(p, 0, 512);
++    sysctl(mib, 2, p, &len, nullptr, 0);
++    std::memcpy(&intValue, p, sizeof(int));
++    _cacheSize = static_cast<unsigned int>(intValue);
++//    delete[] p;
++
++    // L2 associativity
++//    sysctlbyname("machdep.cpu.cache.L2_associativity", NULL, &len, NULL, 0);
++//    p = new char[len];
++    std::memset(p, 0, 512);
++    sysctlbyname("machdep.cpu.cache.L2_associativity", p, &len, nullptr, 0);
++    std::memcpy(&intValue, p, sizeof(int));
++    _L2Associativity = static_cast<unsigned int>(intValue);
++//    delete[] p;
++#else
+-#else // ^^^^ WIN32 // !WIN32 vvvv
+     FILE* file = nullptr;
+     const unsigned int maxSize = 2048;
+     char line[maxSize];
+diff --git a/ext/ghoul/tests/CMakeLists.txt b/ext/ghoul/tests/CMakeLists.txt
+index 6f280178..85d7ffaa 100644
+--- a/ext/ghoul/tests/CMakeLists.txt
++++ b/ext/ghoul/tests/CMakeLists.txt
+@@ -62,7 +62,3 @@ target_link_libraries(GhoulTest PRIVATE Catch2 Ghoul)
+ target_precompile_headers(GhoulTest PRIVATE
+   <catch2/catch_test_macros.hpp>
+ )
++
++if (APPLE)
++  target_link_libraries(GhoulTest PRIVATE ${CARBON_LIBRARY} ${COREFOUNDATION_LIBRARY} ${COCOA_LIBRARY} ${APP_SERVICES_LIBRARY})
++endif ()
