@@ -74,17 +74,14 @@ jobs:
 
     - name: Install CMake 4
       run: |
-        # Install Kitware's signing key and repo
-        wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc \
-          | sudo gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg
-        echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] \
-          https://apt.kitware.com/ubuntu/ jammy main" \
-          | sudo tee /etc/apt/sources.list.d/kitware.list
-        sudo apt-get update
-        sudo apt-get install -y cmake
+        sudo apt-get remove cmake
+        # to remove the existing cmake 3.31, may not be necessary
+        CMAKE_VERSION=4.0.2
+        wget -q https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh
+        sudo bash cmake-${CMAKE_VERSION}-linux-x86_64.sh --skip-license --prefix=/usr/local
+        hash -r  # refresh shell's PATH cache
+        cmake --version
     
-    - name: Verify CMake version
-      run: cmake --version
 
     #- name: get patched Ghoul
       #run: |
