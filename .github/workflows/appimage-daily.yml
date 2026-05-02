@@ -26,21 +26,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    #- name: Free Disk Space (Ubuntu)
-    #  uses: jlumbroso/free-disk-space@main
-    #  with:
-    #    # this might remove tools that are actually needed,
-    #    # if set to "true" but frees about 6 GB
-    #    tool-cache: false
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: true
         
         # all of these default to true, but feel free to set to
         # "false" if necessary for your workflow
-    #    android: true
-    #    dotnet: false
-    #    haskell: false
-    #    large-packages: false
-    #    docker-images: false
-    #    swap-storage: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
 
     - name: Remove CMake 3.31
       run: |
@@ -83,11 +83,21 @@ jobs:
         # sudo apt-get update
         # sudo apt-get install -y gcc-13 g++-13 libcc1-0 libstdc++6 libgcc-13-dev libstdc++-13-dev
               
-    - name: Install GCC 13 (via Homebrew)
+    - name: Install GCC 13 (Robust PPA Method)
       run: |
-            # Homebrew is immune to Launchpad PPA timeouts and installs a fully functional,
-            # linking-capable compiler.
-            brew install gcc@13
+        # 1. Fetch the key using IPv4 (-4) to avoid Launchpad IPv6 timeouts
+        curl -4 -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x60C317803A41BA51845E371A1E9377A2BA9EF27F" | sudo gpg --dearmor -o /usr/share/keyrings/ubuntu-toolchain-r.gpg
+        
+        # 2. Add the repo using the modern HTTPS content URL
+        echo "deb [signed-by=/usr/share/keyrings/ubuntu-toolchain-r.gpg] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/toolchain.list
+        
+        # 3. Update with a retry loop and force IPv4 (Bypasses Launchpad connection drops)
+        for i in {1..5}; do
+          sudo apt-get -o Acquire::ForceIPv4=true update && break || sleep 10
+        done
+        
+        # 4. Install the compiler
+        sudo apt-get -o Acquire::ForceIPv4=true install -y gcc-13 g++-13 libcc1-0 libstdc++6 libgcc-13-dev libstdc++-13-dev
 
     
 
