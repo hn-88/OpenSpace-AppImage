@@ -113,7 +113,11 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
-        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/opt/gcc-13.2.0/bin/g++ -DCMAKE_C_COMPILER=/opt/gcc-13.2.0/bin/gcc -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"
+        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/opt/gcc-13.2.0/bin/g++ \
+        -DCMAKE_C_COMPILER=/opt/gcc-13.2.0/bin/gcc -DCMAKE_CXX_STANDARD=23 \
+        -DCMAKE_AR=/usr/bin/ar \
+        -DCMAKE_RANLIB=/usr/bin/ranlib -DASSIMP_BUILD_MINIZIP=1 \
+        -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"
 
     - name: Build
       # Build your program with the given configuration
