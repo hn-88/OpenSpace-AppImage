@@ -38,6 +38,11 @@ jobs:
         git submodule update --init --recursive
         mkdir build
         cd build
+
+    - name: Install CMake 4.0.7
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.0.7'
         
     
     - name: Install dependencies
