@@ -83,16 +83,11 @@ jobs:
         # sudo apt-get update
         # sudo apt-get install -y gcc-13 g++-13 libcc1-0 libstdc++6 libgcc-13-dev libstdc++-13-dev
               
-    - name: Install GCC 13 (Standalone Tarball)
+    - name: Install GCC 13 (via Homebrew)
       run: |
-        # Download portable GCC 13.2.0 from Compiler Explorer's public S3 bucket
-        wget -q https://s3.amazonaws.com/compiler-explorer/opt/gcc-13.2.0.tar.xz
-                
-        # Extract it to /opt
-        sudo tar -xf gcc-13.2.0.tar.xz -C /opt
-              
-        # Add it to the GitHub Actions PATH
-        echo "/opt/gcc-13.2.0/bin" >> $GITHUB_PATH
+            # Homebrew is immune to Launchpad PPA timeouts and installs a fully functional,
+            # linking-capable compiler.
+            brew install gcc@13
 
     
 
@@ -112,13 +107,17 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
-        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/opt/gcc-13.2.0/bin/g++ \
-        -DCMAKE_C_COMPILER=/opt/gcc-13.2.0/bin/gcc -DCMAKE_CXX_STANDARD=23 \
-        -DCMAKE_AR=/usr/bin/ar \
-        -DCMAKE_RANLIB=/usr/bin/ranlib -DASSIMP_BUILD_MINIZIP=1 \
-        -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++" \
-        -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
-        -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"
+        cmake "$openSpaceHome" \
+          -DCMAKE_BUILD_TYPE="Release" \
+          -DCMAKE_CXX_COMPILER="/home/linuxbrew/.linuxbrew/bin/g++-13" \
+          -DCMAKE_C_COMPILER="/home/linuxbrew/.linuxbrew/bin/gcc-13" \
+          -DCMAKE_CXX_STANDARD=23 \
+          -DASSIMP_BUILD_MINIZIP=1 \
+          -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++" \
+          -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
+          -DBUILD_TESTS=OFF \
+          -DOPENSPACE_HAVE_TESTS=OFF \
+          -DSGCT_BUILD_TESTS=OFF
 
     - name: Build
       # Build your program with the given configuration
