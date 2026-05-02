@@ -74,7 +74,7 @@ jobs:
 
     - name: Install CMake 4
       run: |
-        sudo apt-get -y cmake cmake-data
+        sudo apt-get -y remove cmake cmake-data
         # to remove the existing cmake 3.31
         CMAKE_VERSION=4.0.7
         wget -q https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh
