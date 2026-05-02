@@ -41,6 +41,11 @@ jobs:
         large-packages: false
         docker-images: true
         swap-storage: false
+
+    - name: Install CMake 4.0.7
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.0.7'
     
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
