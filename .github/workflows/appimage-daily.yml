@@ -71,44 +71,14 @@ jobs:
         sudo apt-get install -y software-properties-common
         sudo apt-get install -y libasound2 libasound2-data libasound2-plugins
 
-    # - name: Add ubuntu-toolchain-r PPA manually
-      # run: |
-        # curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x60C317803A41BA51845E371A1E9377A2BA9EF27F" \
-        #  | sudo gpg --dearmor -o /usr/share/keyrings/ubuntu-toolchain-r.gpg
-        # echo "deb [signed-by=/usr/share/keyrings/ubuntu-toolchain-r.gpg] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu jammy main" \
-        #  | sudo tee /etc/apt/sources.list.d/toolchain.list
-        # sudo apt-get update
-        # flaky - 
-        # sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-        # sudo apt-get update
-        # sudo apt-get install -y gcc-13 g++-13 libcc1-0 libstdc++6 libgcc-13-dev libstdc++-13-dev
-              
-    - name: Install GCC 13 (Robust PPA Method)
-      run: |
-        # 1. Fetch the key using IPv4 (-4) to avoid Launchpad IPv6 timeouts
-        curl -4 -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x60C317803A41BA51845E371A1E9377A2BA9EF27F" | sudo gpg --dearmor -o /usr/share/keyrings/ubuntu-toolchain-r.gpg
-        
-        # 2. Add the repo using the modern HTTPS content URL
-        echo "deb [signed-by=/usr/share/keyrings/ubuntu-toolchain-r.gpg] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/toolchain.list
-        
-        # 3. Update with a retry loop and force IPv4 (Bypasses Launchpad connection drops)
-        for i in {1..5}; do
-          sudo apt-get -o Acquire::ForceIPv4=true update && break || sleep 10
-        done
-        
-        # 4. Install the compiler
-        sudo apt-get -o Acquire::ForceIPv4=true install -y gcc-13 g++-13 libcc1-0 libstdc++6 libgcc-13-dev libstdc++-13-dev
-
     
+    - name: Set up Homebrew
+      uses: Homebrew/actions/setup-homebrew@master
 
-    #- name: get patched Ghoul
-      #run: |
-        #openSpaceHome="$HOME/source/OpenSpace"
-        #cd "$openSpaceHome/ext"
-        #rm -Rf ghoul
-        #git clone --recursive https://github.com/hn-88/Ghoul ghoul
-        #cd ghoul
-        #git checkout "SamplerInit-simpler-fix"
+    - name: Install GCC 13 (via Homebrew)
+      run: |
+        # Bypasses Launchpad entirely by downloading from GitHub's own registry
+        brew install gcc@13
 
     
     - name: Configure CMake
@@ -119,8 +89,8 @@ jobs:
         cd "$openSpaceHome/build"
         cmake "$openSpaceHome" \
           -DCMAKE_BUILD_TYPE="Release" \
-          -DCMAKE_CXX_COMPILER="/usr/bin/g++-13" \
-          -DCMAKE_C_COMPILER="/usr/bin/gcc-13" \
+          -DCMAKE_CXX_COMPILER="/home/linuxbrew/.linuxbrew/bin/g++-13" \
+          -DCMAKE_C_COMPILER="/home/linuxbrew/.linuxbrew/bin/gcc-13" \
           -DCMAKE_CXX_STANDARD=23 \
           -DASSIMP_BUILD_MINIZIP=1 \
           -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++" \
