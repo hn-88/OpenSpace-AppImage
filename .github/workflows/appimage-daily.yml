@@ -14,8 +14,7 @@ env:
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "e8fa72544c445b556018841eafb48116372c288d"
   COMMIT_HASH: "master"
-  LDFLAGS: "-static-libgcc -static-libstdc++"
-  CXXFLAGS: "-static-libgcc -static-libstdc++"
+
   
 jobs:
   build:
@@ -117,6 +116,8 @@ jobs:
         -DCMAKE_C_COMPILER=/opt/gcc-13.2.0/bin/gcc -DCMAKE_CXX_STANDARD=23 \
         -DCMAKE_AR=/usr/bin/ar \
         -DCMAKE_RANLIB=/usr/bin/ranlib -DASSIMP_BUILD_MINIZIP=1 \
+        -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++" \
+        -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
         -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"
 
     - name: Build
