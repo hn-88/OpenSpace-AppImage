@@ -14,6 +14,8 @@ env:
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "e8fa72544c445b556018841eafb48116372c288d"
   COMMIT_HASH: "master"
+  LDFLAGS: "-static-libgcc -static-libstdc++"
+  CXXFLAGS: "-static-libgcc -static-libstdc++"
   
 jobs:
   build:
@@ -68,20 +70,30 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev
         sudo apt-get install -y software-properties-common
+        sudo apt-get install -y libasound2 libasound2-data libasound2-plugins
 
-    - name: Add ubuntu-toolchain-r PPA manually
-      run: |
+    # - name: Add ubuntu-toolchain-r PPA manually
+      # run: |
         # curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x60C317803A41BA51845E371A1E9377A2BA9EF27F" \
         #  | sudo gpg --dearmor -o /usr/share/keyrings/ubuntu-toolchain-r.gpg
         # echo "deb [signed-by=/usr/share/keyrings/ubuntu-toolchain-r.gpg] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu jammy main" \
         #  | sudo tee /etc/apt/sources.list.d/toolchain.list
         # sudo apt-get update
         # flaky - 
-        sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-        sudo apt-get update
-        sudo apt-get install -y gcc-13 g++-13 libcc1-0 libstdc++6 libgcc-13-dev libstdc++-13-dev
-        sudo apt-get install -y libasound2 libasound2-data libasound2-plugins
-
+        # sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+        # sudo apt-get update
+        # sudo apt-get install -y gcc-13 g++-13 libcc1-0 libstdc++6 libgcc-13-dev libstdc++-13-dev
+              
+    - name: Install GCC 13 (Standalone Tarball)
+      run: |
+        # Download portable GCC 13.2.0 from Compiler Explorer's public S3 bucket
+        wget -q https://s3.amazonaws.com/compiler-explorer/opt/gcc-13.2.0.tar.xz
+                
+        # Extract it to /opt
+        sudo tar -xf gcc-13.2.0.tar.xz -C /opt
+              
+        # Add it to the GitHub Actions PATH
+        echo "/opt/gcc-13.2.0/bin" >> $GITHUB_PATH
 
     
 
@@ -160,8 +172,9 @@ jobs:
         # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
         # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
         # well
-        libstdcxx=/lib/x86_64-linux-gnu/libstdc++.so.6
-        cp ${libstdcxx} ./appdir/${libstdcxx}
+        # Trying static linking instead
+        # libstdcxx=/lib/x86_64-linux-gnu/libstdc++.so.6
+        # cp ${libstdcxx} ./appdir/${libstdcxx}
 
         # turn AppDir into AppImage
         # DATE=$(date +%Y%m%dT%H%M%S)
