@@ -119,8 +119,8 @@ jobs:
         cd "$openSpaceHome/build"
         cmake "$openSpaceHome" \
           -DCMAKE_BUILD_TYPE="Release" \
-          -DCMAKE_CXX_COMPILER="/home/linuxbrew/.linuxbrew/bin/g++-13" \
-          -DCMAKE_C_COMPILER="/home/linuxbrew/.linuxbrew/bin/gcc-13" \
+          -DCMAKE_CXX_COMPILER="/usr/bin/g++-13" \
+          -DCMAKE_C_COMPILER="/usr/bin/gcc-13" \
           -DCMAKE_CXX_STANDARD=23 \
           -DASSIMP_BUILD_MINIZIP=1 \
           -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++" \
