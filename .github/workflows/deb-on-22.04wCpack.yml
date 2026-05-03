@@ -10,7 +10,6 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: Release
-  # As recommended here: https://github.com/marketplace/actions/sccache-action
   OPENSPACE_VERSION: "0.21.4+"
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
@@ -31,7 +30,7 @@ jobs:
       with:
         # this might remove tools that are actually needed,
         # if set to "true" but frees about 6 GB
-        tool-cache: false
+        tool-cache: true
         
         # all of these default to true, but feel free to set to
         # "false" if necessary for your workflow
@@ -41,6 +40,26 @@ jobs:
         large-packages: false
         docker-images: true
         swap-storage: false
+
+    - name: Remove CMake 3.31
+      run: |
+        sudo apt-get -y remove cmake cmake-data
+        
+
+    - name: Install CMake 4.0.7
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.0.7'
+
+    - name: Set up Homebrew
+      uses: Homebrew/actions/setup-homebrew@master
+
+    - name: Install GCC 13 (via Homebrew)
+      run: |
+        # Bypasses Launchpad entirely by downloading from GitHub's own registry
+        sudo apt-get install -y software-properties-common
+        brew install gcc@13
+    
     
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
@@ -69,8 +88,8 @@ jobs:
         sudo apt-get -y install software-properties-common
         # for 24.04, it is sudo apt-get -y install libasound2t64 
         sudo apt-get -y install libasound2-data libasound2-plugins
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install gcc-13 g++-13
+        # sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        # sudo apt install gcc-13 g++-13
 
     - name: Install clipboard patches
       run: |
@@ -96,43 +115,70 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
   
-    - name: Replace MSVC conditional with unified cxx_std_23
+    - name: Patch CMakeLists.txt files for CMake 4.x LANGUAGES C CXX
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        python3 - <<'EOF'
-        import re
-
-        files = [
-            "./support/coding/codegen/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./support/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./ext/ghoul/support/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./apps/OpenSpace/ext/sgct/support/cmake/common-compile-settings/common-compile-settings.cmake",
-        ]
-
-        old = (
-            "    if (MSVC)\n"
-            "      target_compile_features(compile_settings INTERFACE cxx_std_23)\n"
-            "    else ()\n"
-            "      target_compile_features(compile_settings INTERFACE cxx_std_20)\n"
-            "    endif ()"
+    
+        echo "import re, sys" > /tmp/patch_cmake.py
+        echo "" >> /tmp/patch_cmake.py
+        echo "path = sys.argv[1]" >> /tmp/patch_cmake.py
+        echo "txt = open(path).read()" >> /tmp/patch_cmake.py
+        echo "" >> /tmp/patch_cmake.py
+        echo "def patch_project(m):" >> /tmp/patch_cmake.py
+        echo "    block = m.group(0)" >> /tmp/patch_cmake.py
+        echo "    if 'LANGUAGES' in block:" >> /tmp/patch_cmake.py
+        echo "        if not re.search(r'LANGUAGES\s+.*\bC\b', block, re.DOTALL):" >> /tmp/patch_cmake.py
+        echo "            block = re.sub(r'LANGUAGES\s+', 'LANGUAGES C ', block)" >> /tmp/patch_cmake.py
+        echo "    else:" >> /tmp/patch_cmake.py
+        echo "        block = re.sub(r'\)\s*$', ' LANGUAGES C CXX)', block.rstrip())" >> /tmp/patch_cmake.py
+        echo "    return block" >> /tmp/patch_cmake.py
+        echo "" >> /tmp/patch_cmake.py
+        echo "patched = re.sub(r'project\s*\(.*?\)', patch_project, txt, flags=re.DOTALL)" >> /tmp/patch_cmake.py
+        echo "open(path, 'w').write(patched)" >> /tmp/patch_cmake.py
+    
+        FILES_TO_PATCH=(
+          "$openSpaceHome/CMakeLists.txt"
+          "$openSpaceHome/modules/kameleon/ext/kameleon/CMakeLists.txt"
+          "$openSpaceHome/modules/imgui/ext/imgui/CMakeLists.txt"
+          "$openSpaceHome/modules/touch/ext/CMakeLists.txt"
+          "$openSpaceHome/modules/webbrowser/cmake/patch/CMakeLists.txt"
+          "$openSpaceHome/modules/globebrowsing/ext/geos/CMakeLists.txt"
+          "$openSpaceHome/ext/spice/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/tiny-process-library/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/lua/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/lz4/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/stb_image/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/renderdoc/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/glbinding/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/zip/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/googletest/CMakeLists.txt"
+          "$openSpaceHome/ext/date/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/tinyxml/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/src/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/quat/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/json-schema-validator/CMakeLists.txt"
         )
-
-        new = "      target_compile_features(compile_settings INTERFACE cxx_std_23)"
-
-        for path in files:
-            with open(path, "r") as f:
-                content = f.read()
-
-            if old in content:
-                content = content.replace(old, new)
-                with open(path, "w") as f:
-                    f.write(content)
-                print(f"Updated: {path}")
-            else:
-                print(f"WARNING: Pattern not found in {path}")
-
-        EOF
+    
+        for f in "${FILES_TO_PATCH[@]}"; do
+          if [ ! -f "$f" ]; then
+            echo "SKIP (not found): $f"
+            continue
+          fi
+          echo "Patching: $f"
+          python3 /tmp/patch_cmake.py "$f"
+          grep -A3 "^project" "$f" | head -5
+        done
+    
+        echo ""
+        echo "=== Verification: remaining project() without LANGUAGES C ==="
+        grep -rn "^project(" "$openSpaceHome" --include="CMakeLists.txt" \
+          | grep -v "LANGUAGES.*\bC\b" \
+          | grep -v "tests\|examples\|docs\|sample\|MinVR" \
+          | grep -v "DummyImport\|json_example\|scn-consumer\|test_find_glm"
+    
 
   
     - name: Configure CMake
@@ -142,8 +188,13 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
         echo "Please note the extra variables passed for making the deb package ..."
-        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 \
-          -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
+        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER="/home/linuxbrew/.linuxbrew/bin/g++-13" \
+          -DCMAKE_C_COMPILER="/home/linuxbrew/.linuxbrew/bin/gcc-13" \
+          -DCMAKE_CXX_STANDARD=23 \
+          -DASSIMP_BUILD_MINIZIP=1 \
+          -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++" \
+          -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
+         -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
           -DOPENSPACE_DISTRO=ubuntu22.04 -DCMAKE_INSTALL_PREFIX=/usr "$openSpaceHome"
 
     - name: Build
@@ -173,7 +224,7 @@ jobs:
         # readelf -d deb_extract/usr/share/openspace/bin/OpenSpace | grep RPATH
         # ldd deb_extract/usr/share/openspace/bin/OpenSpace
         
-    - name: Upload AppImage Artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         # Artifact name
