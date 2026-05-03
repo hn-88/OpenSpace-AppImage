@@ -80,37 +80,10 @@ jobs:
         # Bypasses Launchpad entirely by downloading from GitHub's own registry
         brew install gcc@13
 
-    - name: Clear CMake cache
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        # rm -rf "$openSpaceHome/build/CMakeCache.txt" "$openSpaceHome/build/CMakeFiles"
-        rm -rf build   # ensure no stale cache exists
-        mkdir build
-
-    - name: Patch top-level CMakeLists.txt for CMake 4.x
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        # Only patch if LANGUAGES C not already present
-        if ! grep -q "LANGUAGES C" "$openSpaceHome/CMakeLists.txt"; then
-          sed -i 's/project(OpenSpace[^)]*)/project(OpenSpace LANGUAGES C CXX)/' \
-            "$openSpaceHome/CMakeLists.txt"
-        fi
-        grep "^project" "$openSpaceHome/CMakeLists.txt"
-
-    - name: Diagnose CMake language issue
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        echo "=== All project() declarations in all CMakeLists.txt ==="
-        grep -rn "^project(" "$openSpaceHome" --include="CMakeLists.txt" | grep -v "LANGUAGES C"
-
     - name: Patch CMakeLists.txt files for CMake 4.x LANGUAGES C CXX
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        
-        # List of files missing C language declaration entirely
-        # (excludes files already declaring C, and CXX-only test/example projects
-        #  that don't use C and aren't included in the main build)
+    
         FILES_TO_PATCH=(
           "$openSpaceHome/CMakeLists.txt"
           "$openSpaceHome/modules/kameleon/ext/kameleon/CMakeLists.txt"
@@ -136,26 +109,51 @@ jobs:
           "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/quat/CMakeLists.txt"
           "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/json-schema-validator/CMakeLists.txt"
         )
-        
+    
         for f in "${FILES_TO_PATCH[@]}"; do
           if [ ! -f "$f" ]; then
             echo "SKIP (not found): $f"
             continue
           fi
-          if grep -q "LANGUAGES.*\bC\b" "$f"; then
+          # Skip if already has C in LANGUAGES (covers both single and multiline)
+          if python3 -c "
+    import re, sys
+    txt = open('$f').read()
+    m = re.search(r'project\s*\(.*?\)', txt, re.DOTALL)
+    if m and re.search(r'LANGUAGES\s+.*\bC\b', m.group(), re.DOTALL):
+        sys.exit(0)
+    sys.exit(1)
+    "; then
             echo "SKIP (already has C): $f"
             continue
           fi
           echo "Patching: $f"
-          # Case: project(Name) - bare, no LANGUAGES keyword at all
-          sed -i -E 's/^(project\([A-Za-z0-9_:. ${}"-]+)\)$/\1 LANGUAGES C CXX)/' "$f"
-          # Case: project(Name LANGUAGES CXX ...) - has LANGUAGES but missing C
-          sed -i 's/LANGUAGES CXX/LANGUAGES C CXX/g' "$f"
-          # Case: multiline project() - just add C CXX after LANGUAGES if present
-          sed -i '/^project(/,/)/ s/LANGUAGES CXX/LANGUAGES C CXX/g' "$f"
-          echo "  -> $(grep -A2 "^project(" "$f" | head -3)"
+          python3 - "$f" <<'PYEOF'
+    import re, sys
+    
+    path = sys.argv[1]
+    txt = open(path).read()
+    
+    def patch_project(m):
+        block = m.group(0)
+        # If LANGUAGES already present, add C before CXX (or after LANGUAGES)
+        if 'LANGUAGES' in block:
+            # Avoid double-patching: only add C if not already there
+            if not re.search(r'LANGUAGES\s+.*\bC\b', block, re.DOTALL):
+                block = re.sub(r'LANGUAGES\s+', 'LANGUAGES C ', block)
+        else:
+            # No LANGUAGES at all: insert before closing paren
+            block = re.sub(r'\)\s*$', ' LANGUAGES C CXX)', block.rstrip())
+        return block
+    
+    # Match entire project(...) call including multiline
+    patched = re.sub(r'project\s*\(.*?\)', patch_project, txt, flags=re.DOTALL)
+    open(path, 'w').write(patched)
+    print("  done")
+    PYEOF
+          grep -A3 "^project" "$f" | head -5
         done
-        
+    
         echo ""
         echo "=== Verification: remaining project() without LANGUAGES C ==="
         grep -rn "^project(" "$openSpaceHome" --include="CMakeLists.txt" \
