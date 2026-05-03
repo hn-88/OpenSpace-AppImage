@@ -80,7 +80,14 @@ jobs:
         # Bypasses Launchpad entirely by downloading from GitHub's own registry
         brew install gcc@13
 
-    
+    - name: Clear CMake cache
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome"
+        # rm -rf "$openSpaceHome/build/CMakeCache.txt" "$openSpaceHome/build/CMakeFiles"
+        rm -rf build   # ensure no stale cache exists
+        mkdir build
+        
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
