@@ -2,8 +2,8 @@ name: deb-on-24.04wCpack
 
 on: 
   workflow_dispatch:      # allows manual trigger
-  schedule:
-    - cron: "0 6 * * *"   # runs daily at 06:00 UTC
+  #schedule:
+  #  - cron: "0 6 * * *"   # runs daily at 06:00 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
