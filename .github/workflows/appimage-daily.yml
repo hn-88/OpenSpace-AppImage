@@ -103,6 +103,65 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         echo "=== All project() declarations in all CMakeLists.txt ==="
         grep -rn "^project(" "$openSpaceHome" --include="CMakeLists.txt" | grep -v "LANGUAGES C"
+
+    - name: Patch CMakeLists.txt files for CMake 4.x LANGUAGES C CXX
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        
+        # List of files missing C language declaration entirely
+        # (excludes files already declaring C, and CXX-only test/example projects
+        #  that don't use C and aren't included in the main build)
+        FILES_TO_PATCH=(
+          "$openSpaceHome/CMakeLists.txt"
+          "$openSpaceHome/modules/kameleon/ext/kameleon/CMakeLists.txt"
+          "$openSpaceHome/modules/imgui/ext/imgui/CMakeLists.txt"
+          "$openSpaceHome/modules/touch/ext/CMakeLists.txt"
+          "$openSpaceHome/modules/webbrowser/cmake/patch/CMakeLists.txt"
+          "$openSpaceHome/modules/globebrowsing/ext/geos/CMakeLists.txt"
+          "$openSpaceHome/ext/spice/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/tiny-process-library/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/lua/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/lz4/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/stb_image/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/renderdoc/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/glbinding/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/zip/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/googletest/CMakeLists.txt"
+          "$openSpaceHome/ext/date/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/tinyxml/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/src/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/quat/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/json-schema-validator/CMakeLists.txt"
+        )
+        
+        for f in "${FILES_TO_PATCH[@]}"; do
+          if [ ! -f "$f" ]; then
+            echo "SKIP (not found): $f"
+            continue
+          fi
+          if grep -q "LANGUAGES.*\bC\b" "$f"; then
+            echo "SKIP (already has C): $f"
+            continue
+          fi
+          echo "Patching: $f"
+          # Case: project(Name) - bare, no LANGUAGES keyword at all
+          sed -i -E 's/^(project\([A-Za-z0-9_:. ${}"-]+)\)$/\1 LANGUAGES C CXX)/' "$f"
+          # Case: project(Name LANGUAGES CXX ...) - has LANGUAGES but missing C
+          sed -i 's/LANGUAGES CXX/LANGUAGES C CXX/g' "$f"
+          # Case: multiline project() - just add C CXX after LANGUAGES if present
+          sed -i '/^project(/,/)/ s/LANGUAGES CXX/LANGUAGES C CXX/g' "$f"
+          echo "  -> $(grep -A2 "^project(" "$f" | head -3)"
+        done
+        
+        echo ""
+        echo "=== Verification: remaining project() without LANGUAGES C ==="
+        grep -rn "^project(" "$openSpaceHome" --include="CMakeLists.txt" \
+          | grep -v "LANGUAGES.*\bC\b" \
+          | grep -v "tests\|examples\|docs\|sample\|MinVR" \
+          | grep -v "DummyImport\|json_example\|scn-consumer\|test_find_glm"
         
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
