@@ -97,6 +97,12 @@ jobs:
             "$openSpaceHome/CMakeLists.txt"
         fi
         grep "^project" "$openSpaceHome/CMakeLists.txt"
+
+    - name: Diagnose CMake language issue
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        echo "=== All project() declarations in all CMakeLists.txt ==="
+        grep -rn "^project(" "$openSpaceHome" --include="CMakeLists.txt" | grep -v "LANGUAGES C"
         
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
