@@ -87,6 +87,16 @@ jobs:
         # rm -rf "$openSpaceHome/build/CMakeCache.txt" "$openSpaceHome/build/CMakeFiles"
         rm -rf build   # ensure no stale cache exists
         mkdir build
+
+    - name: Patch top-level CMakeLists.txt for CMake 4.x
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        # Only patch if LANGUAGES C not already present
+        if ! grep -q "LANGUAGES C" "$openSpaceHome/CMakeLists.txt"; then
+          sed -i 's/project(OpenSpace[^)]*)/project(OpenSpace LANGUAGES C CXX)/' \
+            "$openSpaceHome/CMakeLists.txt"
+        fi
+        grep "^project" "$openSpaceHome/CMakeLists.txt"
         
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
