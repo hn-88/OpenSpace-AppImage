@@ -99,49 +99,80 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
-    - name: Replace MSVC conditional with unified cxx_std_23
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        python3 - <<'EOF'
-        import re
-
-        files = [
-            "./support/coding/codegen/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./support/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./ext/ghoul/support/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./apps/OpenSpace/ext/sgct/support/cmake/common-compile-settings/common-compile-settings.cmake",
-        ]
-
-        old = (
-            "    if (MSVC)\n"
-            "      target_compile_features(compile_settings INTERFACE cxx_std_23)\n"
-            "    else ()\n"
-            "      target_compile_features(compile_settings INTERFACE cxx_std_20)\n"
-            "    endif ()"
-        )
-
-        new = "      target_compile_features(compile_settings INTERFACE cxx_std_23)"
-
-        for path in files:
-            with open(path, "r") as f:
-                content = f.read()
-
-            if old in content:
-                content = content.replace(old, new)
-                with open(path, "w") as f:
-                    f.write(content)
-                print(f"Updated: {path}")
-            else:
-                print(f"WARNING: Pattern not found in {path}")
-
-        EOF
+    
 
     - name: copy patched md_simd.h
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         # Patch md_simd.h to recognize aarch64 as x86_64 via sse2neon
-        cp -vf arm-patches/modules-molecule-ext-mold-src-core-md_simd.h "$openSpaceHome/modules/molecule/ext/mold/src/core/md_simd.h" 
+        # cp -vf arm-patches/modules-molecule-ext-mold-src-core-md_simd.h "$openSpaceHome/modules/molecule/ext/mold/src/core/md_simd.h" 
+        # instead, disabling with -DOPENSPACE_MODULE_MOLECULE=OFF
+
+    - name: Patch CMakeLists.txt files for CMake 4.x LANGUAGES C CXX
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+    
+        echo "import re, sys" > /tmp/patch_cmake.py
+        echo "" >> /tmp/patch_cmake.py
+        echo "path = sys.argv[1]" >> /tmp/patch_cmake.py
+        echo "txt = open(path).read()" >> /tmp/patch_cmake.py
+        echo "" >> /tmp/patch_cmake.py
+        echo "def patch_project(m):" >> /tmp/patch_cmake.py
+        echo "    block = m.group(0)" >> /tmp/patch_cmake.py
+        echo "    if 'LANGUAGES' in block:" >> /tmp/patch_cmake.py
+        echo "        if not re.search(r'LANGUAGES\s+.*\bC\b', block, re.DOTALL):" >> /tmp/patch_cmake.py
+        echo "            block = re.sub(r'LANGUAGES\s+', 'LANGUAGES C ', block)" >> /tmp/patch_cmake.py
+        echo "    else:" >> /tmp/patch_cmake.py
+        echo "        block = re.sub(r'\)\s*$', ' LANGUAGES C CXX)', block.rstrip())" >> /tmp/patch_cmake.py
+        echo "    return block" >> /tmp/patch_cmake.py
+        echo "" >> /tmp/patch_cmake.py
+        echo "patched = re.sub(r'project\s*\(.*?\)', patch_project, txt, flags=re.DOTALL)" >> /tmp/patch_cmake.py
+        echo "open(path, 'w').write(patched)" >> /tmp/patch_cmake.py
+    
+        FILES_TO_PATCH=(
+          "$openSpaceHome/CMakeLists.txt"
+          "$openSpaceHome/modules/kameleon/ext/kameleon/CMakeLists.txt"
+          "$openSpaceHome/modules/imgui/ext/imgui/CMakeLists.txt"
+          "$openSpaceHome/modules/touch/ext/CMakeLists.txt"
+          "$openSpaceHome/modules/webbrowser/cmake/patch/CMakeLists.txt"
+          "$openSpaceHome/modules/globebrowsing/ext/geos/CMakeLists.txt"
+          "$openSpaceHome/ext/spice/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/tiny-process-library/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/lua/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/lz4/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/stb_image/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/renderdoc/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/glbinding/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/zip/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/googletest/CMakeLists.txt"
+          "$openSpaceHome/ext/date/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/tinyxml/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/src/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/quat/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/json-schema-validator/CMakeLists.txt"
+        )
+    
+        for f in "${FILES_TO_PATCH[@]}"; do
+          if [ ! -f "$f" ]; then
+            echo "SKIP (not found): $f"
+            continue
+          fi
+          echo "Patching: $f"
+          python3 /tmp/patch_cmake.py "$f"
+          grep -A3 "^project" "$f" | head -5
+        done
+    
+        echo ""
+        echo "=== Verification: remaining project() without LANGUAGES C ==="
+        grep -rn "^project(" "$openSpaceHome" --include="CMakeLists.txt" \
+          | grep -v "LANGUAGES.*\bC\b" \
+          | grep -v "tests\|examples\|docs\|sample\|MinVR" \
+          | grep -v "DummyImport\|json_example\|scn-consumer\|test_find_glm"
+    
+
         
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -151,7 +182,7 @@ jobs:
         cd "$openSpaceHome/build"
         echo "Please note the extra variables passed for making the deb package ..."
         cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 \
-          -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DOPENSPACE_MODULE_MOLECULE=OFF -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
+          -DCMAKE_CXX_STANDARD=23 -DASSIMP_BUILD_MINIZIP=1 -DOPENSPACE_MODULE_MOLECULE=OFF -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
           -DOPENSPACE_DISTRO=ubuntu24.04 -DCMAKE_INSTALL_PREFIX=/usr "$openSpaceHome"
 
     - name: Build
