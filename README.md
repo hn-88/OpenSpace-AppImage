@@ -1,5 +1,5 @@
 # OpenSpace-AppImage
-Building an AppImage for OpenSpace using github workflows. There are some patches in the appdir directory, and the workflows are in the usual place, 
+Building an AppImage for OpenSpace using github workflows. Now extended to other binaries as well. Deb files, Windows daily builds, Mac apps. There are some patches in the appdir directory, and the workflows are in the usual place, 
 
 https://github.com/hn-88/OpenSpace-AppImage/tree/main/.github/workflows
 
@@ -9,4 +9,8 @@ https://www.openspaceproject.com/
 
 https://github.com/openspace/openspace
 
-The builds from this repo are collected at https://hn-88.github.io/OpenSpace-AppImage/
+The builds from this repo are collected at 
+
+https://hn-88.github.io/OpenSpace-AppImage/
+
+which has links to extra documentation specific to each build.
