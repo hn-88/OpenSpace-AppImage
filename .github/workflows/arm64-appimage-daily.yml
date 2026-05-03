@@ -21,7 +21,7 @@ env:
   # COMMIT_HASH: "e8fa72544c445b556018841eafb48116372c288d" # Feb 13 2026
   COMMIT_HASH: "master"
   # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
-  SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-22.04-arm"
+  SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-22.04-arm-cmake4-homebrew-gcc"
   
 jobs:
   build:
@@ -38,16 +38,35 @@ jobs:
       with:
         # this might remove tools that are actually needed,
         # if set to "true" but frees about 6 GB
-        tool-cache: false
+        tool-cache: true
         
         # all of these default to true, but feel free to set to
         # "false" if necessary for your workflow
         android: true
         dotnet: true
         haskell: true
-        large-packages: false
+        large-packages: true
         docker-images: true
-        swap-storage: false
+        swap-storage: true
+
+    - name: Remove CMake 3.31
+      run: |
+        sudo apt-get -y remove cmake cmake-data
+        
+
+    - name: Install CMake 4.0.7
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.0.7'
+
+    - name: Set up Homebrew
+      uses: Homebrew/actions/setup-homebrew@master
+
+    - name: Install GCC 13 (via Homebrew)
+      run: |
+        # Bypasses Launchpad entirely by downloading from GitHub's own registry
+        sudo apt-get install -y software-properties-common
+        brew install gcc@13
     
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
@@ -83,21 +102,86 @@ jobs:
         # checking out a more recent commit
         # https://github.com/OpenSpace/OpenSpace/issues/3918
         # https://github.com/OpenSpace/OpenSpace/issues/3915#issuecomment-3907061056
+        # just using -DOPENSPACE_MODULE_MOLECULE=OFF
         
     
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         sudo apt update
-        sudo apt install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev
-        sudo apt install software-properties-common
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install gcc-13 g++-13
+        sudo apt install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev        
+        # sudo add-apt-repository ppa:ubuntu-toolchain-r/test <-- launchpad seems to be blocking github runners 
+        # sudo apt install gcc-13 g++-13
         sudo apt-get install libasound2 libasound2-data libasound2-plugins
 
    
     - name: Enable sccache
       uses: mozilla-actions/sccache-action@v0.0.9
+
+    - name: Patch CMakeLists.txt files for CMake 4.x LANGUAGES C CXX
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+    
+        echo "import re, sys" > /tmp/patch_cmake.py
+        echo "" >> /tmp/patch_cmake.py
+        echo "path = sys.argv[1]" >> /tmp/patch_cmake.py
+        echo "txt = open(path).read()" >> /tmp/patch_cmake.py
+        echo "" >> /tmp/patch_cmake.py
+        echo "def patch_project(m):" >> /tmp/patch_cmake.py
+        echo "    block = m.group(0)" >> /tmp/patch_cmake.py
+        echo "    if 'LANGUAGES' in block:" >> /tmp/patch_cmake.py
+        echo "        if not re.search(r'LANGUAGES\s+.*\bC\b', block, re.DOTALL):" >> /tmp/patch_cmake.py
+        echo "            block = re.sub(r'LANGUAGES\s+', 'LANGUAGES C ', block)" >> /tmp/patch_cmake.py
+        echo "    else:" >> /tmp/patch_cmake.py
+        echo "        block = re.sub(r'\)\s*$', ' LANGUAGES C CXX)', block.rstrip())" >> /tmp/patch_cmake.py
+        echo "    return block" >> /tmp/patch_cmake.py
+        echo "" >> /tmp/patch_cmake.py
+        echo "patched = re.sub(r'project\s*\(.*?\)', patch_project, txt, flags=re.DOTALL)" >> /tmp/patch_cmake.py
+        echo "open(path, 'w').write(patched)" >> /tmp/patch_cmake.py
+    
+        FILES_TO_PATCH=(
+          "$openSpaceHome/CMakeLists.txt"
+          "$openSpaceHome/modules/kameleon/ext/kameleon/CMakeLists.txt"
+          "$openSpaceHome/modules/imgui/ext/imgui/CMakeLists.txt"
+          "$openSpaceHome/modules/touch/ext/CMakeLists.txt"
+          "$openSpaceHome/modules/webbrowser/cmake/patch/CMakeLists.txt"
+          "$openSpaceHome/modules/globebrowsing/ext/geos/CMakeLists.txt"
+          "$openSpaceHome/ext/spice/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/tiny-process-library/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/lua/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/lz4/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/stb_image/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/renderdoc/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/glbinding/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/zip/CMakeLists.txt"
+          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/googletest/CMakeLists.txt"
+          "$openSpaceHome/ext/date/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/tinyxml/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/src/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/quat/CMakeLists.txt"
+          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/json-schema-validator/CMakeLists.txt"
+        )
+    
+        for f in "${FILES_TO_PATCH[@]}"; do
+          if [ ! -f "$f" ]; then
+            echo "SKIP (not found): $f"
+            continue
+          fi
+          echo "Patching: $f"
+          python3 /tmp/patch_cmake.py "$f"
+          grep -A3 "^project" "$f" | head -5
+        done
+    
+        echo ""
+        echo "=== Verification: remaining project() without LANGUAGES C ==="
+        grep -rn "^project(" "$openSpaceHome" --include="CMakeLists.txt" \
+          | grep -v "LANGUAGES.*\bC\b" \
+          | grep -v "tests\|examples\|docs\|sample\|MinVR" \
+          | grep -v "DummyImport\|json_example\|scn-consumer\|test_find_glm"
+    
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
