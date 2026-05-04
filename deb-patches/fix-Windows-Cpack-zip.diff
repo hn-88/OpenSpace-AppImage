@@ -1,9 +1,9 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 35386379d6..59a099df70 100644
+index ec7b233c2..e5be18929 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -135,7 +135,7 @@ if (UNIX AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-   endif ()
+@@ -120,7 +120,7 @@ if (UNIX AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+   add_compile_definitions(D_GNU_SOURCE)
  endif ()
  
 -add_subdirectory(ext)
@@ -12,7 +12,7 @@ index 35386379d6..59a099df70 100644
  
  add_subdirectory(support/coding/codegen)
 diff --git a/apps/OpenSpace-MinVR/CMakeLists.txt b/apps/OpenSpace-MinVR/CMakeLists.txt
-index f924e8d1ea..c7d597d8bc 100644
+index ef5cc6608..cec6de379 100644
 --- a/apps/OpenSpace-MinVR/CMakeLists.txt
 +++ b/apps/OpenSpace-MinVR/CMakeLists.txt
 @@ -28,7 +28,7 @@ include(${PROJECT_SOURCE_DIR}/support/cmake/global_variables.cmake)
@@ -25,10 +25,10 @@ index f924e8d1ea..c7d597d8bc 100644
  create_new_application(OpenSpace-MinVR
    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
 diff --git a/apps/OpenSpace/CMakeLists.txt b/apps/OpenSpace/CMakeLists.txt
-index d6f99b9c5e..0f48b5c646 100644
+index 8c4999803..2dd118284 100644
 --- a/apps/OpenSpace/CMakeLists.txt
 +++ b/apps/OpenSpace/CMakeLists.txt
-@@ -121,7 +121,7 @@ if (NOT OPENSPACE_HAVE_TESTS)
+@@ -112,7 +112,7 @@ if (NOT OPENSPACE_HAVE_TESTS)
    # Unless overriden, disable sgct tests if OpenSpace tests are disabled
    set(SGCT_BUILD_TESTS FALSE CACHE BOOL "Enable ghoul unit tests")
  endif()
@@ -38,10 +38,10 @@ index d6f99b9c5e..0f48b5c646 100644
  
  set_target_properties(sgct PROPERTIES FOLDER "External")
 diff --git a/modules/audio/CMakeLists.txt b/modules/audio/CMakeLists.txt
-index 93cc01e6b0..ac875083f2 100644
+index 7daa81154..b5a180ad8 100644
 --- a/modules/audio/CMakeLists.txt
 +++ b/modules/audio/CMakeLists.txt
-@@ -49,7 +49,7 @@ if (WIN32)
+@@ -48,7 +48,7 @@ if (WIN32)
  elseif (UNIX)
    set(SOLOUD_BACKEND_ALSA ON CACHE BOOL "")
  endif ()
@@ -51,28 +51,27 @@ index 93cc01e6b0..ac875083f2 100644
  # Unfortunately, the soloud cmake tarket doesn't set the include directories correctly
  target_include_directories(openspace-module-audio SYSTEM PRIVATE ext/soloud/include)
 diff --git a/modules/fitsfilereader/CMakeLists.txt b/modules/fitsfilereader/CMakeLists.txt
-index f1d0ffdc5e..8e770d029c 100644
+index b942246f3..a78ca3344 100644
 --- a/modules/fitsfilereader/CMakeLists.txt
 +++ b/modules/fitsfilereader/CMakeLists.txt
-@@ -48,11 +48,11 @@ create_new_module(
+@@ -47,10 +47,10 @@ create_new_module(
  )
  
  # CCfits is dependent on cfitsio, let it handle the internal linking
 -add_subdirectory(ext/cfitsio SYSTEM)
 +add_subdirectory(ext/cfitsio SYSTEM EXCLUDE_FROM_ALL)
  set_target_properties(cfitsio PROPERTIES FOLDER "External")
- set(cfitsio_BUILD_SHARED_LIBS OFF)
  
 -add_subdirectory(ext/CCfits SYSTEM)
 +add_subdirectory(ext/CCfits SYSTEM EXCLUDE_FROM_ALL)
  set_target_properties(CCfits PROPERTIES FOLDER "External")
- set(CCfits_BUILD_SHARED_LIBS OFF)
  
+ if (MSVC)
 diff --git a/modules/globebrowsing/CMakeLists.txt b/modules/globebrowsing/CMakeLists.txt
-index 11fbeff462..8075d83e35 100644
+index a7bdcc5f8..8264853fc 100644
 --- a/modules/globebrowsing/CMakeLists.txt
 +++ b/modules/globebrowsing/CMakeLists.txt
-@@ -176,7 +176,7 @@ else (WIN32)
+@@ -177,7 +177,7 @@ else (WIN32)
  endif () # WIN32
  
  begin_dependency("GEOS")
@@ -82,10 +81,10 @@ index 11fbeff462..8075d83e35 100644
  
  if (MSVC)
 diff --git a/modules/imgui/CMakeLists.txt b/modules/imgui/CMakeLists.txt
-index e01ee545f8..6674bbdcc1 100644
+index 098d895a0..22ba8e35e 100644
 --- a/modules/imgui/CMakeLists.txt
 +++ b/modules/imgui/CMakeLists.txt
-@@ -74,7 +74,7 @@ create_new_module(
+@@ -75,7 +75,7 @@ create_new_module(
    ${HEADER_FILES} ${SOURCE_FILES} ${SHADER_FILES}
  )
  
@@ -95,10 +94,10 @@ index e01ee545f8..6674bbdcc1 100644
  disable_compiler_warnings(Imgui)
  set_target_properties(Imgui PROPERTIES FOLDER "External")
 diff --git a/modules/kameleon/CMakeLists.txt b/modules/kameleon/CMakeLists.txt
-index 606dc81bf2..70910905ab 100644
+index 53277a1e3..183d67552 100644
 --- a/modules/kameleon/CMakeLists.txt
 +++ b/modules/kameleon/CMakeLists.txt
-@@ -53,7 +53,7 @@ mark_as_advanced(BUILD_SHARED_LIBS) # Change to set instead of option
+@@ -46,7 +46,7 @@ option(KAMELEON_LIBRARY_ONLY "Build with Kameleon as library only" ON)
  option(KAMELEON_USE_HDF5 "Kameleon use HDF5" OFF)
  set(KAMELEON_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext/kameleon)
  set(KAMELEON_INCLUDES ${KAMELEON_ROOT_DIR}/src)
