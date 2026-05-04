@@ -226,26 +226,31 @@ jobs:
     - name: Fix AppImage (interpreter + rpath + audit)
       run: |
         set -e
-
+    
+        echo "=== Collecting ELF binaries ==="
+        ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f -executable -exec file {} \; | grep ELF | cut -d: -f1)
+    
+        echo ""
         echo "=== Fixing ELF interpreter ==="
-        find appdir -type f -executable -exec file {} \; | grep ELF | cut -d: -f1 | while read f; do
+        for f in $ELF_FILES; do
           echo "Patching interpreter: $f"
           patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
         done
-
+    
         echo ""
         echo "=== Cleaning RPATH ==="
-        find appdir -type f -executable -exec file {} \; | grep ELF | cut -d: -f1 | while read f; do
-          echo "Old RPATH for $f:"
+        for f in $ELF_FILES; do
+          echo "---- $f ----"
+          echo "Old RPATH:"
           patchelf --print-rpath "$f" || true
-
+    
           patchelf --set-rpath '$ORIGIN/../lib:$ORIGIN/../lib64' "$f" || true
-
+    
           echo "New RPATH:"
           patchelf --print-rpath "$f" || true
           echo ""
         done
-
+    
         echo ""
         echo "=== Checking for Homebrew leakage ==="
         if grep -R "linuxbrew" appdir; then
@@ -254,39 +259,38 @@ jobs:
         else
           echo "OK: No Homebrew paths found"
         fi
-
+    
         echo ""
         echo "=== Checking missing libraries ==="
         FAIL=0
-        find appdir -type f -executable -exec file {} \; | grep ELF | cut -d: -f1 | while read f; do
+        for f in $ELF_FILES; do
           echo "Checking: $f"
-          if ldd "$f" | grep "not found"; then
+          if ldd "$f" | grep -q "not found"; then
             echo "ERROR: Missing libraries in $f"
             FAIL=1
           fi
         done
-
+    
         if [ "$FAIL" -ne 0 ]; then
           echo "Missing libraries detected!"
           exit 1
         fi
-
+    
         echo ""
         echo "=== GLIBC compatibility check ==="
         MAX_GLIBC=$(strings appdir/usr/bin/OpenSpace | grep GLIBC_ | sort -V | tail -1)
         echo "Max GLIBC required: $MAX_GLIBC"
-
-        # Ubuntu 22.04 baseline
+    
         REQUIRED="GLIBC_2.35"
-
+    
         if [ "$(printf '%s\n' "$REQUIRED" "$MAX_GLIBC" | sort -V | head -1)" != "$MAX_GLIBC" ]; then
           echo "ERROR: Binary requires newer glibc than Ubuntu 22.04!"
           exit 1
         fi
-
+    
         echo "GLIBC requirement OK"
 
-
+        
     - name: turn AppDir into AppImage
       run: |
         # turn AppDir into AppImage
