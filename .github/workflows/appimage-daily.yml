@@ -137,21 +137,31 @@ jobs:
         wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
         chmod +x appimagetool-*.AppImage
 
-        # If you ever get an issue with appimage bundling the wrong Qt version,
-        # try setting the  QTDIR env var (cf. https://github.com/probonopd/go-appimage/issues/268)
-        # ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
-        # or 
-        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
+        # --- FIX: Help go-appimage find libcef.so ---
+        # Find exactly where the build system placed libcef.so
+        cef_orig_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | xargs dirname | head -n 1)
+        
+        # Temporarily export this so go-appimage 'deploy' can successfully resolve it
+        export LD_LIBRARY_PATH="$cef_orig_dir:$LD_LIBRARY_PATH"
 
-        # Install libcef runtime dependencies (the "deploy" step has automatically found libcef.so
-        # thanks to dynamic linking information but can't guess some other dependencies)
-        cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
-        cef_install_dir=$(find ./appdir -name libcef.so | xargs dirname)
-        cp -r $cef_orig_dir/* $cef_install_dir
+        # Now bundle everything. It will successfully find libcef.so this time.
+        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop
+
+        # Now locate where go-appimage put libcef.so inside our appdir
+        cef_install_dir=$(find ./appdir -name "libcef.so" | xargs dirname | head -n 1)
+        
+        # Sanity check to prevent silent failures in the future
+        if [ -z "$cef_install_dir" ]; then
+          echo "ERROR: go-appimage failed to bundle libcef.so!"
+          exit 1
+        fi
+
+        # Install libcef runtime dependencies (.pak files, dat files, etc.) right next to it
+        cp -r "$cef_orig_dir"/* "$cef_install_dir"/
 
         # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
-        strip --strip-unneeded $cef_install_dir/*.so
-
+        strip --strip-unneeded "$cef_install_dir"/*.so || true
+      
         # We install gcc-13 in the build env and it also pulls a libstdc++ that's newer than the
         # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
         # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
@@ -165,8 +175,9 @@ jobs:
         set -e
     
         echo "=== Collecting ELF binaries ==="
-        # We find all executables and shared libraries
-        ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f -executable -exec file {} \; | grep ELF | cut -d: -f1)
+        # We find all executables AND shared libraries (even if missing execution permissions)
+        ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -executable -o -name "*.so*" \) -exec file {} \; | grep ELF | cut -d: -f1)
+        # some .so files may not have executable flag set after copying
     
         echo ""
         echo "=== Fixing ELF interpreter ==="
