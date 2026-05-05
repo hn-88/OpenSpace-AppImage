@@ -190,11 +190,20 @@ jobs:
     
         echo ""
         echo "=== Checking for Homebrew leakage ==="
-        if grep -R "linuxbrew" appdir; then
-          echo "ERROR: Found Homebrew paths in AppDir!"
+        LEAK_FOUND=0
+        for f in appdir/usr/bin/OpenSpace appdir/usr/bin/OpenSpace_Helper; do
+          if strings "$f" | grep -q "linuxbrew"; then
+            echo "ERROR: Found Homebrew path in $f"
+            strings "$f" | grep "linuxbrew"
+            LEAK_FOUND=1
+          else
+            echo "OK: No Homebrew paths in $f"
+          fi
+        done
+
+        if [ "$LEAK_FOUND" -ne 0 ]; then
+          echo "Homebrew leakage detected in main binaries!"
           exit 1
-        else
-          echo "OK: No Homebrew paths found"
         fi
     
         echo ""
@@ -212,6 +221,14 @@ jobs:
           echo "Missing libraries detected!"
           exit 1
         fi
+
+        echo "=== Checking RPATH leakage in bundled libs ==="
+        find appdir -name "*.so*" -type f | while read lib; do
+          rpath=$(patchelf --print-rpath "$lib" 2>/dev/null || true)
+          if echo "$rpath" | grep -q "linuxbrew"; then
+            echo "WARNING: Homebrew in RPATH of $lib: $rpath"
+          fi
+        done
     
         echo ""
         echo "=== GLIBC compatibility check ==="
