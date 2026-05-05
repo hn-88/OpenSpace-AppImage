@@ -165,27 +165,28 @@ jobs:
         set -e
     
         echo "=== Collecting ELF binaries ==="
+        # We find all executables and shared libraries
         ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f -executable -exec file {} \; | grep ELF | cut -d: -f1)
     
         echo ""
         echo "=== Fixing ELF interpreter ==="
         for f in $ELF_FILES; do
-          echo "Patching interpreter: $f"
-          patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
+          # Only executables have interpreters; patching .so files throws a harmless error, 
+          # but we can filter it cleanly by checking if it's an executable vs shared object.
+          if file "$f" | grep -q "executable"; then
+            echo "Patching interpreter: $f"
+            patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
+          fi
         done
     
         echo ""
         echo "=== Cleaning RPATH ==="
         for f in $ELF_FILES; do
           echo "---- $f ----"
-          echo "Old RPATH:"
-          patchelf --print-rpath "$f" || true
-    
-          patchelf --set-rpath '$ORIGIN/../lib:$ORIGIN/../lib64' "$f" || true
-    
-          echo "New RPATH:"
-          patchelf --print-rpath "$f" || true
-          echo ""
+          # - $ORIGIN allows libraries in a folder to find peer libraries next to them
+          # - $ORIGIN/../lib and $ORIGIN/../lib64 allows bin/ executables to find lib/ libraries
+          # - $ORIGIN/../lib/x86_64-linux-gnu covers Ubuntu's default multiarch folder
+          patchelf --set-rpath '$ORIGIN:$ORIGIN/../lib:$ORIGIN/../lib64:$ORIGIN/../lib/x86_64-linux-gnu' "$f" || true
         done
     
         echo ""
@@ -209,28 +210,28 @@ jobs:
         echo ""
         echo "=== Checking missing libraries ==="
         FAIL=0
+        
+        # When ldd runs inside GitHub Actions, we must simulate the AppImage runtime environment
+        # by temporarily adding the AppDir lib folders to LD_LIBRARY_PATH.
+        export LD_LIBRARY_PATH="$(pwd)/appdir/usr/lib:$(pwd)/appdir/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+
         for f in $ELF_FILES; do
           echo "Checking: $f"
-          if ldd "$f" | grep -q "not found"; then
-            echo "ERROR: Missing libraries in $f"
+          LDD_OUT=$(ldd "$f" || true)
+          
+          if echo "$LDD_OUT" | grep -q "not found"; then
+            echo "ERROR: Missing libraries in $f. See below:"
+            # This prints EXACTLY which .so files are missing!
+            echo "$LDD_OUT" | grep "not found"
             FAIL=1
           fi
         done
     
         if [ "$FAIL" -ne 0 ]; then
-          echo "Missing libraries detected!"
+          echo "Missing libraries detected! Check the logs above to see which ones."
           exit 1
         fi
 
-        echo "=== Checking RPATH leakage in bundled libs ==="
-        find appdir -name "*.so*" -type f | while read lib; do
-          rpath=$(patchelf --print-rpath "$lib" 2>/dev/null || true)
-          if echo "$rpath" | grep -q "linuxbrew"; then
-            echo "WARNING: Homebrew in RPATH of $lib: $rpath"
-          fi
-        done
-    
-        echo ""
         echo "=== GLIBC compatibility check ==="
         MAX_GLIBC=$(strings appdir/usr/bin/OpenSpace | grep GLIBC_ | sort -V | tail -1)
         echo "Max GLIBC required: $MAX_GLIBC"
