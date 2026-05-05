@@ -2,8 +2,8 @@ name: deb-on-24.04wCpack
 
 on: 
   workflow_dispatch:      # allows manual trigger
-  #schedule:
-  #  - cron: "0 6 * * *"   # runs daily at 06:00 UTC
+  schedule:
+    - cron: "3 6 * * *"   # runs daily at 06:03 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -41,10 +41,10 @@ jobs:
         docker-images: true
         swap-storage: false
 
-    - name: Install CMake 4.0.7
+    - name: Install CMake 4.3.2
       uses: lukka/get-cmake@latest
       with:
-        cmakeVersion: '4.0.7'
+        cmakeVersion: '4.3.2'
     
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
@@ -95,71 +95,6 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
-
-    - name: Patch CMakeLists.txt files for CMake 4.x LANGUAGES C CXX
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-    
-        echo "import re, sys" > /tmp/patch_cmake.py
-        echo "" >> /tmp/patch_cmake.py
-        echo "path = sys.argv[1]" >> /tmp/patch_cmake.py
-        echo "txt = open(path).read()" >> /tmp/patch_cmake.py
-        echo "" >> /tmp/patch_cmake.py
-        echo "def patch_project(m):" >> /tmp/patch_cmake.py
-        echo "    block = m.group(0)" >> /tmp/patch_cmake.py
-        echo "    if 'LANGUAGES' in block:" >> /tmp/patch_cmake.py
-        echo "        if not re.search(r'LANGUAGES\s+.*\bC\b', block, re.DOTALL):" >> /tmp/patch_cmake.py
-        echo "            block = re.sub(r'LANGUAGES\s+', 'LANGUAGES C ', block)" >> /tmp/patch_cmake.py
-        echo "    else:" >> /tmp/patch_cmake.py
-        echo "        block = re.sub(r'\)\s*$', ' LANGUAGES C CXX)', block.rstrip())" >> /tmp/patch_cmake.py
-        echo "    return block" >> /tmp/patch_cmake.py
-        echo "" >> /tmp/patch_cmake.py
-        echo "patched = re.sub(r'project\s*\(.*?\)', patch_project, txt, flags=re.DOTALL)" >> /tmp/patch_cmake.py
-        echo "open(path, 'w').write(patched)" >> /tmp/patch_cmake.py
-    
-        FILES_TO_PATCH=(
-          "$openSpaceHome/CMakeLists.txt"
-          "$openSpaceHome/modules/kameleon/ext/kameleon/CMakeLists.txt"
-          "$openSpaceHome/modules/imgui/ext/imgui/CMakeLists.txt"
-          "$openSpaceHome/modules/touch/ext/CMakeLists.txt"
-          "$openSpaceHome/modules/webbrowser/cmake/patch/CMakeLists.txt"
-          "$openSpaceHome/modules/globebrowsing/ext/geos/CMakeLists.txt"
-          "$openSpaceHome/ext/spice/CMakeLists.txt"
-          "$openSpaceHome/ext/ghoul/CMakeLists.txt"
-          "$openSpaceHome/ext/ghoul/ext/tiny-process-library/CMakeLists.txt"
-          "$openSpaceHome/ext/ghoul/ext/lua/CMakeLists.txt"
-          "$openSpaceHome/ext/ghoul/ext/lz4/CMakeLists.txt"
-          "$openSpaceHome/ext/ghoul/ext/stb_image/CMakeLists.txt"
-          "$openSpaceHome/ext/ghoul/ext/renderdoc/CMakeLists.txt"
-          "$openSpaceHome/ext/ghoul/ext/glbinding/CMakeLists.txt"
-          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/zip/CMakeLists.txt"
-          "$openSpaceHome/ext/ghoul/ext/assimp/contrib/googletest/CMakeLists.txt"
-          "$openSpaceHome/ext/date/CMakeLists.txt"
-          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/tinyxml/CMakeLists.txt"
-          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/CMakeLists.txt"
-          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/openvr/src/CMakeLists.txt"
-          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/CMakeLists.txt"
-          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/vrpn/quat/CMakeLists.txt"
-          "$openSpaceHome/apps/OpenSpace/ext/sgct/ext/json-schema-validator/CMakeLists.txt"
-        )
-    
-        for f in "${FILES_TO_PATCH[@]}"; do
-          if [ ! -f "$f" ]; then
-            echo "SKIP (not found): $f"
-            continue
-          fi
-          echo "Patching: $f"
-          python3 /tmp/patch_cmake.py "$f"
-          grep -A3 "^project" "$f" | head -5
-        done
-    
-        echo ""
-        echo "=== Verification: remaining project() without LANGUAGES C ==="
-        grep -rn "^project(" "$openSpaceHome" --include="CMakeLists.txt" \
-          | grep -v "LANGUAGES.*\bC\b" \
-          | grep -v "tests\|examples\|docs\|sample\|MinVR" \
-          | grep -v "DummyImport\|json_example\|scn-consumer\|test_find_glm"
-    
 
   
     - name: Configure CMake
