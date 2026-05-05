@@ -109,7 +109,7 @@ jobs:
         rm -vf "$cef_orig_dir/libvulkan.so.1" || echo "libvulkan.so.1 not found, skipping removal"
         make -j $(nproc)
         
-    - name: Create appimage
+    - name: Create appimage directory
       working-directory: ${{github.workspace}}
       # https://appimage-builder.readthedocs.io/en/latest/hosted-services/github-actions.html
       # But instead of linuxdeployqt as in https://github.com/hn-88/OCVWarp/blob/master/.travis.yml
