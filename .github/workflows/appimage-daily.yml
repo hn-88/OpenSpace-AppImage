@@ -111,12 +111,14 @@ jobs:
         
     - name: Create appimage directory
       working-directory: ${{github.workspace}}
-      # https://appimage-builder.readthedocs.io/en/latest/hosted-services/github-actions.html
-      # But instead of linuxdeployqt as in https://github.com/hn-88/OCVWarp/blob/master/.travis.yml
-      # trying with go-appimage
       run: |
         echo "create appimage"
-        mkdir -p appdir/usr/bin ; cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin ; strip ./appdir/usr/bin/*
+        # Create standard AppImage folders
+        mkdir -p appdir/usr/bin appdir/usr/lib
+        
+        cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin
+        strip ./appdir/usr/bin/*
+        
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
 
@@ -126,46 +128,39 @@ jobs:
         # patch file created with diff -u openspace.cfg openspace.edited
         patch ./appdir/usr/openspace.cfg < ./appdir/openspacef12f5e2.cfg.patch
 
-        # https://stackoverflow.com/questionopenspace.cfgs/43412885/fastest-way-to-delete-files-from-a-directory-tree-whose-names-contain-a-certain
         # delete source files from modules directory
         find ./appdir/usr/ -name '*.cpp' -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
 
-        # https://github.com/probonopd/go-appimage/blob/master/src/appimagetool/README.md
+        # --- FIX: Manually place CEF files exactly where they belong ---
+        echo "Copying CEF libraries to appdir/usr/lib..."
+        cef_orig_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | xargs dirname | head -n 1)
+        
+        # Copy libcef.so AND all its required .pak/.dat files right into /usr/lib
+        cp -r "$cef_orig_dir"/* ./appdir/usr/lib/
+        
+        # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
+        strip --strip-unneeded ./appdir/usr/lib/libcef.so || true
+
+        # Download appimagetool
         wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
         chmod +x appimagetool-*.AppImage
 
-        # --- FIX: Help go-appimage find libcef.so ---
-        # Find exactly where the build system placed libcef.so
-        cef_orig_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | xargs dirname | head -n 1)
-        
-        # Temporarily export this so go-appimage 'deploy' can successfully resolve it
-        export LD_LIBRARY_PATH="$cef_orig_dir:$LD_LIBRARY_PATH"
+        # Add our appdir/usr/lib to LD_LIBRARY_PATH so go-appimage deploy 
+        # sees that libcef.so is ALREADY resolved and doesn't try to mirror the path
+        export LD_LIBRARY_PATH="$(pwd)/appdir/usr/lib:$LD_LIBRARY_PATH"
 
-        # Now bundle everything. It will successfully find libcef.so this time.
+        # Bundle system libraries
         ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop
 
-        # Now locate where go-appimage put libcef.so inside our appdir
-        cef_install_dir=$(find ./appdir -name "libcef.so" | xargs dirname | head -n 1)
-        
-        # Sanity check to prevent silent failures in the future
-        if [ -z "$cef_install_dir" ]; then
-          echo "ERROR: go-appimage failed to bundle libcef.so!"
-          exit 1
-        fi
-
-        # Install libcef runtime dependencies (.pak files, dat files, etc.) right next to it
-        cp -r "$cef_orig_dir"/* "$cef_install_dir"/
-
-        # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
-        strip --strip-unneeded "$cef_install_dir"/*.so || true
-      
+        # Clean up go-appimage's weird absolute path mirroring if it still happened
+        rm -rf ./appdir/home || true  
         # We install gcc-13 in the build env and it also pulls a libstdc++ that's newer than the
         # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
         # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
-        # well
+        # well, or perhaps do static linking.
         # Trying static linking instead
         # libstdcxx=/lib/x86_64-linux-gnu/libstdc++.so.6
         # cp ${libstdcxx} ./appdir/${libstdcxx}
