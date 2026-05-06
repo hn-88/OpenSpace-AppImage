@@ -135,7 +135,8 @@ index 07fdf76937..15abe03d1d 100644
 +  endif()
 +  # --- Compose Debian package release string ---
 +  set(CPACK_DEBIAN_PACKAGE_RELEASE "${BUILD_TIMESTAMP}~${OPENSPACE_DISTRO}")
-+  set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")     # get Package_Version-Release_Arch.deb
++  execute_process(COMMAND dpkg --print-architecture OUTPUT_VARIABLE DEB_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
++  set(CPACK_DEBIAN_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_PACKAGE_VERSION}~${OPENSPACE_DISTRO}_${DEB_ARCH}_daily.deb")     # default is Package_Version-Release_Arch.deb
 +  set(CMAKE_INSTALL_DATADIR share)
 +  set(CMAKE_INSTALL_DOCDIR "${CMAKE_INSTALL_DATADIR}/doc/${CPACK_PACKAGE_NAME}" CACHE PATH "" FORCE)
 +
