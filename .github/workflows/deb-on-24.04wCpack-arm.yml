@@ -10,7 +10,6 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: Release
-  # As recommended here: https://github.com/marketplace/actions/sccache-action
   OPENSPACE_VERSION: "0.21.4+"
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
@@ -58,13 +57,6 @@ jobs:
         mkdir build
         cd build
 
-    - name: get updated ghoul
-      # https://github.com/OpenSpace/OpenSpace/issues/3880
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome/ext/ghoul"
-        git checkout master --recurse-submodules
-        
     
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
@@ -79,7 +71,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         # cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp" 
-        ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
+        # ls -l $openSpaceHome/ext/ghoul/src/misc/*.cpp
 
     - name: Install cmakelists patches
       run: |
