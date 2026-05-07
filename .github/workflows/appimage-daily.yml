@@ -152,6 +152,23 @@ jobs:
         # sees that libcef.so is ALREADY resolved and doesn't try to mirror the path
         export LD_LIBRARY_PATH="$(pwd)/appdir/usr/lib:$LD_LIBRARY_PATH"
 
+        # Explicitly bundle libmpv and its transitive deps — appimagetool deploy
+        # often misses version-suffixed sonames like libmpv.so.1 or libmpv.so.2.
+        echo "Bundling libmpv explicitly..."
+        for lib in $(ldconfig -p | grep -E 'libmpv' | awk '{print $NF}'); do
+          echo "  Copying $lib"
+          cp -v "$lib" ./appdir/usr/lib/ || true
+        done
+        # Create the expected versioned symlinks alongside the real file so
+        # that dlopen("libmpv.so.1") and dlopen("libmpv.so") both resolve.
+        (cd ./appdir/usr/lib && \
+          for f in libmpv.so.*.*; do
+            [ -f "$f" ] || continue
+            major=$(echo "$f" | grep -oP '(?<=libmpv\.so\.)\d+')
+            ln -sf "$f" "libmpv.so.${major}" 2>/dev/null || true
+            ln -sf "$f" "libmpv.so"          2>/dev/null || true
+          done)
+
         # Bundle system libraries
         ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop
 
