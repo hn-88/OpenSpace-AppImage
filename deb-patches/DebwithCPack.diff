@@ -34,7 +34,7 @@ index 0000000000..38d881d3f2
 ++  TEMPORARY = "${USER}/temp",
 +   GLOBEBROWSING = os.getenv("OPENSPACE_GLOBEBROWSING") or "${USER}/globebrowsing"
 + }
-+ 
++
 +@@ -90,7 +90,7 @@
 +   GlobeBrowsing = {
 +     TileCacheSize = 2048, -- for all globes (CPU and GPU memory)
@@ -115,7 +115,7 @@ index 07fdf76937..15abe03d1d 100644
    set(CPACK_PACKAGE_ICON "${PROJECT_SOURCE_DIR}/apps/OpenSpace/openspace.png")
    set(CPACK_PACKAGE_INSTALL_DIRECTORY "${CPACK_PACKAGE_NAME}/${OPENSPACE_VERSION_NUMBER}")
  endif ()
-@@ -111,4 +133,368 @@ if (OPENSPACE_CREATE_INSTALLER)
+@@ -111,4 +133,369 @@ if (OPENSPACE_CREATE_INSTALLER)
    endif ()
  endif ()
  
@@ -148,7 +148,7 @@ index 07fdf76937..15abe03d1d 100644
 +    # Make sure the man directory exists
 +    install(CODE "
 +      file(MAKE_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/share/man/man1\")
-+      
++
 +      # Compress the man page and install it
 +      execute_process(
 +        COMMAND gzip -c \"${CMAKE_CURRENT_SOURCE_DIR}/support/deb/openspace.1\"
@@ -160,7 +160,7 @@ index 07fdf76937..15abe03d1d 100644
 +    # ------------------------------------------------------------------------------
 +    # Bundle Chromium Embedded Framework (CEF) runtime
 +    # ------------------------------------------------------------------------------
-+    
++
 +    # Path to CEF binary dir - is set as CEF_ROOT in modules/webbrowser/cmake/cef_support.cmake
 +    # set(CEF_BINARY_DIR "${CMAKE_SOURCE_DIR}/build/modules/webbrowser/ext/cef/cef_binary_127")
 +
@@ -169,13 +169,13 @@ index 07fdf76937..15abe03d1d 100644
 +    COMMAND ${CMAKE_STRIP} --strip-unneeded ${CEF_ROOT}/Release/libcef.so
 +    )
 +
-+    
++
 +    # Main CEF shared library
 +    install(FILES
 +        ${CEF_ROOT}/Release/libcef.so
 +        DESTINATION lib/openspace/bin
 +    )
-+    
++
 +    # Resources and locales (required for CEF to work properly)
 +    install(DIRECTORY
 +        ${CEF_ROOT}/Resources/
@@ -476,7 +476,7 @@ index 07fdf76937..15abe03d1d 100644
 +      \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/*/*.a\"
 +      )
 +    file(REMOVE \${_lib_arch_a_files})
-+     
++
 +  ")
 +
 +
