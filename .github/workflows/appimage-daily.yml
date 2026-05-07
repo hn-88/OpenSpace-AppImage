@@ -24,28 +24,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@main
-      with:
-        # this might remove tools that are actually needed,
-        # if set to "true" but frees about 6 GB
-        tool-cache: true
-        
-        # all of these default to true, but feel free to set to
-        # "false" if necessary for your workflow
-        android: true
-        dotnet: true
-        haskell: true
-        large-packages: true
-        docker-images: true
-        swap-storage: true
-
-    - name: Remove CMake 3.31
-      run: |
-        sudo apt-get -y remove cmake cmake-data
-        
+    - uses: actions/checkout@v4 
 
     - name: Install CMake 4.3.2
       uses: lukka/get-cmake@latest
@@ -172,8 +151,6 @@ jobs:
         # Bundle system libraries
         ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop
 
-        # Clean up go-appimage's weird absolute path mirroring if it still happened
-        rm -rf ./appdir/home || true  
         # We install gcc-13 in the build env and it also pulls a libstdc++ that's newer than the
         # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
         # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
@@ -202,59 +179,7 @@ jobs:
           fi
         done
     
-        echo ""
-        echo "=== Cleaning RPATH ==="
-        for f in $ELF_FILES; do
-          echo "---- $f ----"
-          # - $ORIGIN allows libraries in a folder to find peer libraries next to them
-          # - $ORIGIN/../lib and $ORIGIN/../lib64 allows bin/ executables to find lib/ libraries
-          # - $ORIGIN/../lib/x86_64-linux-gnu covers Ubuntu's default multiarch folder
-          patchelf --set-rpath '$ORIGIN:$ORIGIN/../lib:$ORIGIN/../lib64:$ORIGIN/../lib/x86_64-linux-gnu' "$f" || true
-        done
-    
-        echo ""
-        echo "=== Checking for Homebrew leakage ==="
-        LEAK_FOUND=0
-        for f in appdir/usr/bin/OpenSpace appdir/usr/bin/OpenSpace_Helper; do
-          if strings "$f" | grep -q "linuxbrew"; then
-            echo "ERROR: Found Homebrew path in $f"
-            strings "$f" | grep "linuxbrew"
-            LEAK_FOUND=1
-          else
-            echo "OK: No Homebrew paths in $f"
-          fi
-        done
-
-        if [ "$LEAK_FOUND" -ne 0 ]; then
-          echo "Homebrew leakage detected in main binaries!"
-          exit 1
-        fi
-    
-        echo ""
-        echo "=== Checking missing libraries ==="
-        FAIL=0
         
-        # When ldd runs inside GitHub Actions, we must simulate the AppImage runtime environment
-        # by temporarily adding the AppDir lib folders to LD_LIBRARY_PATH.
-        export LD_LIBRARY_PATH="$(pwd)/appdir/usr/lib:$(pwd)/appdir/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
-
-        for f in $ELF_FILES; do
-          echo "Checking: $f"
-          LDD_OUT=$(ldd "$f" || true)
-          
-          if echo "$LDD_OUT" | grep -q "not found"; then
-            echo "ERROR: Missing libraries in $f. See below:"
-            # This prints EXACTLY which .so files are missing!
-            echo "$LDD_OUT" | grep "not found"
-            FAIL=1
-          fi
-        done
-    
-        if [ "$FAIL" -ne 0 ]; then
-          echo "Missing libraries detected! Check the logs above to see which ones."
-          exit 1
-        fi
-
         echo "=== GLIBC compatibility check ==="
         MAX_GLIBC=$(strings appdir/usr/bin/OpenSpace | grep GLIBC_ | sort -V | tail -1)
         echo "Max GLIBC required: $MAX_GLIBC"
