@@ -143,19 +143,20 @@ jobs:
         ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop
 
         # Manually place CEF files exactly where they belong ---
-        echo "Copying CEF libraries to appdir/usr/lib..."
-        cef_orig_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | xargs dirname | head -n 1)
-
-        echo "cef_orig_dir is "
-        echo $cef_orig_dir
+        echo "Copying CEF libraries to appdir/usr/lib..."      
         
         # Copy libcef.so AND all its required .pak/.dat files
-        cp -r "$cef_orig_dir"/*.pak  ./appdir/usr/bin/
-        cp -r "$cef_orig_dir"/*.dat  ./appdir/usr/bin/
-        cp -r "$cef_orig_dir"/*.bin  ./appdir/usr/bin/
-        cp -r "$cef_orig_dir"/locales ./appdir/usr/bin/
-        # libcef.so itself goes to usr/lib
-        cp "$cef_orig_dir"/libcef.so ./appdir/usr/lib/
+        cef_release_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | grep -i release | xargs dirname | head -n 1)
+        cef_data_dir=$(find $HOME/source/OpenSpace/build -name "*.pak" | xargs dirname | head -n 1)
+
+        echo "cef_release_dir is $cef_release_dir"
+        echo "cef_data_dir is $cef_data_dir"
+        
+        cp -r "$cef_data_dir"/*.pak  ./appdir/usr/bin/
+        cp -r "$cef_data_dir"/*.dat  ./appdir/usr/bin/
+        cp -r "$cef_data_dir"/*.bin  ./appdir/usr/bin/
+        cp -r "$cef_data_dir"/locales ./appdir/usr/bin/
+        cp "$cef_release_dir"/libcef.so ./appdir/usr/lib/
         
         # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
         strip --strip-unneeded ./appdir/usr/lib/libcef.so || true
