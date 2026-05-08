@@ -113,15 +113,6 @@ jobs:
         find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
 
-        # --- FIX: Manually place CEF files exactly where they belong ---
-        echo "Copying CEF libraries to appdir/usr/lib..."
-        cef_orig_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | xargs dirname | head -n 1)
-        
-        # Copy libcef.so AND all its required .pak/.dat files right into /usr/lib
-        cp -r "$cef_orig_dir"/* ./appdir/usr/lib/
-        
-        # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
-        strip --strip-unneeded ./appdir/usr/lib/libcef.so || true
 
         # Download appimagetool
         wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
@@ -150,6 +141,31 @@ jobs:
 
         # Bundle system libraries
         ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop
+
+        # Manually place CEF files exactly where they belong ---
+        echo "Copying CEF libraries to appdir/usr/lib..."
+        cef_orig_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | xargs dirname | head -n 1)
+
+        echo "cef_orig_dir is "
+        echo $cef_orig_dir
+        
+        # Copy libcef.so AND all its required .pak/.dat files
+        cp -r "$cef_orig_dir"/*.pak  ./appdir/usr/bin/
+        cp -r "$cef_orig_dir"/*.dat  ./appdir/usr/bin/
+        cp -r "$cef_orig_dir"/*.bin  ./appdir/usr/bin/
+        cp -r "$cef_orig_dir"/locales ./appdir/usr/bin/
+        # libcef.so itself goes to usr/lib
+        cp "$cef_orig_dir"/libcef.so ./appdir/usr/lib/
+        
+        # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
+        strip --strip-unneeded ./appdir/usr/lib/libcef.so || true
+
+        # remove unnecessarily bundled /home libraries from cef and homebrew
+        # Move to the right place instead of deleting
+        mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblz4.so.1   ./appdir/usr/lib/
+        mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblzma.so.5  ./appdir/usr/lib/
+        mv ./appdir/home/linuxbrew/.linuxbrew/lib/libzstd.so.1  ./appdir/usr/lib/
+        rm -vfr ./appdir/home
 
         # We install gcc-13 in the build env and it also pulls a libstdc++ that's newer than the
         # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
