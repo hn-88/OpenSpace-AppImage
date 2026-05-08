@@ -152,10 +152,7 @@ jobs:
         echo "cef_release_dir is $cef_release_dir"
         echo "cef_data_dir is $cef_data_dir"
         
-        cp -rv "$cef_data_dir"/*.pak  ./appdir/usr/bin/
-        cp -rv "$cef_data_dir"/*.dat  ./appdir/usr/bin/
-        cp -rv "$cef_data_dir"/*.bin  ./appdir/usr/bin/
-        cp -rv "$cef_data_dir"/locales ./appdir/usr/bin/
+        cp -rv "$cef_data_dir"/*  ./appdir/usr/bin/
         cp -v "$cef_release_dir"/libcef.so ./appdir/usr/lib/
         
         # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
