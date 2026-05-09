@@ -153,22 +153,24 @@ jobs:
         echo "cef_data_dir is $cef_data_dir"
         
         # Data files (pak, locales, icudtl.dat, etc.)
-        cp -rv "$cef_data_dir"/* ./appdir/usr/bin/
+        cp -rv "$cef_data_dir"/*.pak ./appdir/usr/bin/
+        cp -rv "$cef_data_dir"/*.dat ./appdir/usr/bin/
+        cp -rv "$cef_data_dir"/locales ./appdir/usr/bin/
         
         # CEF shared libraries
-        cp -v "$cef_release_dir"/libcef.so    ./appdir/usr/lib/
-        cp -v "$cef_release_dir"/libEGL.so    ./appdir/usr/lib/  2>/dev/null || true
-        cp -v "$cef_release_dir"/libGLESv2.so ./appdir/usr/lib/  2>/dev/null || true
+        cp -v "$cef_release_dir"/libcef.so    ./appdir/usr/bin/
+        cp -v "$cef_release_dir"/libEGL.so    ./appdir/usr/bin/  2>/dev/null || true
+        cp -v "$cef_release_dir"/libGLESv2.so ./appdir/usr/bin/  2>/dev/null || true
         
         # V8 snapshot — must live next to the executable
         cp -v "$cef_release_dir"/v8_context_snapshot.bin ./appdir/usr/bin/
         cp -v "$cef_release_dir"/snapshot_blob.bin       ./appdir/usr/bin/ 2>/dev/null || true
 
-        cp -v "$cef_release_dir"/libvk_swiftshader.so  ./appdir/usr/lib/
-        cp -v "$cef_release_dir"/vk_swiftshader_icd.json ./appdir/usr/lib/ 2>/dev/null || true
+        cp -v "$cef_release_dir"/libvk_swiftshader.so  ./appdir/usr/bin/
+        cp -v "$cef_release_dir"/vk_swiftshader_icd.json ./appdir/usr/bin/ 2>/dev/null || true
         
         # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
-        strip --strip-unneeded ./appdir/usr/lib/libcef.so || true
+        strip --strip-unneeded ./appdir/usr/bin/libcef.so || true
 
         # remove unnecessarily bundled /home libraries from cef and homebrew
         # Move to the right place instead of deleting
