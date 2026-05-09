@@ -87,6 +87,11 @@ jobs:
         cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
         rm -vf "$cef_orig_dir/libvulkan.so.1" || echo "libvulkan.so.1 not found, skipping removal"
         make -j $(nproc)
+
+    - name: Verify custom AppRun is present
+      working-directory: ${{github.workspace}}
+      run: |
+        test -x appdir/AppRun || (echo "ERROR: appdir/AppRun missing or not executable" && exit 1)
         
     - name: Create appimage directory
       working-directory: ${{github.workspace}}
