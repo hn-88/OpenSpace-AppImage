@@ -141,7 +141,27 @@ jobs:
         # Use the system's libvulkan, not the vendored one, otherwise they might conflict
         cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
         rm -vf "$cef_orig_dir/libvulkan.so.1" || echo "libvulkan.so.1 not found, skipping removal"
-        cmake --build . --parallel 3
+        cmake --build . --parallel
+
+    - name: Fix interpreter
+      run: |
+        set -e
+        # Since we built using homebrew compiler, the paths to ELF interpreter may be messed up
+        echo "=== Collecting ELF binaries ==="
+        # We find all executables AND shared libraries (even if missing execution permissions)
+        ELF_FILES=$(find $HOME/source/OpenSpace/bin -type f \( -executable -o -name "*.so*" \) -exec file {} \; | grep ELF | cut -d: -f1)
+        # some .so files may not have executable flag set after copying
+    
+        echo ""
+        echo "=== Fixing ELF interpreter ==="
+        for f in $ELF_FILES; do
+          # Only executables have interpreters; patching .so files throws a harmless error, 
+          # but we can filter it cleanly by checking if it's an executable vs shared object.
+          if file "$f" | grep -q "executable"; then
+            echo "Patching interpreter: $f"
+            patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
+          fi
+        done
         
     - name: Create deb
       working-directory: ${{github.workspace}}
