@@ -99,11 +99,11 @@ jobs:
       run: |
         echo "create appimage"
         # Create standard AppImage folders
-        mkdir -p appdir/usr/bin appdir/usr/lib
-        mv -v appdir/run.sh appdir/usr/bin
+        mkdir -p appdir/usr/bin appdir/usr/lib        
         
         cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin
         strip ./appdir/usr/bin/*
+        mv -v appdir/run.sh appdir/usr/bin
         
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
