@@ -88,15 +88,11 @@ jobs:
         rm -vf "$cef_orig_dir/libvulkan.so.1" || echo "libvulkan.so.1 not found, skipping removal"
         make -j $(nproc)
 
-    - name: Verify custom AppRun is present
+    - name: custom run script
       working-directory: ${{github.workspace}}
       run: |
-        pwd
-        ls -l
-        chmod +x appdir/AppRun
-        test -x appdir/AppRun || (echo "ERROR: appdir/AppRun missing or not executable" && exit 1)
-        echo "Removing custom AppRun since it is not yet working"
-        rm -vf appdir/AppRun
+        chmod +x appdir/run.sh
+        
         
     - name: Create appimage directory
       working-directory: ${{github.workspace}}
@@ -104,6 +100,7 @@ jobs:
         echo "create appimage"
         # Create standard AppImage folders
         mkdir -p appdir/usr/bin appdir/usr/lib
+        mv -v appdir/run.sh appdir/usr/bin
         
         cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin
         strip ./appdir/usr/bin/*
