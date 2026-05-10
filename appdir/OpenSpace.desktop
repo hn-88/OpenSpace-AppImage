@@ -1,12 +1,10 @@
-#!/usr/bin/env xdg-open
-
 [Desktop Entry]
 Version=1.0
 Name=OpenSpace
 Comment=OpenSpace tool
-Exec=OpenSpace
+Exec=run.sh OpenSpace
 Icon=OpenSpace
 Terminal=true
 Type=Application
-Categories=Development;
+Categories=Education;Science;
 Name[en_IN]=OpenSpace
