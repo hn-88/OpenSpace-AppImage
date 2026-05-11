@@ -153,7 +153,7 @@ jobs:
         echo "Searching for libjack.so* on runner..."
 
         JACK_LIBS=$(find /usr/lib /lib /usr/local/lib \
-          -type f \( -name "libjack.so*" -o -name "libjackserver.so*" \) \
+          \( -name "libjack.so*" -o -name "libjackserver.so*" \) \
           2>/dev/null | sort -u)
     
         if [ -n "$JACK_LIBS" ]; then
@@ -162,7 +162,7 @@ jobs:
     
           while IFS= read -r lib; do
             echo "Copying $lib"
-            cp -v "$lib" appdir/usr/lib/
+            cp -av "$lib" appdir/usr/lib/
           done <<< "$JACK_LIBS"
     
         else
