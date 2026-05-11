@@ -103,7 +103,7 @@ jobs:
         
         cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin
         strip ./appdir/usr/bin/*
-        mv -v appdir/run.sh appdir/usr/bin
+        
         
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
@@ -337,6 +337,9 @@ jobs:
         rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77_wrap4.c
         
         rm -vf ./appdir/usr/openspace.cfg.orig
+
+        mv -v appdir/run.sh appdir/usr/bin
+        # We're doing this last, so that patchelf, strip etc don't try to run on this run.sh
 
         
     - name: turn AppDir into AppImage
