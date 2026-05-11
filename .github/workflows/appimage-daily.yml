@@ -200,7 +200,7 @@ jobs:
     
         echo "=== Collecting ELF binaries ==="
         # We find all executables AND shared libraries (even if missing execution permissions)
-        ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -executable -o -name "*.so*" \) -exec file {} \; | grep ELF | cut -d: -f1)
+        ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -executable -o -name "*.so*" \) -exec sh -c 'file "$1" | grep -q ELF && echo "$1"' _ {} \;)
         # some .so files may not have executable flag set after copying
     
         echo ""
