@@ -48,7 +48,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev
         sudo apt-get install -y software-properties-common
-        sudo apt-get install -y libasound2 libasound2-data libasound2-plugins
+        sudo apt-get install -y libasound2 libasound2-data libasound2-plugins libjack0
 
     
     - name: Set up Homebrew
@@ -149,6 +149,26 @@ jobs:
         # Bundle system libraries
         ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop
 
+        # Manually bundle libjack
+        echo "Searching for libjack.so* on runner..."
+
+        JACK_LIBS=$(find /usr/lib /lib /usr/local/lib \
+          -type f \( -name "libjack.so*" -o -name "libjackserver.so*" \) \
+          2>/dev/null | sort -u)
+    
+        if [ -n "$JACK_LIBS" ]; then
+          echo "Found JACK libraries:"
+          echo "$JACK_LIBS"
+    
+          while IFS= read -r lib; do
+            echo "Copying $lib"
+            cp -v "$lib" appdir/usr/lib/
+          done <<< "$JACK_LIBS"
+    
+        else
+          echo "::warning::libjack.so* not found on GitHub runner. Continuing build without JACK libraries."
+        fi
+        
         # Manually place CEF files exactly where they belong ---
         echo "Copying CEF libraries to appdir/usr/lib..."      
         
