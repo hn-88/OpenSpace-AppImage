@@ -102,8 +102,7 @@ jobs:
         mkdir -p appdir/usr/bin appdir/usr/lib        
         
         cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin
-        strip ./appdir/usr/bin/*
-        
+        strip ./appdir/usr/bin/*        
         
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
@@ -119,8 +118,9 @@ jobs:
         find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
-
-
+        
+        mv -v appdir/run.sh appdir/usr/bin
+        
         # Download appimagetool
         wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
         chmod +x appimagetool-*.AppImage
@@ -180,7 +180,7 @@ jobs:
         strip --strip-unneeded ./appdir/usr/bin/libcef.so || true
 
         # remove unnecessarily bundled /home libraries from cef and homebrew
-        # Move to the right place instead of deleting
+        # or move to the right place instead of deleting
         mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblz4.so.1   ./appdir/usr/lib/
         mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblzma.so.5  ./appdir/usr/lib/
         mv ./appdir/home/linuxbrew/.linuxbrew/lib/libzstd.so.1  ./appdir/usr/lib/
@@ -200,8 +200,9 @@ jobs:
     
         echo "=== Collecting ELF binaries ==="
         # We find all executables AND shared libraries (even if missing execution permissions)
-        ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -executable -o -name "*.so*" \) -exec sh -c 'file "$1" | grep -q ELF && echo "$1"' _ {} \;)
+        ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -name "*.so*" -o -name "OpenSpac*" \) -exec sh -c 'file "$1" | grep -q ELF && echo "$1"' _ {} \;)
         # some .so files may not have executable flag set after copying
+        # avoid picking up run.sh
     
         echo ""
         echo "=== Fixing ELF interpreter ==="
@@ -213,7 +214,6 @@ jobs:
             patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
           fi
         done
-    
         
         echo "=== GLIBC compatibility check ==="
         MAX_GLIBC=$(strings appdir/usr/bin/OpenSpace | grep GLIBC_ | sort -V | tail -1)
@@ -338,8 +338,7 @@ jobs:
         
         rm -vf ./appdir/usr/openspace.cfg.orig
 
-        mv -v appdir/run.sh appdir/usr/bin
-        # We're doing this last, so that patchelf, strip etc don't try to run on this run.sh
+        
 
         
     - name: turn AppDir into AppImage
