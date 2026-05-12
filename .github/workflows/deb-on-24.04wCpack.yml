@@ -24,22 +24,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@main
-      with:
-        # this might remove tools that are actually needed,
-        # if set to "true" but frees about 6 GB
-        tool-cache: false
         
-        # all of these default to true, but feel free to set to
-        # "false" if necessary for your workflow
-        android: true
-        dotnet: true
-        haskell: true
-        large-packages: false
-        docker-images: true
-        swap-storage: false
+    - name: Install Qt 6.9
+      uses: jurplel/install-qt-action@v4
+      with:
+        qt-version: 6.9
 
     - name: Install CMake 4.3.2
       uses: lukka/get-cmake@latest
@@ -68,7 +57,7 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         sudo apt update
-        sudo apt-get -y install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost-all-dev qt6-base-dev libmpv-dev libvulkan-dev
+        sudo apt-get -y install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost-all-dev libmpv-dev libvulkan-dev
         sudo apt-get -y install software-properties-common
         sudo apt-get -y install libasound2t64 
         # libasound2-data libasound2-plugins
