@@ -11,11 +11,12 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: RelWithDebInfo
-  OPENSPACE_VERSION: "0.21.4+"
+  OPENSPACE_VERSION: "0.22.0rc1"
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
-  QT_DIR: C:/Qt/6.9.3/msvc2019_64
-  QT6_DIR: C:/Qt/6.9.3/msvc2019_64
-  CMAKE_PREFIX_PATH: C:/Qt/6.9.3/msvc2019_64/lib/cmake
+  # QT_DIR: C:/Qt/6.9.3/msvc2019_64
+  # QT6_DIR: C:/Qt/6.9.3/msvc2019_64
+  # CMAKE_PREFIX_PATH: C:/Qt/6.9.3/msvc2019_64/lib/cmake
+  # The install qt action is supposed to set QT_DIR variable.
   buildConfig: RelWithDebInfo
   
 jobs:
@@ -43,16 +44,21 @@ jobs:
       uses: lukka/get-cmake@latest
       with:
         cmakeVersion: '4.0.7'
+
+    - name: Install Qt 6.9
+      uses: jurplel/install-qt-action@v4
+      with:
+        qt-version: 6.9
         
     
-    - name: Install dependencies
+    #- name: Install dependencies
       # https://github.com/OpenSpace/OpenSpace-Docs/blob/3ddcca71b5ff4700ab1f75c5a961ed07c455cb68/dev/compiling/index.md
-      shell: pwsh
-      run: |
+      #shell: pwsh
+      #run: |
         # Install QT 6.9.3        
-        python -m pip install --upgrade pip
-        pip install aqtinstall
-        aqt install-qt windows desktop 6.9.3 win64_msvc2019_64 --outputdir C:\Qt
+       # python -m pip install --upgrade pip
+       # pip install aqtinstall
+       # aqt install-qt windows desktop 6.9.3 win64_msvc2019_64 --outputdir C:\Qt
 
     - name: Install Boost (MSVC 14.3)
       run: choco install boost-msvc-14.3 -y
