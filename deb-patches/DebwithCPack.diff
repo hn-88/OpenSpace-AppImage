@@ -552,7 +552,7 @@ index 07fdf76937..15abe03d1d 100644
 +   # --------------------------------------------------------------------------
 +    
 +endif () # if UNIX and not APPLE
-+
++    
  include (CPack)
 diff --git a/support/deb/changelog.in b/support/deb/changelog.in
 new file mode 100644
