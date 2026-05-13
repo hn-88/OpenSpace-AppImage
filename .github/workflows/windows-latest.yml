@@ -48,7 +48,7 @@ jobs:
     - name: Install Qt 6.9
       uses: jurplel/install-qt-action@v4
       with:
-        qt-version: 6.9
+        version: 6.9.*
         
     
     #- name: Install dependencies
