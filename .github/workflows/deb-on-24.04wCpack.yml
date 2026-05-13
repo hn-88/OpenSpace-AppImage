@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-    - uses: actions/checkout@latest
+    - uses: actions/checkout@v6
         
     - name: Install Qt 6.9
       uses: jurplel/install-qt-action@v4
@@ -142,7 +142,7 @@ jobs:
         # ldd deb_extract/usr/share/openspace/bin/OpenSpace
         
     - name: Upload AppImage Artifact
-      uses: actions/upload-artifact@latest
+      uses: actions/upload-artifact@v7
       with:
         # Artifact name
         name: OpenSpace-Deb-Cpack
