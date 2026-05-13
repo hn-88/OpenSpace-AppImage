@@ -225,23 +225,36 @@ index 07fdf76937..15abe03d1d 100644
 +    # ------------------------------------------------------------------------------
 +    # Bundle Qt 6.9 runtime and platforms
 +    # ------------------------------------------------------------------------------
-+    
-+    # Try to locate the Qt library directory from the Qt6::Core target
-+    get_target_property(QT_CORE_LOCATION Qt6::Core IMPORTED_LOCATION)
-+    if(NOT QT_CORE_LOCATION)
-+        # Fallback to Release configuration location if standard is not set
-+        get_target_property(QT_CORE_LOCATION Qt6::Core IMPORTED_LOCATION_RELEASE)
++    # Locate Qt library directory via QT_DIR environment variable
++    if(DEFINED ENV{QT_DIR})
++        set(QT_ROOT_DIR "$ENV{QT_DIR}")
++    elseif(DEFINED ENV{Qt6_DIR})
++        set(QT_ROOT_DIR "$ENV{Qt6_DIR}")
++    else()
++        message(WARNING "Neither QT_DIR nor Qt6_DIR environment variable is set. Qt libraries will not be bundled.")
 +    endif()
 +
-+    if(QT_CORE_LOCATION)
-+        # Extract base directories for libraries and plugins
-+        get_filename_component(QT_LIB_DIR "${QT_CORE_LOCATION}" DIRECTORY)
-+        get_filename_component(QT_ROOT_DIR "${QT_LIB_DIR}/.." ABSOLUTE)
-+        set(QT_PLUGINS_DIR "${QT_ROOT_DIR}/plugins")
++    if(DEFINED QT_ROOT_DIR)
++        # Normalize the path (QT_DIR may point to lib/cmake/Qt6, so walk up as needed)
++        # Walk up until we find a 'lib' subdirectory — that's the actual Qt root.
++        if(EXISTS "${QT_ROOT_DIR}/lib")
++            set(QT_LIB_DIR "${QT_ROOT_DIR}/lib")
++        elseif(EXISTS "${QT_ROOT_DIR}/../lib")
++            get_filename_component(QT_LIB_DIR "${QT_ROOT_DIR}/../lib" ABSOLUTE)
++        elseif(EXISTS "${QT_ROOT_DIR}/../../lib")
++            get_filename_component(QT_LIB_DIR "${QT_ROOT_DIR}/../../lib" ABSOLUTE)
++        else()
++            message(WARNING "Could not locate Qt lib directory relative to QT_DIR (${QT_ROOT_DIR}). Qt libraries will not be bundled.")
++            unset(QT_ROOT_DIR)
++        endif()
++    endif()
 +
-+        # Install main Qt libraries
-+        # Note: We use install(DIRECTORY ... FILES_MATCHING) instead of install(FILES) 
-+        # so that CMake preserves the vital .so -> .so.6 -> .so.6.9.x symlinks!
++    if(DEFINED QT_ROOT_DIR)
++        # Derive the plugins directory
++        set(QT_PLUGINS_DIR "${QT_LIB_DIR}/../plugins")
++        get_filename_component(QT_PLUGINS_DIR "${QT_PLUGINS_DIR}" ABSOLUTE)
++
++        # Install main Qt libraries, preserving .so -> .so.6 -> .so.6.x.y symlinks
 +        install(DIRECTORY "${QT_LIB_DIR}/"
 +            DESTINATION lib/openspace/bin
 +            FILES_MATCHING
@@ -249,10 +262,10 @@ index 07fdf76937..15abe03d1d 100644
 +            PATTERN "libQt6Widgets.so*"
 +            PATTERN "libQt6Network.so*"
 +            PATTERN "libQt6Gui.so*"
-+            PATTERN "libQt6DBus.so*"          # Typically required by Linux platform plugins
-+            PATTERN "libQt6XcbQpa.so*"        # Required by the XCB (X11) platform plugin
-+            PATTERN "libQt6Opengl.so*"        # Often required for Gui rendering
-+            PATTERN "libQt6WaylandClient.so*" # Required if running under Wayland
++            PATTERN "libQt6DBus.so*"
++            PATTERN "libQt6XcbQpa.so*"
++            PATTERN "libQt6Opengl.so*"
++            PATTERN "libQt6WaylandClient.so*"
 +        )
 +
 +        # Install the platforms plugin directory (contains libqxcb.so, libqwayland-*.so)
@@ -261,8 +274,8 @@ index 07fdf76937..15abe03d1d 100644
 +                DESTINATION lib/openspace/bin
 +            )
 +        endif()
-+        
-+        # (Optional but recommended) Install imageformats if needed for UI icons/assets
++
++        # (Optional) Install imageformats if needed for UI icons/assets
 +        if(EXISTS "${QT_PLUGINS_DIR}/imageformats")
 +            install(DIRECTORY "${QT_PLUGINS_DIR}/imageformats"
 +                DESTINATION lib/openspace/bin
@@ -275,8 +288,6 @@ index 07fdf76937..15abe03d1d 100644
 +                DESTINATION lib/openspace/bin
 +            )
 +        endif()
-+    else()
-+        message(WARNING "Qt6::Core target location not found. Qt libraries will not be bundled.")
 +    endif()
 +
 +
