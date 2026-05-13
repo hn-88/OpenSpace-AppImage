@@ -72,13 +72,13 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/*.diff "$openSpaceHome"
         cd $openSpaceHome
-        git apply --verbose fix-Windows-Cpack-zip.diff
+        git apply --verbose --recount --whitespace=fix fix-Windows-Cpack-zip.diff
         
     - name: Install deb patches
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd $openSpaceHome
-        git apply --verbose DebwithCPack.diff
+        git apply --verbose --recount --whitespace=fix DebwithCPack.diff
 
     - name: Install png for deb
       run: |
