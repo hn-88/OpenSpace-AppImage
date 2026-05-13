@@ -30,6 +30,21 @@ jobs:
       with:
         version: 6.9.*
 
+    - name: Export Qt environment variables
+      shell: bash
+      run: |
+        echo "Qt installation is at: $QT_ROOT_DIR"
+    
+        # For CMake find_package(Qt6 ...)
+        echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> $GITHUB_ENV
+    
+        # Common variables used by packaging scripts
+        echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> $GITHUB_ENV
+        echo "QT_DIR=$QT_ROOT_DIR" >> $GITHUB_ENV
+    
+        # Optional: add Qt tools to PATH
+        echo "$QT_ROOT_DIR/bin" >> $GITHUB_PATH
+
     - name: Install CMake 4.3.2
       uses: lukka/get-cmake@latest
       with:
