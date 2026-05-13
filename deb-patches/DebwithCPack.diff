@@ -123,7 +123,7 @@ index 07fdf76937..15abe03d1d 100644
 +
 +  # for Debian convention, package name should be in lowercase, and docdir path should be as below.
 +  set(CPACK_PACKAGE_NAME "openspace")
-+  set(CPACK_PACKAGE_VERSION "0.21.4+")           # upstream version only
++  set(CPACK_PACKAGE_VERSION "0.22.0rc1+")           # upstream version only
 +  # Generate a timestamp in the desired format: YYYY.MM.DD.HH.MM
 +  string(TIMESTAMP BUILD_TIMESTAMP "%Y.%m.%d.%H.%M")
 +  # --- Determine distro suffix ---
@@ -221,6 +221,64 @@ index 07fdf76937..15abe03d1d 100644
 +    if(CEF_BIN_FILES)
 +        install(FILES ${CEF_BIN_FILES} DESTINATION lib/openspace/bin)
 +    endif()
++    
++    # ------------------------------------------------------------------------------
++    # Bundle Qt 6.9 runtime and platforms
++    # ------------------------------------------------------------------------------
++    
++    # Try to locate the Qt library directory from the Qt6::Core target
++    get_target_property(QT_CORE_LOCATION Qt6::Core IMPORTED_LOCATION)
++    if(NOT QT_CORE_LOCATION)
++        # Fallback to Release configuration location if standard is not set
++        get_target_property(QT_CORE_LOCATION Qt6::Core IMPORTED_LOCATION_RELEASE)
++    endif()
++
++    if(QT_CORE_LOCATION)
++        # Extract base directories for libraries and plugins
++        get_filename_component(QT_LIB_DIR "${QT_CORE_LOCATION}" DIRECTORY)
++        get_filename_component(QT_ROOT_DIR "${QT_LIB_DIR}/.." ABSOLUTE)
++        set(QT_PLUGINS_DIR "${QT_ROOT_DIR}/plugins")
++
++        # Install main Qt libraries
++        # Note: We use install(DIRECTORY ... FILES_MATCHING) instead of install(FILES) 
++        # so that CMake preserves the vital .so -> .so.6 -> .so.6.9.x symlinks!
++        install(DIRECTORY "${QT_LIB_DIR}/"
++            DESTINATION lib/openspace/bin
++            FILES_MATCHING
++            PATTERN "libQt6Core.so*"
++            PATTERN "libQt6Widgets.so*"
++            PATTERN "libQt6Network.so*"
++            PATTERN "libQt6Gui.so*"
++            PATTERN "libQt6DBus.so*"          # Typically required by Linux platform plugins
++            PATTERN "libQt6XcbQpa.so*"        # Required by the XCB (X11) platform plugin
++            PATTERN "libQt6Opengl.so*"        # Often required for Gui rendering
++            PATTERN "libQt6WaylandClient.so*" # Required if running under Wayland
++        )
++
++        # Install the platforms plugin directory (contains libqxcb.so, libqwayland-*.so)
++        if(EXISTS "${QT_PLUGINS_DIR}/platforms")
++            install(DIRECTORY "${QT_PLUGINS_DIR}/platforms"
++                DESTINATION lib/openspace/bin
++            )
++        endif()
++        
++        # (Optional but recommended) Install imageformats if needed for UI icons/assets
++        if(EXISTS "${QT_PLUGINS_DIR}/imageformats")
++            install(DIRECTORY "${QT_PLUGINS_DIR}/imageformats"
++                DESTINATION lib/openspace/bin
++            )
++        endif()
++
++        # (Optional) Wayland shell integration plugins
++        if(EXISTS "${QT_PLUGINS_DIR}/wayland-shell-integration")
++            install(DIRECTORY "${QT_PLUGINS_DIR}/wayland-shell-integration"
++                DESTINATION lib/openspace/bin
++            )
++        endif()
++    else()
++        message(WARNING "Qt6::Core target location not found. Qt libraries will not be bundled.")
++    endif()
++
 +
 +    
 +    # ------------------------------------------------------------------------------
@@ -532,7 +590,7 @@ index 0000000000..3a9c948816
 --- /dev/null
 +++ b/support/deb/openspace.1
 @@ -0,0 +1,20 @@
-+.TH OPENSPACE 1 "August 2025" "OpenSpace 0.21.2"
++.TH OPENSPACE 1 "May 2026" "OpenSpace 0.22.0rc1"
 +.SH NAME
 +openspace \- interactive data visualization tool for astronomy
 +.SH SYNOPSIS
