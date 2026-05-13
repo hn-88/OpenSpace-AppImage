@@ -27,7 +27,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     
   
     - name: get openspace code for a particular release
@@ -91,7 +91,7 @@ jobs:
         cmake --build ./build --config RelWithDebInfo
  
     - name: Upload Artifact only bin
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         # Artifact name
         name: OpenSpace-bindirectory-zip
