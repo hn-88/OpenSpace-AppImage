@@ -188,14 +188,6 @@ index 07fdf76937..15abe03d1d 100644
 +        ${CEF_ROOT}/Release/libGLESv2.so
 +        DESTINATION lib/openspace/bin
 +    )
-+    # Install ICU libraries bundled with CEF (version-pinned, not guaranteed on host)
-+        file(GLOB CEF_ICU_LIBS
-+            "${CEF_ROOT}/Release/libicu*.so*"
-+    )
-+    if(CEF_ICU_LIBS)
-+        install(FILES ${CEF_ICU_LIBS} DESTINATION lib/openspace/bin)
-+    endif()
-+    
 +    # Install Vulkan SwiftShader components (software renderer)
 +    install(FILES
 +        ${CEF_ROOT}/Release/libvk_swiftshader.so
@@ -297,6 +289,23 @@ index 07fdf76937..15abe03d1d 100644
 +        endif()
 +    endif()
 +
++    # ------------------------------------------------------------------------------
++    # Bundle ICU 73 libs required by Qt 6.9 (built against ICU 73 on build machine)
++    # Target system may have a different ICU version, so we bundle the exact version
++    # Qt was built against, found via the same QT_LIB_DIR we already resolved above.
++    # ------------------------------------------------------------------------------
++    if(DEFINED QT_LIB_DIR)
++        file(GLOB QT_ICU_LIBS
++            "${QT_LIB_DIR}/libicu*.so*"
++        )
++        if(QT_ICU_LIBS)
++            install(FILES ${QT_ICU_LIBS} DESTINATION lib/openspace/bin)
++            message(STATUS "Bundling Qt ICU libs: ${QT_ICU_LIBS}")
++        else()
++            message(WARNING "No libicu*.so* found in Qt lib dir '${QT_LIB_DIR}'. "
++                            "Qt may fail to load on systems with a different ICU version.")
++        endif()
++    endif()
 +
 +    
 +    # ------------------------------------------------------------------------------
