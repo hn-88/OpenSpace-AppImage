@@ -45,6 +45,9 @@ jobs:
         # Optional: add Qt tools to PATH
         echo "$QT_ROOT_DIR/bin" >> $GITHUB_PATH
 
+        # Verify libicu* are under QT_ROOT_DIR
+        find $QT_ROOT_DIR -name "libicu*"
+
     - name: Install CMake 4.3.2
       uses: lukka/get-cmake@latest
       with:
