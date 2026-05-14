@@ -255,7 +255,7 @@ index 07fdf76937..15abe03d1d 100644
 +
 +        # Install main Qt libraries, preserving .so -> .so.6 -> .so.6.x.y symlinks
 +        install(DIRECTORY "${QT_LIB_DIR}/"
-+            DESTINATION lib/openspace/bin
++            DESTINATION lib/openspace/lib
 +            FILES_MATCHING
 +            PATTERN "libQt6Core.so*"
 +            PATTERN "libQt6Widgets.so*"
@@ -265,26 +265,27 @@ index 07fdf76937..15abe03d1d 100644
 +            PATTERN "libQt6XcbQpa.so*"
 +            PATTERN "libQt6Opengl.so*"
 +            PATTERN "libQt6WaylandClient.so*"
++            PATTERN "libQt6Svg.so*"
 +        )
 +
 +        # Install the platforms plugin directory (contains libqxcb.so, libqwayland-*.so)
 +        if(EXISTS "${QT_PLUGINS_DIR}/platforms")
 +            install(DIRECTORY "${QT_PLUGINS_DIR}/platforms"
-+                DESTINATION lib/openspace/bin
++                DESTINATION lib/openspace/lib
 +            )
 +        endif()
 +
 +        # (Optional) Install imageformats if needed for UI icons/assets
 +        if(EXISTS "${QT_PLUGINS_DIR}/imageformats")
 +            install(DIRECTORY "${QT_PLUGINS_DIR}/imageformats"
-+                DESTINATION lib/openspace/bin
++                DESTINATION lib/openspace/lib
 +            )
 +        endif()
 +
 +        # (Optional) Wayland shell integration plugins
 +        if(EXISTS "${QT_PLUGINS_DIR}/wayland-shell-integration")
 +            install(DIRECTORY "${QT_PLUGINS_DIR}/wayland-shell-integration"
-+                DESTINATION lib/openspace/bin
++                DESTINATION lib/openspace/lib
 +            )
 +        endif()
 +    endif()
@@ -299,7 +300,7 @@ index 07fdf76937..15abe03d1d 100644
 +            "${QT_LIB_DIR}/libicu*.so*"
 +        )
 +        if(QT_ICU_LIBS)
-+            install(FILES ${QT_ICU_LIBS} DESTINATION lib/openspace/bin)
++            install(FILES ${QT_ICU_LIBS} DESTINATION lib/openspace/lib)
 +            message(STATUS "Bundling Qt ICU libs: ${QT_ICU_LIBS}")
 +        else()
 +            message(WARNING "No libicu*.so* found in Qt lib dir '${QT_LIB_DIR}'. "
@@ -310,14 +311,15 @@ index 07fdf76937..15abe03d1d 100644
 +    
 +    # ------------------------------------------------------------------------------
 +    # Ensure executable can find private libcef.so at runtime - $ORIGIN if in same bin directory
++    # and $ORIGIN/../lib for the QT libs bundled above
 +    # ------------------------------------------------------------------------------
 +    # set an install-time RUNPATH to find bundled CEF
 +    set_target_properties(OpenSpace PROPERTIES
-+        INSTALL_RPATH "$ORIGIN"
++        INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib"
 +    )
 +    
 +    set_target_properties(OpenSpace_Helper PROPERTIES
-+        INSTALL_RPATH "$ORIGIN"
++        INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib"
 +    )
 +
 +    
