@@ -188,6 +188,13 @@ index 07fdf76937..15abe03d1d 100644
 +        ${CEF_ROOT}/Release/libGLESv2.so
 +        DESTINATION lib/openspace/bin
 +    )
++    # Install ICU libraries bundled with CEF (version-pinned, not guaranteed on host)
++        file(GLOB CEF_ICU_LIBS
++            "${CEF_ROOT}/Release/libicu*.so*"
++    )
++    if(CEF_ICU_LIBS)
++        install(FILES ${CEF_ICU_LIBS} DESTINATION lib/openspace/bin)
++    endif()
 +    
 +    # Install Vulkan SwiftShader components (software renderer)
 +    install(FILES
