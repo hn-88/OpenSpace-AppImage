@@ -443,6 +443,10 @@ index 07fdf76937..15abe03d1d 100644
 +      RENAME openspace
 +    )
 +
++
++    install(FILES ${CMAKE_SOURCE_DIR}/support/deb/qt.conf
++        DESTINATION lib/openspace/bin
++    )
 +  # Adding mandatory deb files
 +  string(TIMESTAMP CPACK_DEBIAN_CHANGELOG_DATE "%a, %d %b %Y %H:%M:%S %z")
 +
@@ -702,3 +706,11 @@ index 0000000000..7b34c3558e
 +
 +exit 0
 +
+diff --git a/support/deb/qt.conf b/support/deb/qt.conf
+new file mode 100644
+index 0000000000..a1b2c3d4e5
+--- /dev/null
++++ b/support/deb/qt.conf
+@@ -0,0 +1,2 @@
++[Paths]
++Plugins=../lib
