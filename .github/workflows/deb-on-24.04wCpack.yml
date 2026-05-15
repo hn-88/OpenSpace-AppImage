@@ -13,7 +13,8 @@ env:
   OPENSPACE_VERSION: "0.22.0rc1"
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
-  COMMIT_HASH: "master"
+  # COMMIT_HASH: "master"
+  COMMIT_HASH: "use_molecule_relative_paths"
   
 jobs:
   build:
@@ -57,7 +58,7 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
+        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
         git checkout "${COMMIT_HASH}" --recurse-submodules
         # try the latest main branch, one of the latest commits
