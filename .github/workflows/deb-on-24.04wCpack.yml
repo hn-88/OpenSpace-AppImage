@@ -13,8 +13,7 @@ env:
   OPENSPACE_VERSION: "0.22.0rc1"
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
-  # COMMIT_HASH: "master"
-  COMMIT_HASH: "use_molecule_relative_paths"
+  COMMIT_HASH: "master"
   
 jobs:
   build:
@@ -58,7 +57,7 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        git clone --recursive https://github.com/hn-88/OpenSpace "$openSpaceHome"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
         git checkout "${COMMIT_HASH}" --recurse-submodules
         # try the latest main branch, one of the latest commits
@@ -112,7 +111,9 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
         echo "Please note the extra variables passed for making the deb package ..."
-        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 \
+        cmake -DCMAKE_CXX_FLAGS="-fmacro-prefix-map=/home/runner/source/OpenSpace/modules/=../modules/" \
+            -DCMAKE_C_FLAGS="-fmacro-prefix-map=/home/runner/source/OpenSpace/=../modules/" \
+            -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 \
           -DCMAKE_CXX_STANDARD=23 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
           -DOPENSPACE_DISTRO=ubuntu24.04 -DCMAKE_INSTALL_PREFIX=/usr "$openSpaceHome"
 
