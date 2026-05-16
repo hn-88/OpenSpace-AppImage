@@ -331,6 +331,10 @@ index 07fdf76937..15abe03d1d 100644
 +              PATTERN "*.hglsl"
 +              PATTERN "*.fs"
 +              PATTERN "*.vs"
++              PATTERN "*.frag"
++              PATTERN "*.vert"
++              PATTERN "*.comp"
++              PATTERN "*.geom"
 +              PATTERN "*.lua")
 +    install(DIRECTORY data/ DESTINATION lib/openspace/data)
 +    install(DIRECTORY scripts/ DESTINATION lib/openspace/scripts)
