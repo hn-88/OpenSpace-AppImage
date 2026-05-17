@@ -108,8 +108,8 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/fix_mold_shader_dir_for_deb.patch "$openSpaceHome"
         cd $openSpaceHome
-        patch -p1 < fix_mold_shader_dir_for_deb.patch
-        # using the patch utility as it might be more forgiving of changes
+        git apply --verbose --recount --whitespace=fix fix_mold_shader_dir_for_deb.patch
+        
   
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
