@@ -1,6 +1,6 @@
 --- a/modules/molecule/ext/mold/CMakeLists.txt
 +++ b/modules/molecule/ext/mold/CMakeLists.txt
-@@ -60,7 +60,11 @@ if (MD_USE_RELATIVE_RESOURCE_PATH)
+@@ -62,6 +62,11 @@ if (MD_USE_RELATIVE_RESOURCE_PATH)
    set(MD_SHADER_DIR "shaders")
    set(MD_SHADER_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders")
    set(MD_SHADER_DST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
