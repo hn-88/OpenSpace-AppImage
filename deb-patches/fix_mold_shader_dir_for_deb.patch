@@ -1,0 +1,14 @@
+--- a/modules/molecule/ext/mold/CMakeLists.txt
++++ b/modules/molecule/ext/mold/CMakeLists.txt
+@@ -60,7 +60,11 @@ if (MD_USE_RELATIVE_RESOURCE_PATH)
+   set(MD_SHADER_DIR "shaders")
+   set(MD_SHADER_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders")
+   set(MD_SHADER_DST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
+ else()
+   set(MD_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders")
+ endif()
++
++# Override shader dir to the installed location so the binary finds shaders
++# after installation regardless of where it was built.
++set(MD_USE_RELATIVE_RESOURCE_PATH OFF CACHE BOOL "" FORCE)
++set(MD_SHADER_DIR "${CMAKE_INSTALL_PREFIX}/lib/openspace/modules/molecule/ext/mold/src/shaders" CACHE STRING "" FORCE)
