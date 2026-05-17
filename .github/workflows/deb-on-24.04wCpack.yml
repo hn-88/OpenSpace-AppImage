@@ -106,9 +106,9 @@ jobs:
     - name: Install patch for molecule shaders
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cp -vf deb-patches/fix_mold_shader_dir_for_deb.patch "$openSpaceHome"
+        cp -vf deb-patches/fix_mold_runtime_shader_path.patch "$openSpaceHome"
         cd $openSpaceHome
-        git apply --verbose --recount --whitespace=fix fix_mold_shader_dir_for_deb.patch
+        git apply --verbose --recount --whitespace=fix fix_mold_runtime_shader_path.patch
         
   
     - name: Configure CMake
