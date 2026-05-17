@@ -103,6 +103,13 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
+    - name: Install patch for molecule shaders
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -vf deb-patches/fix_mold_shader_dir_for_deb.patch "$openSpaceHome"
+        cd $openSpaceHome
+        patch -p1 < fix_mold_shader_dir.patch
+        # using the patch utility as it might be more forgiving of changes
   
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -112,7 +119,7 @@ jobs:
         cd "$openSpaceHome/build"
         echo "Please note the extra variables passed for making the deb package ..."
         cmake -DCMAKE_CXX_FLAGS="-fmacro-prefix-map=/home/runner/source/OpenSpace/modules/=../modules/" \
-            -DCMAKE_C_FLAGS="-fmacro-prefix-map=/home/runner/source/OpenSpace/=../modules/" \
+            -DCMAKE_C_FLAGS="-fmacro-prefix-map=/home/runner/source/OpenSpace/modules/=../modules/" \
             -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 \
           -DCMAKE_CXX_STANDARD=23 -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
           -DOPENSPACE_DISTRO=ubuntu24.04 -DCMAKE_INSTALL_PREFIX=/usr "$openSpaceHome"
