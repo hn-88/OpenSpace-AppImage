@@ -108,7 +108,7 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/fix_mold_shader_dir_for_deb.patch "$openSpaceHome"
         cd $openSpaceHome
-        patch -p1 < fix_mold_shader_dir.patch
+        patch -p1 < fix_mold_shader_dir_for_deb.patch
         # using the patch utility as it might be more forgiving of changes
   
     - name: Configure CMake
