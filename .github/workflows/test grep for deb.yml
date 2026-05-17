@@ -25,33 +25,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
         
-    - name: Install Qt 6.9
-      uses: jurplel/install-qt-action@v4
-      with:
-        version: 6.9.*
-
-    - name: Export Qt environment variables
-      shell: bash
-      run: |
-        echo "Qt installation is at: $QT_ROOT_DIR"
     
-        # For CMake find_package(Qt6 ...)
-        echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> $GITHUB_ENV
-    
-        # Common variables used by packaging scripts
-        echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> $GITHUB_ENV
-        echo "QT_DIR=$QT_ROOT_DIR" >> $GITHUB_ENV
-    
-        # Optional: add Qt tools to PATH
-        echo "$QT_ROOT_DIR/bin" >> $GITHUB_PATH
-
-        # Verify libicu* are under QT_ROOT_DIR
-        find $QT_ROOT_DIR -name "libicu*"
-
-    - name: Install CMake 4.3.2
-      uses: lukka/get-cmake@latest
-      with:
-        cmakeVersion: '4.3.2'
     
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
@@ -62,28 +36,8 @@ jobs:
         git checkout "${COMMIT_HASH}" --recurse-submodules
         # try the latest main branch, one of the latest commits
         mkdir build
-        cd build
-
-    #- name: get updated ghoul
-      # https://github.com/OpenSpace/OpenSpace/issues/3880
-      #run: |
-        #openSpaceHome="$HOME/source/OpenSpace"
-        #cd "$openSpaceHome/ext/ghoul"
-        #git checkout master --recurse-submodules
     
-    - name: Install dependencies
-      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
-      run: |
-        sudo apt update
-        sudo apt-get -y install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost-all-dev libmpv-dev libvulkan-dev
-        sudo apt-get -y install software-properties-common
-        sudo apt-get -y install libasound2t64 
-        # libasound2-data libasound2-plugins
-
-    #- name: Install clipboard patches
-    #  run: |
-    #    openSpaceHome="$HOME/source/OpenSpace"
-        # cp -vf Ghoul-src-misc-clipboard.cpp "$openSpaceHome/ext/ghoul/src/misc/clipboard.cpp" 
+        
         
     - name: Install cmakelists patches
       run: |
@@ -113,6 +67,12 @@ jobs:
         echo "Now check for CMake-side path injection..."
         grep -rn "configure_file\|SHADER_DIR\|MOLD_DIR\|__FILE__" \
             modules/molecule/ext/mold/ --include="CMakeLists.txt" -l
+        echo " how mold actually opens the shader files at runtime."
+        grep -rn "compile_shader_from_file\|MD_SHADER_DIR\|fopen\|shader_dir\|shader_path" \
+          modules/molecule/ext/mold/src/ --include="*.c" --include="*.h" | head -60
+        echo "And also"
+        grep -rn "compile_shader_from_file\|MD_SHADER_DIR" \
+          modules/molecule/ --include="*.cpp" --include="*.h" --include="*.c" | head -40
 
 
       
