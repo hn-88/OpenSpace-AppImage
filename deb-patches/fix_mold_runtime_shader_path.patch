@@ -89,7 +89,7 @@
  
 --- a/modules/molecule/ext/mold/src/md_gl.c
 +++ b/modules/molecule/ext/mold/src/md_gl.c
-@@ -13,6 +13,36 @@
+@@ -13,6 +13,31 @@
  #define MAGIC 0xfacb8172U
  #define SPLINE_MAX_SUBDIVISION_COUNT 8
  #define SHADER_BUF_SIZE KILOBYTES(14)
@@ -105,9 +105,8 @@
 +// at runtime, which works for .deb, AppImage, Windows, and macOS.
 +// ---------------------------------------------------------------------------
 +
-+// We need up to two simultaneous path buffers since create_permuted_program
-+// takes vert/geom/frag paths as separate arguments in a single call.
-+// Using a small ring of 8 static buffers is safe for all call sites.
++// Ring of 8 static buffers so multiple paths can be live simultaneously
++// within a single call (e.g. create_permuted_program takes vert/geom/frag).
 +#define MD_SHADER_PATH_SLOTS 8
 +#define MD_SHADER_PATH_LEN   512
 +
@@ -116,7 +115,6 @@
 +    static int slot = 0;
 +    char* buf = bufs[slot % MD_SHADER_PATH_SLOTS];
 +    slot++;
-+
 +    str_t exe_dir = md_path_exe_dir();
 +    snprintf(buf, MD_SHADER_PATH_LEN,
 +        "%.*s../modules/molecule/ext/mold/src/shaders%s",
@@ -125,22 +123,13 @@
 +    return buf;
 +}
 +
- EOF
-echo "Header written, now appending md_gl.c call-site replacements..."
-
-cat >> /mnt/user-data/outputs/fix_mold_runtime_shader_path.patch << 'EOF'
-@@ -864,8 +894,8 @@ static inline str_t internal_fullpath(str_t path, md_allocator_i* alloc) {
-     if (ctx.version >= 430) {
-         GLuint comp_shader = glCreateShader(GL_COMPUTE_SHADER);
+@@ -868,7 +898,7 @@
          bool err;
 -        if ((err = compile_shader_from_file(comp_shader, MD_SHADER_DIR "/compute_aabb.comp", NULL, NULL)) != true) {
 +        if ((err = compile_shader_from_file(comp_shader, md_gl_shader_path("/compute_aabb.comp"), NULL, NULL)) != true) {
              return err;
          }
- 
-@@ -878,9 +908,9 @@ static inline str_t internal_fullpath(str_t path, md_allocator_i* alloc) {
-         GLuint geom_shader = glCreateShader(GL_GEOMETRY_SHADER);
-         GLuint frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
+@@ -886,9 +916,9 @@
          bool err;
 -        if ((err = compile_shader_from_file(vert_shader, MD_SHADER_DIR "/draw_aabb.vert", NULL, NULL)) != true ||
 -            (err = compile_shader_from_file(geom_shader, MD_SHADER_DIR "/draw_aabb.geom", NULL, NULL)) != true ||
@@ -150,38 +139,24 @@ cat >> /mnt/user-data/outputs/fix_mold_runtime_shader_path.patch << 'EOF'
 +            (err = compile_shader_from_file(frag_shader, md_gl_shader_path("/cull_aabb.frag"), NULL, NULL)) != true) {
              return err;
          }
- 
-@@ -893,7 +923,7 @@ static inline str_t internal_fullpath(str_t path, md_allocator_i* alloc) {
-     {
-         GLuint vert_shader = glCreateShader(GL_VERTEX_SHADER);
+@@ -905,7 +935,7 @@
 -        if (!compile_shader_from_file(vert_shader, MD_SHADER_DIR "/extract_control_points.vert", NULL, NULL)) {
 +        if (!compile_shader_from_file(vert_shader, md_gl_shader_path("/extract_control_points.vert"), NULL, NULL)) {
              return false;
          }
- 
-@@ -906,7 +936,7 @@ static inline str_t internal_fullpath(str_t path, md_allocator_i* alloc) {
-     {
-         GLuint vert_shader = glCreateShader(GL_VERTEX_SHADER);
+@@ -921,7 +951,7 @@
 -        if (!compile_shader_from_file(vert_shader, MD_SHADER_DIR "/compute_velocity.vert", NULL, NULL)) {
 +        if (!compile_shader_from_file(vert_shader, md_gl_shader_path("/compute_velocity.vert"), NULL, NULL)) {
              return false;
          }
- 
-@@ -919,8 +949,8 @@ static inline str_t internal_fullpath(str_t path, md_allocator_i* alloc) {
-         char defines[64];
-         snprintf(defines, sizeof(defines), "#define NUM_SUBDIVISIONS %i", SPLINE_MAX_SUBDIVISION_COUNT);
-         bool err;
+@@ -942,8 +972,8 @@
 -        if ((err = compile_shader_from_file(vert_shader, MD_SHADER_DIR "/compute_spline.vert", defines, NULL)) != true ||
 -            (err = compile_shader_from_file(geom_shader, MD_SHADER_DIR "/compute_spline.geom", defines, NULL)) != true) {
 +        if ((err = compile_shader_from_file(vert_shader, md_gl_shader_path("/compute_spline.vert"), defines, NULL)) != true ||
 +            (err = compile_shader_from_file(geom_shader, md_gl_shader_path("/compute_spline.geom"), defines, NULL)) != true) {
              return err;
          }
- 
-@@ -940,10 +970,10 @@ static inline str_t internal_fullpath(str_t path, md_allocator_i* alloc) {
-         if (!custom_shader_snippet) {
-             custom_shader_snippet = default_shader_output;
-         }
+@@ -984,10 +1014,10 @@
 -        if (!create_permuted_program(shaders->space_fill, MD_SHADER_DIR "/space_fill.vert", MD_SHADER_DIR "/space_fill.geom", MD_SHADER_DIR "/space_fill.frag",  custom_shader_snippet)) return false;
 -        if (!create_permuted_program(shaders->licorice,   MD_SHADER_DIR "/licorice.vert",   MD_SHADER_DIR "/licorice.geom",   MD_SHADER_DIR "/licorice.frag",    custom_shader_snippet)) return false;
 -        if (!create_permuted_program(shaders->ribbons,    MD_SHADER_DIR "/ribbons.vert",    MD_SHADER_DIR "/ribbons.geom",    MD_SHADER_DIR "/ribbons.frag",     custom_shader_snippet)) return false;
@@ -190,6 +165,3 @@ cat >> /mnt/user-data/outputs/fix_mold_runtime_shader_path.patch << 'EOF'
 +        if (!create_permuted_program(shaders->licorice,   md_gl_shader_path("/licorice.vert"),   md_gl_shader_path("/licorice.geom"),   md_gl_shader_path("/licorice.frag"),    custom_shader_snippet)) return false;
 +        if (!create_permuted_program(shaders->ribbons,    md_gl_shader_path("/ribbons.vert"),    md_gl_shader_path("/ribbons.geom"),    md_gl_shader_path("/ribbons.frag"),     custom_shader_snippet)) return false;
 +        if (!create_permuted_program(shaders->cartoon,    md_gl_shader_path("/cartoon.vert"),    md_gl_shader_path("/cartoon.geom"),    md_gl_shader_path("/cartoon.frag"),     custom_shader_snippet)) return false;
-     }
- EOF
-echo "Done"
