@@ -1,8 +1,7 @@
 --- a/modules/molecule/ext/mold/src/md_gl.c
 +++ b/modules/molecule/ext/mold/src/md_gl.c
-@@ -13,6 +13,31 @@
- #define MAGIC 0xfacb8172U
- #define SPLINE_MAX_SUBDIVISION_COUNT 8
+@@ -26,6 +26,31 @@
+ #define UBO_SIZE (1 << 10)
  #define SHADER_BUF_SIZE KILOBYTES(14)
 +
 +// ---------------------------------------------------------------------------
@@ -31,13 +30,14 @@
 +    return buf;
 +}
 +
-@@ -868,4 +898,4 @@
+ static const char* default_shader_output =
+@@ -868,4 +893,4 @@
          bool err;
 -        if ((err = compile_shader_from_file(comp_shader, MD_SHADER_DIR "/compute_aabb.comp", NULL, NULL)) != true) {
 +        if ((err = compile_shader_from_file(comp_shader, md_gl_shader_path("/compute_aabb.comp"), NULL, NULL)) != true) {
              return err;
          }
-@@ -886,6 +916,6 @@
+@@ -886,6 +911,6 @@
          bool err;
 -        if ((err = compile_shader_from_file(vert_shader, MD_SHADER_DIR "/draw_aabb.vert", NULL, NULL)) != true ||
 -            (err = compile_shader_from_file(geom_shader, MD_SHADER_DIR "/draw_aabb.geom", NULL, NULL)) != true ||
@@ -47,24 +47,24 @@
 +            (err = compile_shader_from_file(frag_shader, md_gl_shader_path("/cull_aabb.frag"), NULL, NULL)) != true) {
              return err;
          }
-@@ -905,3 +935,3 @@
+@@ -905,3 +930,3 @@
 -        if (!compile_shader_from_file(vert_shader, MD_SHADER_DIR "/extract_control_points.vert", NULL, NULL)) {
 +        if (!compile_shader_from_file(vert_shader, md_gl_shader_path("/extract_control_points.vert"), NULL, NULL)) {
              return false;
          }
-@@ -921,3 +951,3 @@
+@@ -921,3 +946,3 @@
 -        if (!compile_shader_from_file(vert_shader, MD_SHADER_DIR "/compute_velocity.vert", NULL, NULL)) {
 +        if (!compile_shader_from_file(vert_shader, md_gl_shader_path("/compute_velocity.vert"), NULL, NULL)) {
              return false;
          }
-@@ -942,5 +972,5 @@
+@@ -942,5 +967,5 @@
 -        if ((err = compile_shader_from_file(vert_shader, MD_SHADER_DIR "/compute_spline.vert", defines, NULL)) != true ||
 -            (err = compile_shader_from_file(geom_shader, MD_SHADER_DIR "/compute_spline.geom", defines, NULL)) != true) {
 +        if ((err = compile_shader_from_file(vert_shader, md_gl_shader_path("/compute_spline.vert"), defines, NULL)) != true ||
 +            (err = compile_shader_from_file(geom_shader, md_gl_shader_path("/compute_spline.geom"), defines, NULL)) != true) {
              return err;
          }
-@@ -984,7 +1014,7 @@
+@@ -984,7 +1009,7 @@
 -        if (!create_permuted_program(shaders->space_fill, MD_SHADER_DIR "/space_fill.vert", MD_SHADER_DIR "/space_fill.geom", MD_SHADER_DIR "/space_fill.frag",  custom_shader_snippet)) return false;
 -        if (!create_permuted_program(shaders->licorice,   MD_SHADER_DIR "/licorice.vert",   MD_SHADER_DIR "/licorice.geom",   MD_SHADER_DIR "/licorice.frag",    custom_shader_snippet)) return false;
 -        if (!create_permuted_program(shaders->ribbons,    MD_SHADER_DIR "/ribbons.vert",    MD_SHADER_DIR "/ribbons.geom",    MD_SHADER_DIR "/ribbons.frag",     custom_shader_snippet)) return false;
