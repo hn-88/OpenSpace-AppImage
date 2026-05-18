@@ -69,9 +69,18 @@ jobs:
         echo "BOOST_INCLUDEDIR=C:\tools\boost_1_85_0" >> $env:GITHUB_ENV
         echo "BOOST_LIBRARYDIR=C:\tools\boost_1_85_0\lib64-msvc-14.3" >> $env:GITHUB_ENV
 
-    - name: Patches
+    # - name: Patches for molecule
+    #  run : |
+        # Copy-Item -Verbose "deb-patches/patch*.patch" "$env:openSpaceHome"
+
+    - name: Patches for molecule
+      shell: bash
       run : |
-        # Copy-Item -Verbose "windows-patches/cefhost.cpp" "$env:openSpaceHome/modules/webbrowser/src/cefhost.cpp"
+        cp -vf deb-patches/patch*.patch "$openSpaceHome"
+        cd "$openSpaceHome"
+        git apply --verbose --recount --whitespace=fix patch_1_md_os_h.patch
+        git apply --verbose --recount --whitespace=fix patch_2_md_os_c.patch
+        git apply --verbose --recount --whitespace=fix patch_3_md_gl_c.patch
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -82,8 +91,7 @@ jobs:
         -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
         -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
         -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
-        # -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_STANDARD=20
-
+        
     - name: Build
       # Build your program with the given configuration
       run: |
