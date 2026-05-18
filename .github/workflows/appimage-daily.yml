@@ -10,9 +10,8 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: Release
-  OPENSPACE_VERSION: "0.21.4plus"
-  APPIMAGE_VERSION: "1"
-  # COMMIT_HASH: "e8fa72544c445b556018841eafb48116372c288d"
+  OPENSPACE_VERSION: "0.22.0rc1"
+  # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "master"
 
   
@@ -24,7 +23,30 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v4 
+    - uses: actions/checkout@v6
+        
+    - name: Install Qt 6.9
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: 6.9.*
+
+    - name: Export Qt environment variables
+      shell: bash
+      run: |
+        echo "Qt installation is at: $QT_ROOT_DIR"
+    
+        # For CMake find_package(Qt6 ...)
+        echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> $GITHUB_ENV
+    
+        # Common variables used by packaging scripts
+        echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> $GITHUB_ENV
+        echo "QT_DIR=$QT_ROOT_DIR" >> $GITHUB_ENV
+    
+        # Optional: add Qt tools to PATH
+        echo "$QT_ROOT_DIR/bin" >> $GITHUB_PATH
+
+        # Verify libicu* are under QT_ROOT_DIR
+        find $QT_ROOT_DIR -name "libicu*"
 
     - name: Install CMake 4.3.2
       uses: lukka/get-cmake@latest
@@ -59,7 +81,16 @@ jobs:
         # Bypasses Launchpad entirely by downloading from GitHub's own registry
         brew install gcc@13
 
-
+    - name: Install patch for molecule shaders
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -vf deb-patches/patch*.patch "$openSpaceHome"
+        cd $openSpaceHome
+        git apply --verbose --recount --whitespace=fix patch_1_md_os_h.patch
+        git apply --verbose --recount --whitespace=fix patch_2_md_os_c.patch
+        git apply --verbose --recount --whitespace=fix patch_3_md_gl_c.patch
+        
+  
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -368,7 +399,7 @@ jobs:
         VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION}-daily ./appimagetool-*.AppImage ./appdir
 
     - name: Upload AppImage Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         # Artifact name
         name: OpenSpace-AppImage
