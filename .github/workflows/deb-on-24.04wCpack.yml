@@ -11,7 +11,6 @@ env:
   # and modified.
   BUILD_TYPE: Release
   OPENSPACE_VERSION: "0.22.0rc1"
-  APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "master"
   
@@ -171,7 +170,7 @@ jobs:
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
-          gh release create "$RELEASE_TAG" -t "OpenSpace CPack Daily Build" -n "Automated daily .deb build of OpenSpace."
+          gh release create "$RELEASE_TAG" -t "OpenSpace CPack Daily Deb Build" -n "Automated daily .deb build of OpenSpace."
     
         # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \

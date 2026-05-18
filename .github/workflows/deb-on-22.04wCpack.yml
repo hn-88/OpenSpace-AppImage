@@ -10,7 +10,7 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: Release
-  OPENSPACE_VERSION: "0.21.4+"
+  OPENSPACE_VERSION: "0.22.0rc1"
   APPIMAGE_VERSION: "1"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "master"
@@ -23,28 +23,30 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@main
+    - uses: actions/checkout@v6
+        
+    - name: Install Qt 6.9
+      uses: jurplel/install-qt-action@v4
       with:
-        # this might remove tools that are actually needed,
-        # if set to "true" but frees about 6 GB
-        tool-cache: true
-        
-        # all of these default to true, but feel free to set to
-        # "false" if necessary for your workflow
-        android: true
-        dotnet: true
-        haskell: true
-        large-packages: false
-        docker-images: true
-        swap-storage: false
+        version: 6.9.*
 
-    - name: Remove CMake 3.31
+    - name: Export Qt environment variables
+      shell: bash
       run: |
-        sudo apt-get -y remove cmake cmake-data
-        
+        echo "Qt installation is at: $QT_ROOT_DIR"
+    
+        # For CMake find_package(Qt6 ...)
+        echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> $GITHUB_ENV
+    
+        # Common variables used by packaging scripts
+        echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> $GITHUB_ENV
+        echo "QT_DIR=$QT_ROOT_DIR" >> $GITHUB_ENV
+    
+        # Optional: add Qt tools to PATH
+        echo "$QT_ROOT_DIR/bin" >> $GITHUB_PATH
+
+        # Verify libicu* are under QT_ROOT_DIR
+        find $QT_ROOT_DIR -name "libicu*"
 
     - name: Install CMake 4.3.2
       uses: lukka/get-cmake@latest
@@ -102,20 +104,28 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/*.diff "$openSpaceHome"
         cd $openSpaceHome
-        git apply --verbose fix-Windows-Cpack-zip.diff
+        git apply --verbose --recount --whitespace=fix fix-Windows-Cpack-zip.diff
         
     - name: Install deb patches
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd $openSpaceHome
-        git apply --verbose DebwithCPack.diff
+        git apply --verbose --recount --whitespace=fix DebwithCPack.diff
 
     - name: Install png for deb
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
-  
-    
+
+    - name: Install patch for molecule shaders
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -vf deb-patches/patch*.patch "$openSpaceHome"
+        cd $openSpaceHome
+        git apply --verbose --recount --whitespace=fix patch_1_md_os_h.patch
+        git apply --verbose --recount --whitespace=fix patch_2_md_os_c.patch
+        git apply --verbose --recount --whitespace=fix patch_3_md_gl_c.patch
+        
   
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -199,7 +209,7 @@ jobs:
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
-          gh release create "$RELEASE_TAG" -t "OpenSpace CPack Daily Build" -n "Automated daily .deb build of OpenSpace."
+          gh release create "$RELEASE_TAG" -t "OpenSpace CPack Daily Deb Build" -n "Automated daily .deb build of OpenSpace."
     
         # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
