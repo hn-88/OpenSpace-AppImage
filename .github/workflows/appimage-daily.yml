@@ -151,6 +151,8 @@ jobs:
         find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
         
         mv -v appdir/run.sh appdir/usr/bin
+        # remove the executable bit to prevent appimagetool from trying to run patchelf on it
+        chmod -x appdir/usr/bin/run.sh
         
         # Download appimagetool
         wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
@@ -389,8 +391,8 @@ jobs:
         
         rm -vf ./appdir/usr/openspace.cfg.orig
 
-        
-
+        # finally set the executable bit
+        chmod +x appdir/usr/bin/run.sh
         
     - name: turn AppDir into AppImage
       run: |
