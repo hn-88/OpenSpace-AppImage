@@ -209,6 +209,8 @@ jobs:
           vc_redist.x64.exe^
           ^
           modules/*/shaders/*^
+          modules/molecule/ext/mold/src/shaders/*^
+          modules/molecule/ext/mold/src/shaders/gfx/*^
           modules/*/scripts/*^
           modules/globebrowsing/gdal_data/*^
           modules/webgui/ext/nodejs/node.exe^
