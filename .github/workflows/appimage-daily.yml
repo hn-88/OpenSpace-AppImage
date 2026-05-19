@@ -11,6 +11,7 @@ env:
   # and modified.
   BUILD_TYPE: Release
   OPENSPACE_VERSION: "0.22.0rc1"
+  APPIMAGE_VERSION: "2"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "master"
 
@@ -134,7 +135,9 @@ jobs:
         
         cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin
         strip ./appdir/usr/bin/*        
-        
+
+        # appimagetool gets confused if the Exec line is a shell script
+        sed -i 's|^Exec=run\.sh OpenSpace$|Exec=OpenSpace|' ./appdir/OpenSpace.desktop
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
 
@@ -149,10 +152,6 @@ jobs:
         find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm
         find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
-        
-        mv -v appdir/run.sh appdir/usr/bin
-        # remove the executable bit to prevent appimagetool from trying to run patchelf on it
-        chmod -x appdir/usr/bin/run.sh
         
         # Download appimagetool
         wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
@@ -180,7 +179,7 @@ jobs:
           done)
 
         # Bundle system libraries
-        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop
+        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/OpenSpace.desktop
 
         # Manually bundle libjack
         echo "Searching for libjack.so* on runner..."
@@ -243,9 +242,10 @@ jobs:
         # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
         # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
         # well, or perhaps do static linking.
-        # Trying static linking instead
+        # Trying static linking instead was not sufficient.
+        libstdcxx=$(find /home/linuxbrew/.linuxbrew -name "libstdc++.so.6")
         # libstdcxx=/lib/x86_64-linux-gnu/libstdc++.so.6
-        # cp ${libstdcxx} ./appdir/${libstdcxx}
+        cp -vf ${libstdcxx} ./appdir/lib/x86_64-linux-gnu/libstdc++.so.6
 
     - name: Fix AppImage (interpreter + rpath + audit)
       run: |
@@ -391,8 +391,10 @@ jobs:
         
         rm -vf ./appdir/usr/openspace.cfg.orig
 
-        # finally set the executable bit
+        # finally set the run.sh to be target of desktop
+        mv -v appdir/run.sh appdir/usr/bin        
         chmod +x appdir/usr/bin/run.sh
+        sed -i 's|^Exec=OpenSpace$|Exec=run\.sh OpenSpace|' ./appdir/usr/share/applications/OpenSpace.desktop
         
     - name: turn AppDir into AppImage
       run: |
