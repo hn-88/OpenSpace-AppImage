@@ -179,7 +179,9 @@ jobs:
           done)
 
         # Bundle system libraries
-        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/OpenSpace.desktop
+        # ./appimagetool-*.AppImage deploy appdir/usr/share/applications/OpenSpace.desktop
+        # Bundle Everything! since we need QT and libstdc++ also to be bundled
+        ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/OpenSpace.desktop
 
         # Manually bundle libjack
         echo "Searching for libjack.so* on runner..."
