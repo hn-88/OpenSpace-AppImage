@@ -6,21 +6,13 @@ on:
     - cron: "7 2 * * *"   # runs daily at 02:07 UTC
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
-  # and modified.
   BUILD_TYPE: Release
   OPENSPACE_VERSION: "0.22.0rc1+"
   APPIMAGE_VERSION: "2"
-  # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "master"
 
-  
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: ubuntu-22.04
 
     steps:
@@ -35,18 +27,10 @@ jobs:
       shell: bash
       run: |
         echo "Qt installation is at: $QT_ROOT_DIR"
-    
-        # For CMake find_package(Qt6 ...)
         echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> $GITHUB_ENV
-    
-        # Common variables used by packaging scripts
         echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> $GITHUB_ENV
         echo "QT_DIR=$QT_ROOT_DIR" >> $GITHUB_ENV
-    
-        # Optional: add Qt tools to PATH
         echo "$QT_ROOT_DIR/bin" >> $GITHUB_PATH
-
-        # Verify libicu* are under QT_ROOT_DIR
         find $QT_ROOT_DIR -name "libicu*"
 
     - name: Install CMake 4.3.2
@@ -55,31 +39,26 @@ jobs:
         cmakeVersion: '4.3.2'
     
     - name: get openspace code for a particular release
-      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
         cd "$openSpaceHome"
         git checkout "${COMMIT_HASH}" --recurse-submodules
-        # try the latest main branch, one of the newest commits
         mkdir build
         cd build
         
     - name: Install dependencies
-      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         sudo apt-get update
         sudo apt-get install -y glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev
         sudo apt-get install -y software-properties-common
         sudo apt-get install -y libasound2 libasound2-data libasound2-plugins libjack0
 
-    
     - name: Set up Homebrew
       uses: Homebrew/actions/setup-homebrew@master
 
     - name: Install GCC 13 (via Homebrew)
       run: |
-        # Bypasses Launchpad entirely by downloading from GitHub's own registry
         brew install gcc@13
 
     - name: Install patch for molecule shaders
@@ -91,10 +70,7 @@ jobs:
         git apply --verbose --recount --whitespace=fix patch_2_md_os_c.patch
         git apply --verbose --recount --whitespace=fix patch_3_md_gl_c.patch
         
-  
     - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
@@ -111,65 +87,73 @@ jobs:
           -DSGCT_BUILD_TESTS=OFF
 
     - name: Build
-      # Build your program with the given configuration
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
-        # Use the system's libvulkan, not the vendored one, otherwise they might conflict
         cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
         rm -vf "$cef_orig_dir/libvulkan.so.1" || echo "libvulkan.so.1 not found, skipping removal"
         make -j $(nproc)
 
-    - name: custom run script
-      working-directory: ${{github.workspace}}
-      run: |
-        chmod +x appdir/run.sh
-        
-        
     - name: Create appimage directory
       working-directory: ${{github.workspace}}
       run: |
-        echo "create appimage"
-        # Create standard AppImage folders
-        mkdir -p appdir/usr/bin appdir/usr/lib        
+        echo "Creating AppImage layout..."
+        mkdir -p appdir/usr/bin appdir/usr/lib appdir/usr/plugins
         
         cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin
         strip ./appdir/usr/bin/*        
 
-        # appimagetool gets confused if the Exec line is a shell script
-        sed -i 's|^Exec=run\.sh OpenSpace$|Exec=OpenSpace|' ./appdir/OpenSpace.desktop
+        # Point directly to the executable (no run.sh dependency)
+        sed -i 's|^Exec=.*|Exec=OpenSpace|' ./appdir/OpenSpace.desktop
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
 
-        # The OpenSpace executable expects these files in the parent directory of its bin directory
+        # Copy resources
         cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders,/documentation/,openspace.cfg} ./appdir/usr/
 
-        # patch file created with diff -u openspace.cfg openspace.edited
-        patch ./appdir/usr/openspace.cfg < ./appdir/openspacef12f5e2.cfg.patch
+        # Patch configuration
+        patch ./appdir/usr/openspace.cfg < ./appdir/openspacef12f5e2.cfg.patch || echo "Patch already applied or skipped"
 
-        # delete source files from modules directory
-        find ./appdir/usr/ -name '*.cpp' -print0 | xargs -0 -P2 rm
-        find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm
-        find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm
-        find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
-        
+        # Delete source and build-time files
+        find ./appdir/usr/ -name '*.cpp' -print0 | xargs -0 -P2 rm -f
+        find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm -f
+        find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm -f
+        find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm -f
+
         # Download appimagetool
         wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
         chmod +x appimagetool-*.AppImage
 
-        # Add our appdir/usr/lib to LD_LIBRARY_PATH so go-appimage deploy 
-        # sees that libcef.so is ALREADY resolved and doesn't try to mirror the path
-        export LD_LIBRARY_PATH="$(pwd)/appdir/usr/lib:$LD_LIBRARY_PATH"
+        # Populate LD_LIBRARY_PATH so go-appimage deploy uses the correct lookup order
+        export LD_LIBRARY_PATH="$(pwd)/appdir/usr/lib:$QT_ROOT_DIR/lib:$LD_LIBRARY_PATH"
 
-        # Explicitly bundle libmpv and its transitive deps — appimagetool deploy
-        # often misses version-suffixed sonames like libmpv.so.1 or libmpv.so.2.
+        # Run deploy (with bundle everything flag)
+        ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/OpenSpace.desktop
+
+
+        # ----------------- QT BUNDLING PREPARATION -----------------
+        # Copy Qt libraries to AppDir/usr/lib
+        echo "Copying Qt6 libraries..."
+        cp -P "$QT_ROOT_DIR"/lib/libQt6*.so* ./appdir/usr/lib/
+
+        # Copy Qt plugins
+        echo "Copying Qt6 plugins..."
+        cp -r "$QT_ROOT_DIR"/plugins/* ./appdir/usr/plugins/
+
+        # Create qt.conf next to the executable
+        echo "[Paths]" > ./appdir/usr/bin/qt.conf
+        echo "Prefix = .." >> ./appdir/usr/bin/qt.conf
+        echo "Plugins = plugins" >> ./appdir/usr/bin/qt.conf
+        echo "Imports = qml" >> ./appdir/usr/bin/qt.conf
+        echo "Qml2Imports = qml" >> ./appdir/usr/bin/qt.conf
+        # -----------------------------------------------------------
+
+        
+        # Explicitly bundle libmpv and its transitive deps
         echo "Bundling libmpv explicitly..."
         for lib in $(ldconfig -p | grep -E 'libmpv' | awk '{print $NF}'); do
-          echo "  Copying $lib"
           cp -v "$lib" ./appdir/usr/lib/ || true
         done
-        # Create the expected versioned symlinks alongside the real file so
-        # that dlopen("libmpv.so.1") and dlopen("libmpv.so") both resolve.
         (cd ./appdir/usr/lib && \
           for f in libmpv.so.*.*; do
             [ -f "$f" ] || continue
@@ -178,96 +162,78 @@ jobs:
             ln -sf "$f" "libmpv.so"          2>/dev/null || true
           done)
 
-        # Bundle system libraries
-        # ./appimagetool-*.AppImage deploy appdir/usr/share/applications/OpenSpace.desktop
-        # Bundle Everything! since we need QT and libstdc++ also to be bundled
-        ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/OpenSpace.desktop
+        
 
         # Manually bundle libjack
         echo "Searching for libjack.so* on runner..."
-
-        JACK_LIBS=$(find /usr/lib /lib /usr/local/lib \
-          \( -name "libjack.so*" -o -name "libjackserver.so*" \) \
-          2>/dev/null | sort -u)
-    
+        JACK_LIBS=$(find /usr/lib /lib /usr/local/lib \( -name "libjack.so*" -o -name "libjackserver.so*" \) 2>/dev/null | sort -u)
         if [ -n "$JACK_LIBS" ]; then
-          echo "Found JACK libraries:"
-          echo "$JACK_LIBS"
-    
           while IFS= read -r lib; do
-            echo "Copying $lib"
             cp -av "$lib" appdir/usr/lib/
           done <<< "$JACK_LIBS"
-    
-        else
-          echo "::warning::libjack.so* not found on GitHub runner. Continuing build without JACK libraries."
         fi
         
-        # Manually place CEF files exactly where they belong ---
-        echo "Copying CEF libraries to appdir/usr/lib..."      
-        
-        # Copy libcef.so AND all its required .pak/.dat files
+        # Manually place CEF files
         cef_release_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | grep -i release | xargs dirname | head -n 1)
         cef_data_dir=$(find $HOME/source/OpenSpace/build -name "resources.pak" | xargs dirname | head -n 1)
 
-        echo "cef_release_dir is $cef_release_dir"
-        echo "cef_data_dir is $cef_data_dir"
-        
-        # Data files (pak, locales, icudtl.dat, etc.)
         cp -rv "$cef_data_dir"/*.pak ./appdir/usr/bin/
         cp -rv "$cef_data_dir"/*.dat ./appdir/usr/bin/
         cp -rv "$cef_data_dir"/locales ./appdir/usr/bin/
         
-        # CEF shared libraries
         cp -v "$cef_release_dir"/libcef.so    ./appdir/usr/bin/
         cp -v "$cef_release_dir"/libEGL.so    ./appdir/usr/bin/  2>/dev/null || true
         cp -v "$cef_release_dir"/libGLESv2.so ./appdir/usr/bin/  2>/dev/null || true
-        
-        # V8 snapshot — must live next to the executable
         cp -v "$cef_release_dir"/v8_context_snapshot.bin ./appdir/usr/bin/
         cp -v "$cef_release_dir"/snapshot_blob.bin       ./appdir/usr/bin/ 2>/dev/null || true
-
         cp -v "$cef_release_dir"/libvk_swiftshader.so  ./appdir/usr/bin/
         cp -v "$cef_release_dir"/vk_swiftshader_icd.json ./appdir/usr/bin/ 2>/dev/null || true
         
-        # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
         strip --strip-unneeded ./appdir/usr/bin/libcef.so || true
 
-        # remove unnecessarily bundled /home libraries from cef and homebrew
-        # or move to the right place instead of deleting
-        mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblz4.so.1   ./appdir/usr/lib/
-        mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblzma.so.5  ./appdir/usr/lib/
-        mv ./appdir/home/linuxbrew/.linuxbrew/lib/libzstd.so.1  ./appdir/usr/lib/
-        rm -vfr ./appdir/home
+        # Symlink critical helper libraries so dynamic loader resolves them from usr/lib
+        ln -sf ../bin/libcef.so ./appdir/usr/lib/libcef.so
+        ln -sf ../bin/libEGL.so ./appdir/usr/lib/libEGL.so || true
+        ln -sf ../bin/libGLESv2.so ./appdir/usr/lib/libGLESv2.so || true
+        ln -sf ../bin/libvk_swiftshader.so ./appdir/usr/lib/libvk_swiftshader.so || true
 
-        # We install gcc-13 in the build env and it also pulls a libstdc++ that's newer than the
-        # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
-        # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
-        # well, or perhaps do static linking.
-        # Trying static linking instead was not sufficient.
-        libstdcxx=$(find /home/linuxbrew/.linuxbrew -name "libstdc++.so.6")
-        # libstdcxx=/lib/x86_64-linux-gnu/libstdc++.so.6
-        cp -vf ${libstdcxx} ./appdir/lib/x86_64-linux-gnu/libstdc++.so.6
+        # Clean up stray Homebrew directories and move libs to usr/lib
+        if [ -d "./appdir/home" ]; then
+          mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblz4.so.1   ./appdir/usr/lib/ 2>/dev/null || true
+          mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblzma.so.5  ./appdir/usr/lib/ 2>/dev/null || true
+          mv ./appdir/home/linuxbrew/.linuxbrew/lib/libzstd.so.1  ./appdir/usr/lib/ 2>/dev/null || true
+          rm -vfr ./appdir/home
+        fi
+
+        # Bundle high-version libstdc++ from Homebrew
+        libstdcxx_path=$(find /home/linuxbrew/.linuxbrew -name "libstdc++.so.6" -not -type l | head -n 1)
+        if [ -n "$libstdcxx_path" ]; then
+          echo "Bundling GCC 13 libstdc++ from Homebrew: $libstdcxx_path"
+          cp -vf "$libstdcxx_path" ./appdir/usr/lib/
+          (cd ./appdir/usr/lib && ln -sf $(basename "$libstdcxx_path") libstdc++.so.6)
+          (cd ./appdir/usr/lib && ln -sf $(basename "$libstdcxx_path") libstdc++.so)
+        fi
 
     - name: Fix AppImage (interpreter + rpath + audit)
       run: |
         set -e
     
         echo "=== Collecting ELF binaries ==="
-        # We find all executables AND shared libraries (even if missing execution permissions)
         ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -name "*.so*" -o -name "OpenSpac*" \) -exec sh -c 'file "$1" | grep -q ELF && echo "$1"' _ {} \;)
-        # some .so files may not have executable flag set after copying
-        # avoid picking up run.sh
     
         echo ""
         echo "=== Fixing ELF interpreter ==="
         for f in $ELF_FILES; do
-          # Only executables have interpreters; patching .so files throws a harmless error, 
-          # but we can filter it cleanly by checking if it's an executable vs shared object.
           if file "$f" | grep -q "executable"; then
             echo "Patching interpreter: $f"
             patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
           fi
+        done
+        
+        echo "=== Ensuring bundled linkers are executable ==="
+        find appdir/ -type f \( -name "ld-*.so*" -o -name "ld-linux*.so*" \) | while read -r ld_file; do
+          echo "Marking executable: $ld_file"
+          chmod +x "$ld_file" || true
         done
         
         echo "=== GLIBC compatibility check ==="
@@ -285,9 +251,6 @@ jobs:
 
     - name: delete unnecessary files from appdir
       run: |
-        # Generated by Claude on passing it the file tree with
-        # cd squashfs-root; tree > ~/appimagecontentstree.txt
-        # Patch files and stray source files in the AppDir root
         rm -vf ./appdir/cfgpatch-ui-rewrite-2025.patch
         rm -vf ./appdir/openspace2048a1b-cfg.patch
         rm -vf ./appdir/openspace2cffefb.cfg.patch
@@ -316,6 +279,7 @@ jobs:
         rm -vf ./appdir/usr/data/modules/webbrowser/TaskRunner.exe.manifest
         rm -vf ./appdir/usr/data/modules/webbrowser/Tester.exe.manifest
         rm -vf ./appdir/usr/data/modules/webbrowser/Wormhole.exe.manifest
+        
         # macOS Xcode projects and resources
         rm -rf ./appdir/usr/data/modules/touch/ext/libTUIO11/macosx/
         
@@ -325,13 +289,13 @@ jobs:
         # Build system files
         rm -vf ./appdir/usr/data/modules/touch/ext/libTUIO11/Makefile
         
-        # Full docs tree (HTML, PDFs, SVGs, .mmd files — ~hundreds of files)
+        # Full docs tree
         rm -rf ./appdir/usr/data/modules/base/ext/soloud/docs/
         
         # Code-generation and tooling scripts
         rm -rf ./appdir/usr/data/modules/base/ext/soloud/scripts/
         
-        # Non-Linux backend stubs (pre-compiled DLL loaders, not needed at runtime)
+        # Non-Linux backend stubs
         rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/openal/soloud_openal_dll.c
         rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/portaudio/soloud_portaudio_dll.c
         rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/sdl/soloud_sdl1_dll.c
@@ -346,10 +310,10 @@ jobs:
         rm -vf ./appdir/usr/data/modules/base/ext/soloud/README.md
         rm -vf ./appdir/usr/data/modules/base/ext/soloud/soloud.png
         
-        # Full HTML docs tree (pre-generated Doxygen output)
+        # Full HTML docs tree
         rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/html/
         
-        # Autoconf / build system files (not needed at runtime)
+        # Autoconf / build system files
         rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/aclocal.m4
         rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/configure
         rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/configure.ac
@@ -357,11 +321,8 @@ jobs:
         rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/Makefile.in
         rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/config/
         rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/vs.net/
-        
-        # Windows Visual Studio build files
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/vs.net/
-        
         rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/docs/
+        
         rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/cookbook.f
         rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testf77.f
         rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testf77.out
@@ -393,24 +354,14 @@ jobs:
         
         rm -vf ./appdir/usr/openspace.cfg.orig
 
-        # finally set the run.sh to be target of desktop
-        mv -v appdir/run.sh appdir/usr/bin        
-        chmod +x appdir/usr/bin/run.sh
-        sed -i 's|^Exec=OpenSpace$|Exec=run\.sh OpenSpace|' ./appdir/usr/share/applications/OpenSpace.desktop
-        
     - name: turn AppDir into AppImage
       run: |
-        # turn AppDir into AppImage
-        # DATE=$(date +%Y%m%dT%H%M%S)
         VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION}-daily ./appimagetool-*.AppImage ./appdir
 
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v7
       with:
-        # Artifact name
         name: OpenSpace-AppImage
-        # optional, default is artifact
-        # A file, directory or wildcard pattern that describes what to upload
         path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-x86_64.AppImage
 
     - name: Upload .AppImage to GitHub Release
@@ -418,20 +369,13 @@ jobs:
         RELEASE_TAG="daily-AppImage"
         APP_FILE=/home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-x86_64.AppImage
     
-        # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
           gh release create "$RELEASE_TAG" -t "OpenSpace AppImage Daily Build" -n "Automated daily .AppImage build of OpenSpace."
     
-        # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
           -t "OpenSpace AppImage Daily Build" \
           -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see usage notes and issues linked from https://github.com/hn-88/OpenSpace-AppImage/releases/tag/v0.21.2-1"
     
-        # Upload .AppImage asset (overwrite if exists)
         gh release upload "$RELEASE_TAG" "$APP_FILE" --clobber
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
-
-
-      
-    
