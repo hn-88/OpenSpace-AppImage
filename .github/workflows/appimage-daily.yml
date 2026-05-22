@@ -104,7 +104,7 @@ jobs:
         strip ./appdir/usr/bin/*        
 
         # Point directly to the executable (no run.sh dependency)
-        sed -i 's|^Exec=.*|Exec=OpenSpace|' ./appdir/OpenSpace.desktop
+        # sed -i 's|^Exec=.*|Exec=OpenSpace|' ./appdir/OpenSpace.desktop
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
 
@@ -162,7 +162,28 @@ jobs:
             ln -sf "$f" "libmpv.so"          2>/dev/null || true
           done)
 
-        
+        # ----------------- TRANSITIVE DEPENDENCY RESOLUTION -----------------
+        echo "Resolving and copying transitive dependencies..."
+        # Exclude core/driver system-level libraries that shouldn't be bundled
+        EXCLUDE_REGEXP="^(ld-linux|libm\.so|libc\.so|libdl\.so|libpthread\.so|librt\.so|libgcc_s\.so|libglapi\.so|libGL\.so|libX|libxcb|libdrm|libgbm|libdbus|libasound|libudev)"
+
+        # Run 3 passes to catch deep dependencies (e.g., libmpv -> libavcodec -> libx264)
+        for i in {1..3}; do
+          echo "Dependency resolution pass $i..."
+          LIBS=$(find ./appdir/usr/lib -type f -name "*.so*" 2>/dev/null)
+          for lib in $LIBS; do
+            # Extract paths of dependencies
+            deps=$(ldd "$lib" | grep "=>" | awk '{print $3}' | grep '^/')
+            for dep in $deps; do
+              dep_name=$(basename "$dep")
+              if [ ! -f "./appdir/usr/lib/$dep_name" ] && [[ ! "$dep_name" =~ $EXCLUDE_REGEXP ]]; then
+                echo "Adding missing dependency: $dep"
+                cp -vL "$dep" ./appdir/usr/lib/ || true
+              fi
+            done
+          done
+        done
+        # ---------------------------------------------------------------------        
 
         # Manually bundle libjack
         echo "Searching for libjack.so* on runner..."
@@ -222,11 +243,16 @@ jobs:
         ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -name "*.so*" -o -name "OpenSpac*" \) -exec sh -c 'file "$1" | grep -q ELF && echo "$1"' _ {} \;)
     
         echo ""
-        echo "=== Fixing ELF interpreter ==="
+        echo "=== Fixing ELF interpreter and RUNPATH ==="
         for f in $ELF_FILES; do
           if file "$f" | grep -q "executable"; then
-            echo "Patching interpreter: $f"
+            echo "Patching interpreter and RPATH: $f"
             patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
+            patchelf --set-rpath '$ORIGIN/../lib' "$f" || true
+          fi
+          if file "$f" | grep -q "shared object"; then
+            echo "Patching RUNPATH: $f"
+            patchelf --set-rpath '$ORIGIN' "$f" || true
           fi
         done
         
@@ -248,7 +274,7 @@ jobs:
         fi
     
         echo "GLIBC requirement OK"
-
+        
     - name: delete unnecessary files from appdir
       run: |
         rm -vf ./appdir/cfgpatch-ui-rewrite-2025.patch
