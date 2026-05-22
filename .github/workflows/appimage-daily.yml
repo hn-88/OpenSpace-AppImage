@@ -164,25 +164,42 @@ jobs:
 
         # ----------------- TRANSITIVE DEPENDENCY RESOLUTION -----------------
         echo "Resolving and copying transitive dependencies..."
-        # Exclude core/driver system-level libraries that shouldn't be bundled
-        EXCLUDE_REGEXP="^(ld-linux|libm\.so|libc\.so|libdl\.so|libpthread\.so|librt\.so|libgcc_s\.so|libglapi\.so|libGL\.so|libX|libxcb|libdrm|libgbm|libdbus|libasound|libudev)"
+        
+        # Disable exit-on-error and pipefail temporarily so empty grep matches do not crash the build
+        set +e
+        set +o pipefail
+
+        # Exclude core/driver system-level libraries that must be provided by the host
+        EXCLUDE_REGEXP="^(ld-linux|libm\.so|libc\.so|libdl\.so|libpthread\.so|librt\.so|libgcc_s\.so|libstdc\+\+\.so|libglapi\.so|libGL|libEGL|libGLES|libvulkan|libdrm|libgbm|libnvidia|libva|libvdpau|libX11|libxcb|libdbus|libasound|libudev|libgobject|libgio|libglib|libgthread|libgmodule|libffi)"
 
         # Run 3 passes to catch deep dependencies (e.g., libmpv -> libavcodec -> libx264)
         for i in {1..3}; do
           echo "Dependency resolution pass $i..."
           LIBS=$(find ./appdir/usr/lib -type f -name "*.so*" 2>/dev/null)
           for lib in $LIBS; do
-            # Extract paths of dependencies
-            deps=$(ldd "$lib" | grep "=>" | awk '{print $3}' | grep '^/')
+            # Extract absolute paths of dependencies
+            deps=$(ldd "$lib" 2>/dev/null | grep "=>" | awk '{print $3}' | grep '^/')
             for dep in $deps; do
+              # Skip if the resolved path points to a file already inside our appdir
+              if [[ "$dep" == *"/appdir/"* ]]; then
+                continue
+              fi
+
               dep_name=$(basename "$dep")
-              if [ ! -f "./appdir/usr/lib/$dep_name" ] && [[ ! "$dep_name" =~ $EXCLUDE_REGEXP ]]; then
-                echo "Adding missing dependency: $dep"
-                cp -vL "$dep" ./appdir/usr/lib/ || true
+              # Verify the library exists, isn't already bundled, and doesn't match our exclusion list
+              if [ -f "$dep" ] && [ ! -f "./appdir/usr/lib/$dep_name" ]; then
+                if [[ ! "$dep_name" =~ $EXCLUDE_REGEXP ]]; then
+                  echo "Adding missing dependency: $dep"
+                  cp -vL "$dep" ./appdir/usr/lib/ || true
+                fi
               fi
             done
           done
         done
+
+        # Restore standard GitHub Actions exit-on-error behavior
+        set -e
+        set -o pipefail
         # ---------------------------------------------------------------------        
 
         # Manually bundle libjack
