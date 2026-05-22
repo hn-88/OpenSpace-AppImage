@@ -2,7 +2,7 @@
 Version=1.0
 Name=OpenSpace
 Comment=OpenSpace tool
-Exec=run.sh OpenSpace
+Exec=OpenSpace
 Icon=OpenSpace
 Terminal=true
 Type=Application
