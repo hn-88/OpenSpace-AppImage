@@ -180,13 +180,9 @@ jobs:
             # Extract absolute paths of dependencies
             deps=$(ldd "$lib" 2>/dev/null | grep "=>" | awk '{print $3}' | grep '^/')
             for dep in $deps; do
-              # Skip if the resolved path points to a file already inside our appdir
-              if [[ "$dep" == *"/appdir/"* ]]; then
-                continue
-              fi
-
               dep_name=$(basename "$dep")
-              # Verify the library exists, isn't already bundled, and doesn't match our exclusion list
+              
+              # If the dependency exists but is not yet inside usr/lib, copy it
               if [ -f "$dep" ] && [ ! -f "./appdir/usr/lib/$dep_name" ]; then
                 if [[ ! "$dep_name" =~ $EXCLUDE_REGEXP ]]; then
                   echo "Adding missing dependency: $dep"
