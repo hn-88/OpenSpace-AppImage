@@ -253,6 +253,14 @@ jobs:
       run: |
         set -e
     
+        echo "=== Purging bundled glibc/loaders to ensure host fallback ==="
+        find appdir/ -name "ld-*.so*" -delete || true
+        find appdir/ -name "libc.so*" -delete || true
+        find appdir/ -name "libm.so*" -delete || true
+        find appdir/ -name "libdl.so*" -delete || true
+        find appdir/ -name "librt.so*" -delete || true
+        find appdir/ -name "libpthread.so*" -delete || true
+
         echo "=== Collecting ELF binaries ==="
         ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -name "*.so*" -o -name "OpenSpac*" \) -exec sh -c 'file "$1" | grep -q ELF && echo "$1"' _ {} \;)
     
