@@ -162,64 +162,6 @@ jobs:
             ln -sf "$f" "libmpv.so"          2>/dev/null || true
           done)
 
-        # ----------------- TARGETED LIBMPV DEPENDENCY RESOLUTION -----------------
-        echo "Resolving dependencies for libmpv..."
-        
-        # Identify the manually copied libmpv.so in usr/lib
-        MPV_SO=$(find ./appdir/usr/lib -name "libmpv.so*" -type f -not -type l | head -n 1)
-        
-        if [ -n "$MPV_SO" ]; then
-          # We only exclude core system/driver libraries that must come from the host
-          EXCLUDE_REGEXP="^(ld-|libc\.so|libm\.so|libdl\.so|libpthread|librt\.so|libgcc_s\.so|libstdc|libGL|libEGL|libGLES|libvulkan|libdrm|libgbm|libnvidia|libxcb|libX11|libasound|libudev)"
-          
-          # Initialize queue with libmpv
-          TO_CHECK=("$MPV_SO")
-          declare -A PROCESSED
-          
-          set +e
-          set +o pipefail
-          
-          while [ ${#TO_CHECK[@]} -gt 0 ]; do
-            # Pop the first library from the queue
-            CURRENT_LIB="${TO_CHECK[0]}"
-            TO_CHECK=("${TO_CHECK[@]:1}")
-            
-            # Skip if already processed in this loop
-            if [ -n "${PROCESSED[$CURRENT_LIB]}" ]; then
-              continue
-            fi
-            PROCESSED[$CURRENT_LIB]=1
-            
-            echo "Analyzing dependencies of: $(basename "$CURRENT_LIB")"
-            
-            # Extract resolved dependency paths
-            deps=$(ldd "$CURRENT_LIB" 2>/dev/null | grep "=>" | awk '{print $3}' | grep '^/')
-            for dep in $deps; do
-              dep_name=$(basename "$dep")
-              
-              # Skip if the library matches core system exclusions
-              if [[ "$dep_name" =~ $EXCLUDE_REGEXP ]]; then
-                continue
-              fi
-              
-              target_path="./appdir/usr/lib/$dep_name"
-              
-              # Copy if not already present in usr/lib
-              if [ ! -f "$target_path" ]; then
-                echo "  -> Bundling libmpv dependency: $dep"
-                cp -vL "$dep" ./appdir/usr/lib/ || true
-                # Add to queue to scan its dependencies transitively
-                TO_CHECK+=("$target_path")
-              fi
-            done
-          done
-          
-          set -e
-          set -o pipefail
-        else
-          echo "ERROR: libmpv.so not found in appdir/usr/lib, skipping targeted trace."
-        fi
-        # -------------------------------------------------------------------------
         
         # Manually bundle libjack
         echo "Searching for libjack.so* on runner..."
@@ -262,6 +204,71 @@ jobs:
           rm -vfr ./appdir/home
         fi
 
+        # ----------------- UNIFY LIBRARY DIRECTORIES -----------------
+        if [ -d "./appdir/lib" ]; then
+          echo "Merging bundled libraries from appdir/lib into appdir/usr/lib..."
+          mkdir -p ./appdir/usr/lib
+          find ./appdir/lib -name "*.so*" -exec cp -avP {} ./appdir/usr/lib/ \;
+          rm -rf ./appdir/lib
+        fi
+        # -------------------------------------------------------------
+
+        # ----------------- GLOBAL PRECISE DEPENDENCY RESOLUTION -----------------
+        echo "Performing precise global dependency resolution..."
+        
+        # Disable exit-on-error and pipefail temporarily so empty grep matches do not crash the build
+        set +e
+        set +o pipefail
+
+        # Ultra-precise exclusion regex targeting ONLY glibc, low-level runtime layers, and graphics drivers
+        # This protects libraries like libcfitsio, libcurl, or libcrypto while excluding system frameworks
+        EXCLUDE_REGEXP="^(ld-linux.*\.so|ld-[0-9].*\.so|libc\.so|libc-[0-9].*\.so|libm\.so|libm-[0-9].*\.so|libdl\.so|libdl-[0-9].*\.so|libpthread|librt\.so|librt-[0-9].*\.so|libresolv.*\.so|libnss.*\.so|libutil.*\.so|libcrypt\.so|libanl.*\.so|libgcc_s.*\.so|libstdc|libglapi|libGL.*\.so|libEGL.*\.so|libGLES.*\.so|libvulkan.*\.so|libdrm.*\.so|libgbm.*\.so|libnvidia|libva.*\.so|libvdpau.*\.so|libX11|libxcb|libdbus|libasound.*\.so|libudev.*\.so|libgobject|libgio|libglib|libgthread|libgmodule|libffi)"
+
+        # Initialize tracing queue with all existing ELF files in usr/lib and usr/bin
+        TO_CHECK=()
+        for f in $(find ./appdir/usr/lib ./appdir/usr/bin -type f \( -name "*.so*" -o -name "OpenSpac*" \) 2>/dev/null); do
+          if file "$f" | grep -q ELF; then
+            TO_CHECK+=("$f")
+          fi
+        done
+
+        declare -A PROCESSED
+        
+        while [ ${#TO_CHECK[@]} -gt 0 ]; do
+          # Pop the first library from the queue
+          CURRENT_LIB="${TO_CHECK[0]}"
+          TO_CHECK=("${TO_CHECK[@]:1}")
+          
+          if [ -n "${PROCESSED[$CURRENT_LIB]}" ]; then
+            continue
+          fi
+          PROCESSED[$CURRENT_LIB]=1
+          
+          echo "Scanning: $(basename "$CURRENT_LIB")"
+          deps=$(ldd "$CURRENT_LIB" 2>/dev/null | grep "=>" | awk '{print $3}' | grep '^/')
+          for dep in $deps; do
+            dep_name=$(basename "$dep")
+            
+            # Skip core system libraries and driver libraries
+            if [[ "$dep_name" =~ $EXCLUDE_REGEXP ]]; then
+              continue
+            fi
+            
+            target_path="./appdir/usr/lib/$dep_name"
+            if [ ! -f "$target_path" ]; then
+              echo "  -> Copying dependency: $dep"
+              cp -vL "$dep" ./appdir/usr/lib/ || true
+              # Add the newly copied library to the queue to trace its dependencies transitively
+              TO_CHECK+=("$target_path")
+            fi
+          done
+        done
+
+        # Restore standard GitHub Actions exit-on-error behavior
+        set -e
+        set -o pipefail
+        # -------------------------------------------------------------------------
+
         # Bundle high-version libstdc++ from Homebrew
         libstdcxx_path=$(find /home/linuxbrew/.linuxbrew -name "libstdc++.so.6" -not -type l | head -n 1)
         if [ -n "$libstdcxx_path" ]; then
@@ -276,12 +283,12 @@ jobs:
         set -e
     
         echo "=== Purging bundled glibc/loaders to ensure host fallback ==="
-        find appdir/ -name "ld-*.so*" -delete || true
-        find appdir/ -name "libc.so*" -delete || true
-        find appdir/ -name "libm.so*" -delete || true
-        find appdir/ -name "libdl.so*" -delete || true
-        find appdir/ -name "librt.so*" -delete || true
-        find appdir/ -name "libpthread.so*" -delete || true
+        find appdir/usr/lib/ -name "ld-*.so*" -delete || true
+        find appdir/usr/lib/ -name "libc.so*" -delete || true
+        find appdir/usr/lib/ -name "libm.so*" -delete || true
+        find appdir/usr/lib/ -name "libdl.so*" -delete || true
+        find appdir/usr/lib/ -name "librt.so*" -delete || true
+        find appdir/usr/lib/ -name "libpthread.so*" -delete || true
 
         echo "=== Collecting ELF binaries ==="
         ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -name "*.so*" -o -name "OpenSpac*" \) -exec sh -c 'file "$1" | grep -q ELF && echo "$1"' _ {} \;)
