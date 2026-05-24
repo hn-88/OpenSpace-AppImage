@@ -205,11 +205,14 @@ jobs:
         fi
 
         # ----------------- UNIFY LIBRARY DIRECTORIES -----------------
+        # Move all libraries to usr/lib but keep the empty structures in lib to prevent runtime find errors
         if [ -d "./appdir/lib" ]; then
           echo "Merging bundled libraries from appdir/lib into appdir/usr/lib..."
           mkdir -p ./appdir/usr/lib
           find ./appdir/lib -name "*.so*" -exec cp -avP {} ./appdir/usr/lib/ \;
-          rm -rf ./appdir/lib
+          # Clear libraries from appdir/lib but keep directories intact
+          find ./appdir/lib -type f -delete || true
+          find ./appdir/lib -type l -delete || true
         fi
         # -------------------------------------------------------------
 
@@ -312,6 +315,19 @@ jobs:
           echo "Marking executable: $ld_file"
           chmod +x "$ld_file" || true
         done
+
+        # ----------------- OVERWRITE APPRUN ENTRYPOINT -----------------
+        echo "Creating robust, lightweight custom AppRun launcher..."
+        rm -f appdir/AppRun
+        
+        echo '#!/bin/sh' > appdir/AppRun
+        echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> appdir/AppRun
+        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"' >> appdir/AppRun
+        echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="${HERE}/usr/plugins"' >> appdir/AppRun
+        echo 'exec "${HERE}/usr/bin/OpenSpace" "$@"' >> appdir/AppRun
+        
+        chmod +x appdir/AppRun
+        # --------------------------------------------------------------
         
         echo "=== GLIBC compatibility check ==="
         MAX_GLIBC=$(strings appdir/usr/bin/OpenSpace | grep GLIBC_ | sort -V | tail -1)
@@ -339,120 +355,4 @@ jobs:
         rm -vf ./appdir/sgct-src-screencapture.cpp
         rm -vf ./appdir/readme.txt
         
-        # Windows-only files
-        rm -vf ./appdir/usr/data/modules/spout/ext/spout/SpoutLibrary.dll
-        rm -vf ./appdir/usr/data/modules/spout/ext/spout/SpoutLibrary.lib
-        rm -vf ./appdir/usr/data/modules/spout/ext/readme.md
-        
-        rm -vf ./appdir/usr/data/modules/webbrowser/cef_webgui.rc
-        rm -vf ./appdir/usr/data/modules/webbrowser/codegentest.exe.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/compatibility.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/DocsWriter.exe.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/OpenSpace.exe.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/OpenSpace_Helper.exe.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/OpenSpace-MinVR.exe.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/OpenSpaceTest.exe.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/Sync.exe.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/TaskRunner.exe.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/Tester.exe.manifest
-        rm -vf ./appdir/usr/data/modules/webbrowser/Wormhole.exe.manifest
-        
-        # macOS Xcode projects and resources
-        rm -rf ./appdir/usr/data/modules/touch/ext/libTUIO11/macosx/
-        
-        # Windows Visual Studio projects and Windows SDL/GL binaries
-        rm -rf ./appdir/usr/data/modules/touch/ext/libTUIO11/windows/
-        
-        # Build system files
-        rm -vf ./appdir/usr/data/modules/touch/ext/libTUIO11/Makefile
-        
-        # Full docs tree
-        rm -rf ./appdir/usr/data/modules/base/ext/soloud/docs/
-        
-        # Code-generation and tooling scripts
-        rm -rf ./appdir/usr/data/modules/base/ext/soloud/scripts/
-        
-        # Non-Linux backend stubs
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/openal/soloud_openal_dll.c
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/portaudio/soloud_portaudio_dll.c
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/sdl/soloud_sdl1_dll.c
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/sdl/soloud_sdl2_dll.c
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/sdl/soloud_openmpt_dll.c 2>/dev/null || true
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/audiosource/openmpt/soloud_openmpt_dll.c
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/audiosource/wav/stb_vorbis.c
-        
-        # SoLoud root-level non-essential files
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/issue_template.md
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/PULL_REQUEST_TEMPLATE.md
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/README.md
-        rm -vf ./appdir/usr/data/modules/base/ext/soloud/soloud.png
-        
-        # Full HTML docs tree
-        rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/html/
-        
-        # Autoconf / build system files
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/aclocal.m4
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/configure
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/configure.ac
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/Makefile.am
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/Makefile.in
-        rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/config/
-        rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/vs.net/
-        rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/docs/
-        
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/cookbook.f
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testf77.f
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testf77.out
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testf77.std
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testprog.out
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testprog.std
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testprog.tpt
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/cfitsio_mac.sit.hqx
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/makefile.bc
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/makefile.vcc
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/makepc.bat
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/winDumpExts.mak
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/windumpexts.c
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/README.MacOS
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/README_OLD.win
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/README.win
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/vmsieee.c
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/configure
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/configure.in
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/Makefile.in
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/install-sh
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/config.guess
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/config.sub
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77.inc
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77_wrap1.c
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77_wrap2.c
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77_wrap3.c
-        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77_wrap4.c
-        
-        rm -vf ./appdir/usr/openspace.cfg.orig
-
-    - name: turn AppDir into AppImage
-      run: |
-        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION}-daily ./appimagetool-*.AppImage ./appdir
-
-    - name: Upload AppImage Artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: OpenSpace-AppImage
-        path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-x86_64.AppImage
-
-    - name: Upload .AppImage to GitHub Release
-      run: |
-        RELEASE_TAG="daily-AppImage"
-        APP_FILE=/home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-x86_64.AppImage
-    
-        gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
-          gh release create "$RELEASE_TAG" -t "OpenSpace AppImage Daily Build" -n "Automated daily .AppImage build of OpenSpace."
-    
-        gh release edit "$RELEASE_TAG" \
-          -t "OpenSpace AppImage Daily Build" \
-          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see usage notes and issues linked from https://github.com/hn-88/OpenSpace-AppImage/releases/tag/v0.21.2-1"
-    
-        gh release upload "$RELEASE_TAG" "$APP_FILE" --clobber
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT }}
+        # Windows-only fil
