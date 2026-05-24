@@ -162,42 +162,64 @@ jobs:
             ln -sf "$f" "libmpv.so"          2>/dev/null || true
           done)
 
-        # ----------------- TRANSITIVE DEPENDENCY RESOLUTION -----------------
-        echo "Resolving and copying transitive dependencies..."
+        # ----------------- TARGETED LIBMPV DEPENDENCY RESOLUTION -----------------
+        echo "Resolving dependencies for libmpv..."
         
-        # Disable exit-on-error and pipefail temporarily so empty grep matches do not crash the build
-        set +e
-        set +o pipefail
-
-        # Simplified prefix-based exclusion to bypass regex escape discrepancies
-        # Excludes all dynamic loaders (ld-*), core glibc, graphic stack, and audio/video drivers
-        EXCLUDE_REGEXP="^(ld-|libc|libm|libdl|libpthread|librt|libresolv|libnss|libutil|libcrypt|libanl|libgcc_s|libstdc|libglapi|libGL|libEGL|libGLES|libvulkan|libdrm|libgbm|libnvidia|libva|libvdpau|libX11|libxcb|libdbus|libasound|libudev|libgobject|libgio|libglib|libgthread|libgmodule|libffi)"
-
-        # Run 3 passes to catch deep dependencies (e.g., libmpv -> libavcodec -> libx264)
-        for i in {1..3}; do
-          echo "Dependency resolution pass $i..."
-          LIBS=$(find ./appdir/usr/lib -type f -name "*.so*" 2>/dev/null)
-          for lib in $LIBS; do
-            # Extract absolute paths of dependencies
-            deps=$(ldd "$lib" 2>/dev/null | grep "=>" | awk '{print $3}' | grep '^/')
+        # Identify the manually copied libmpv.so in usr/lib
+        MPV_SO=$(find ./appdir/usr/lib -name "libmpv.so*" -type f -not -type l | head -n 1)
+        
+        if [ -n "$MPV_SO" ]; then
+          # We only exclude core system/driver libraries that must come from the host
+          EXCLUDE_REGEXP="^(ld-|libc\.so|libm\.so|libdl\.so|libpthread|librt\.so|libgcc_s\.so|libstdc|libGL|libEGL|libGLES|libvulkan|libdrm|libgbm|libnvidia|libxcb|libX11|libasound|libudev)"
+          
+          # Initialize queue with libmpv
+          TO_CHECK=("$MPV_SO")
+          declare -A PROCESSED
+          
+          set +e
+          set +o pipefail
+          
+          while [ ${#TO_CHECK[@]} -gt 0 ]; do
+            # Pop the first library from the queue
+            CURRENT_LIB="${TO_CHECK[0]}"
+            TO_CHECK=("${TO_CHECK[@]:1}")
+            
+            # Skip if already processed in this loop
+            if [ -n "${PROCESSED[$CURRENT_LIB]}" ]; then
+              continue
+            fi
+            PROCESSED[$CURRENT_LIB]=1
+            
+            echo "Analyzing dependencies of: $(basename "$CURRENT_LIB")"
+            
+            # Extract resolved dependency paths
+            deps=$(ldd "$CURRENT_LIB" 2>/dev/null | grep "=>" | awk '{print $3}' | grep '^/')
             for dep in $deps; do
               dep_name=$(basename "$dep")
               
-              # If the dependency exists but is not yet inside usr/lib, copy it
-              if [ -f "$dep" ] && [ ! -f "./appdir/usr/lib/$dep_name" ]; then
-                if [[ ! "$dep_name" =~ $EXCLUDE_REGEXP ]]; then
-                  echo "Adding missing dependency: $dep"
-                  cp -vL "$dep" ./appdir/usr/lib/ || true
-                fi
+              # Skip if the library matches core system exclusions
+              if [[ "$dep_name" =~ $EXCLUDE_REGEXP ]]; then
+                continue
+              fi
+              
+              target_path="./appdir/usr/lib/$dep_name"
+              
+              # Copy if not already present in usr/lib
+              if [ ! -f "$target_path" ]; then
+                echo "  -> Bundling libmpv dependency: $dep"
+                cp -vL "$dep" ./appdir/usr/lib/ || true
+                # Add to queue to scan its dependencies transitively
+                TO_CHECK+=("$target_path")
               fi
             done
           done
-        done
-
-        # Restore standard GitHub Actions exit-on-error behavior
-        set -e
-        set -o pipefail
-        # ---------------------------------------------------------------------
+          
+          set -e
+          set -o pipefail
+        else
+          echo "ERROR: libmpv.so not found in appdir/usr/lib, skipping targeted trace."
+        fi
+        # -------------------------------------------------------------------------
         
         # Manually bundle libjack
         echo "Searching for libjack.so* on runner..."
