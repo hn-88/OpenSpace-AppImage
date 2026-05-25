@@ -55,7 +55,7 @@ jobs:
         sudo apt-get install -y libasound2 libasound2-data libasound2-plugins libjack0
 
     - name: Set up Homebrew
-      uses: Homebrew/actions/setup-homebrew@master
+      uses: Homebrew/actions/setup-homebrew@main
 
     - name: Install GCC 13 (via Homebrew)
       run: |
