@@ -303,18 +303,18 @@ jobs:
         done
 
         echo "=== Scanning bundled libs for glibc version requirements ==="
-        OFFENDERS=()
-        find appdir/usr/lib -name "*.so*" -type f | while read lib; do
+        OFFENDERS=""
+        while IFS= read -r lib; do
           max=$(strings "$lib" 2>/dev/null | grep -oP 'GLIBC_\d+\.\d+' | sort -V | tail -1)
           if [ -n "$max" ]; then
             if [ "$(printf '%s\n' "GLIBC_2.35" "$max" | sort -V | head -1)" != "$max" ]; then
               echo "OFFENDING LIB (requires $max): $lib"
-              OFFENDERS+=("$lib")
+              OFFENDERS="$OFFENDERS $lib"
             fi
           fi
-        done
-        if [ ${#OFFENDERS[@]} -gt 0 ]; then
-          echo "ERROR: The above bundled libs require glibc newer than 2.35. Build will fail at runtime on Ubuntu 22.04."
+        done < <(find appdir/usr/lib -name "*.so*" -type f)
+        if [ -n "$OFFENDERS" ]; then
+          echo "ERROR: The above bundled libs require glibc newer than 2.35."
           exit 1
         fi
 
