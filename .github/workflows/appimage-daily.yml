@@ -315,6 +315,12 @@ jobs:
           fi
         done
 
+        echo "=== Ensuring bundled loader is executable ==="
+        find appdir/usr/lib64 -name "ld-linux*.so*" -exec chmod +x {} \;
+
+        echo "=== Recreating empty lib dir to satisfy AppRun find ==="
+        mkdir -p appdir/lib
+
         echo "=== Scanning bundled libs for glibc version requirements ==="
         OFFENDERS=""
         while IFS= read -r lib; do
