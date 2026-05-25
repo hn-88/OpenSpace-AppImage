@@ -315,10 +315,19 @@ jobs:
           fi
         done
 
-        echo "=== Ensuring bundled loader is executable ==="
-        find appdir/usr/lib64 -name "ld-linux*.so*" -exec chmod +x {} \;
-
-        echo "=== Recreating empty lib dir to satisfy AppRun find ==="
+        echo "=== Overwriting go-appimage AppRun with lightweight custom launcher ==="
+        rm -f appdir/AppRun
+        echo '#!/bin/sh' > appdir/AppRun
+        echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> appdir/AppRun
+        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib64:${LD_LIBRARY_PATH}"' >> appdir/AppRun
+        echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="${HERE}/usr/plugins"' >> appdir/AppRun
+        echo 'exec "${HERE}/usr/bin/OpenSpace" "$@"' >> appdir/AppRun
+        chmod +x appdir/AppRun
+        
+        # Make loader executable in case any bundled ELF has it hardcoded as interpreter
+        find appdir/usr/lib64 -name "ld-linux*.so*" -exec chmod +x {} \; 2>/dev/null || true
+        
+        # Satisfy any find calls on lib/ in the squashfs runtime
         mkdir -p appdir/lib
 
         echo "=== Scanning bundled libs for glibc version requirements ==="
