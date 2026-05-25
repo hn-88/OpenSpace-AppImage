@@ -278,6 +278,19 @@ jobs:
           (cd ./appdir/usr/lib && ln -sf $(basename "$libstdcxx_path") libstdc++.so)
         fi
 
+    - name: Audit bundled libraries
+      run: |
+        echo "=== All bundled .so files ==="
+        find appdir/usr/lib -name "*.so*" -type f | sort
+        echo ""
+        echo "=== Checking for unresolved deps ==="
+        find appdir/usr/bin appdir/usr/lib -type f \( -name "*.so*" -o -name "OpenSpac*" \) | while read f; do
+          file "$f" | grep -q ELF || continue
+          ldd "$f" 2>/dev/null | grep "not found" | while read line; do
+            echo "MISSING in $(basename $f): $line"
+          done
+        done
+
     - name: Fix AppImage (interpreter + audit)
       run: |
         set -e
