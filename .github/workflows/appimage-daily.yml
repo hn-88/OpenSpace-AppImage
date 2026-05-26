@@ -295,6 +295,17 @@ jobs:
       run: |
         set -e
 
+        echo "=== Purging bundled glibc (must always come from host) ==="
+        rm -f ./appdir/usr/lib/libc.so*
+        rm -f ./appdir/usr/lib/libc-*.so*
+        rm -f ./appdir/usr/lib/libm.so*
+        rm -f ./appdir/usr/lib/libm-*.so*
+        rm -f ./appdir/usr/lib/libdl.so*
+        rm -f ./appdir/usr/lib/libpthread.so*
+        rm -f ./appdir/usr/lib/librt.so*
+        rm -f ./appdir/usr/lib/ld-linux*.so*
+        rm -f ./appdir/usr/lib/ld-*.so*
+
         echo "=== Replacing Homebrew-sourced libs with system equivalents ==="
         for lib in liblzma liblz4 libzstd libbrotlidec libbrotlicommon; do
           sys_lib=$(find /usr/lib/x86_64-linux-gnu -name "${lib}.so*" -not -type l | head -n 1)
