@@ -200,6 +200,13 @@ jobs:
         ln -sf ../bin/libEGL.so ./appdir/usr/lib/libEGL.so || true
         ln -sf ../bin/libGLESv2.so ./appdir/usr/lib/libGLESv2.so || true
         ln -sf ../bin/libvk_swiftshader.so ./appdir/usr/lib/libvk_swiftshader.so || true
+        # move CEF resources also to usr/lib
+        # currently duplicated in bin for testing
+        cp -rv "$cef_data_dir"/*.pak ./appdir/usr/lib/
+        cp -rv "$cef_data_dir"/*.dat ./appdir/usr/lib/
+        cp -rv "$cef_data_dir"/*.bin ./appdir/usr/lib/
+        cp -rv "$cef_data_dir"/locales ./appdir/usr/lib/
+                
         # Clean up stray Homebrew directories and move libs to usr/lib
         if [ -d "./appdir/home" ]; then
           mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblz4.so.1   ./appdir/usr/lib/ 2>/dev/null || true
