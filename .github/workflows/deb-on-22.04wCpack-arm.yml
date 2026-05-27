@@ -142,8 +142,14 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
         echo "Please note the extra variables passed for making the deb package ..."
-        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER=/usr/bin/g++-13 -DCMAKE_C_COMPILER=/usr/bin/gcc-13 \
-          -DCMAKE_CXX_STANDARD=20 -DASSIMP_BUILD_MINIZIP=1 -DOPENSPACE_MODULE_MOLECULE=OFF -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
+        cmake -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_COMPILER="/home/linuxbrew/.linuxbrew/bin/g++-13" \
+          -DCMAKE_C_COMPILER="/home/linuxbrew/.linuxbrew/bin/gcc-13" \
+          -DCMAKE_CXX_STANDARD=23 \
+          -DASSIMP_BUILD_MINIZIP=1 \
+          -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++" \
+          -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
+         -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
+          -DOPENSPACE_MODULE_MOLECULE=OFF \
           -DOPENSPACE_DISTRO=ubuntu22.04 -DCMAKE_INSTALL_PREFIX=/usr "$openSpaceHome"
 
     - name: Build
@@ -155,6 +161,26 @@ jobs:
         cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
         rm -vf "$cef_orig_dir/libvulkan.so.1" || echo "libvulkan.so.1 not found, skipping removal"
         cmake --build . --parallel 3
+
+    - name: Fix interpreter
+      run: |
+        set -e
+        # Since we built using homebrew compiler, the paths to ELF interpreter may be messed up
+        echo "=== Collecting ELF binaries ==="
+        # We find all executables AND shared libraries (even if missing execution permissions)
+        ELF_FILES=$(find $HOME/source/OpenSpace/bin -type f \( -executable -o -name "*.so*" \) -exec file {} \; | grep ELF | cut -d: -f1)
+        # some .so files may not have executable flag set after copying
+    
+        echo ""
+        echo "=== Fixing ELF interpreter ==="
+        for f in $ELF_FILES; do
+          # Only executables have interpreters; patching .so files throws a harmless error, 
+          # but we can filter it cleanly by checking if it's an executable vs shared object.
+          if file "$f" | grep -q "executable"; then
+            echo "Patching interpreter: $f"
+            patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
+          fi
+        done
         
     - name: Create deb
       working-directory: ${{github.workspace}}
