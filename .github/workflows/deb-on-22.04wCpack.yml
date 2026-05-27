@@ -10,8 +10,7 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: Release
-  OPENSPACE_VERSION: "0.22.0rc1"
-  APPIMAGE_VERSION: "1"
+  OPENSPACE_VERSION: "0.22.0rc2+"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "master"
   
@@ -24,6 +23,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: false
+        
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: false
+        docker-images: true
+        swap-storage: false
         
     - name: Install Qt 6.9
       uses: jurplel/install-qt-action@v4

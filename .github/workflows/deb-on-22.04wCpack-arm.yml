@@ -10,9 +10,7 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: Release
-  # As recommended here: https://github.com/marketplace/actions/sccache-action
-  OPENSPACE_VERSION: "0.21.4+"
-  APPIMAGE_VERSION: "1"
+  OPENSPACE_VERSION: "0.22.0rc2+"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "master"
   
@@ -24,7 +22,7 @@ jobs:
     runs-on: ubuntu-22.04-arm
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@main
     
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
@@ -41,6 +39,45 @@ jobs:
         large-packages: false
         docker-images: true
         swap-storage: false
+
+    - name: Install Qt 6.9
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: 6.9.*
+
+    - name: Export Qt environment variables
+      shell: bash
+      run: |
+        echo "Qt installation is at: $QT_ROOT_DIR"
+    
+        # For CMake find_package(Qt6 ...)
+        echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> $GITHUB_ENV
+    
+        # Common variables used by packaging scripts
+        echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> $GITHUB_ENV
+        echo "QT_DIR=$QT_ROOT_DIR" >> $GITHUB_ENV
+    
+        # Optional: add Qt tools to PATH
+        echo "$QT_ROOT_DIR/bin" >> $GITHUB_PATH
+
+        # Verify libicu* are under QT_ROOT_DIR
+        find $QT_ROOT_DIR -name "libicu*"
+
+    - name: Install CMake 4.3.2
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.3.2'
+
+    - name: Set up Homebrew
+      uses: Homebrew/actions/setup-homebrew@master
+
+    - name: Install GCC 13 (via Homebrew)
+      run: |
+        # Bypasses Launchpad entirely by downloading from GitHub's own registry
+        sudo apt-get install -y software-properties-common
+        brew install gcc@13
+    
+
     
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
@@ -53,13 +90,12 @@ jobs:
         mkdir build
         cd build
 
-    - name: get updated ghoul
+    #- name: get updated ghoul
       # https://github.com/OpenSpace/OpenSpace/issues/3880
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome/ext/ghoul"
-        git checkout master --recurse-submodules
-        
+      #run: |
+        #openSpaceHome="$HOME/source/OpenSpace"
+        #cd "$openSpaceHome/ext/ghoul"
+        #git checkout master --recurse-submodules
     
     - name: Install dependencies
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
@@ -70,8 +106,8 @@ jobs:
         sudo apt-get -y install software-properties-common
         # for 24.04, it is sudo apt-get -y install libasound2t64 
         sudo apt-get -y install libasound2-data libasound2-plugins
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install gcc-13 g++-13
+        # sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        # sudo apt install gcc-13 g++-13
 
     - name: Install clipboard patches
       run: |
@@ -84,57 +120,20 @@ jobs:
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/*.diff "$openSpaceHome"
         cd $openSpaceHome
-        git apply --verbose fix-Windows-Cpack-zip.diff
+        git apply --verbose --recount --whitespace=fix fix-Windows-Cpack-zip.diff
         
     - name: Install deb patches
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd $openSpaceHome
-        git apply --verbose DebwithCPack.diff
+        git apply --verbose --recount --whitespace=fix DebwithCPack.diff
 
     - name: Install png for deb
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
 
-    - name: Replace MSVC conditional with unified cxx_std_23
-      run: |
-        openSpaceHome="$HOME/source/OpenSpace"
-        cd "$openSpaceHome"
-        python3 - <<'EOF'
-        import re
-
-        files = [
-            "./support/coding/codegen/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./support/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./ext/ghoul/support/cmake/common-compile-settings/common-compile-settings.cmake",
-            "./apps/OpenSpace/ext/sgct/support/cmake/common-compile-settings/common-compile-settings.cmake",
-        ]
-
-        old = (
-            "    if (MSVC)\n"
-            "      target_compile_features(compile_settings INTERFACE cxx_std_23)\n"
-            "    else ()\n"
-            "      target_compile_features(compile_settings INTERFACE cxx_std_20)\n"
-            "    endif ()"
-        )
-
-        new = "      target_compile_features(compile_settings INTERFACE cxx_std_23)"
-
-        for path in files:
-            with open(path, "r") as f:
-                content = f.read()
-
-            if old in content:
-                content = content.replace(old, new)
-                with open(path, "w") as f:
-                    f.write(content)
-                print(f"Updated: {path}")
-            else:
-                print(f"WARNING: Pattern not found in {path}")
-
-        EOF
-
+    
    
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
@@ -175,12 +174,12 @@ jobs:
         # -D CPACK_DEBIAN_PACKAGE_RELEASE="daily"
         # for next version 
         # mv -v openspace*.deb openspace_0.21.2-2~ubuntu24.04.1_amd64_${DATE}.deb 
-        mv -v openspace*.deb openspace_${OPENSPACE_VERSION}~ubuntu22.04.1_aarch64_daily.deb
+        # mv -v openspace*.deb openspace_${OPENSPACE_VERSION}~ubuntu22.04.1_aarch64_daily.deb
          # Test the rpaths when deb is built with
         # readelf -d deb_extract/usr/share/openspace/bin/OpenSpace | grep RPATH
         # ldd deb_extract/usr/share/openspace/bin/OpenSpace
         
-    - name: Upload AppImage Artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         # Artifact name
@@ -196,7 +195,7 @@ jobs:
     
         # Create release if it doesn't exist
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
-          gh release create "$RELEASE_TAG" -t "OpenSpace CPack Daily Build" -n "Automated daily .deb build of OpenSpace."
+          gh release create "$RELEASE_TAG" -t "OpenSpace CPack Daily Deb Build" -n "Automated daily .deb build of OpenSpace."
     
         # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
