@@ -203,9 +203,12 @@ jobs:
         # move CEF resources also to usr/lib
         # currently duplicated in bin for testing
         cp -rv "$cef_data_dir"/*.pak ./appdir/usr/lib/
-        cp -rv "$cef_data_dir"/*.dat ./appdir/usr/lib/
-        cp -rv "$cef_data_dir"/*.bin ./appdir/usr/lib/
+        cp -rv "$cef_data_dir"/*.dat ./appdir/usr/lib/        
         cp -rv "$cef_data_dir"/locales ./appdir/usr/lib/
+        cp -v "$cef_release_dir"/v8_context_snapshot.bin ./appdir/usr/lib/
+        cp -v "$cef_release_dir"/snapshot_blob.bin       ./appdir/usr/lib/ 2>/dev/null || true
+        cp -v "$cef_release_dir"/libvk_swiftshader.so  ./appdir/usr/lib/
+        cp -v "$cef_release_dir"/vk_swiftshader_icd.json ./appdir/usr/lib/ 2>/dev/null || true
                 
         # Clean up stray Homebrew directories and move libs to usr/lib
         if [ -d "./appdir/home" ]; then
