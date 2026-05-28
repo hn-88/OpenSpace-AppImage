@@ -7,7 +7,7 @@ on:
 
 env:
   BUILD_TYPE: Release
-  OPENSPACE_VERSION: "0.22.0rc1+"
+  OPENSPACE_VERSION: "0.22.0rc2+"
   APPIMAGE_VERSION: "2"
   COMMIT_HASH: "master"
 
