@@ -485,6 +485,13 @@ jobs:
         
         rm -vf ./appdir/usr/openspace.cfg.orig
 
+        # Remove NSS/SSL libs that conflict with CEF's internal BoringSSL
+        # CEF bundles its own SSL stack and these cause certificate verification failures
+        for lib in libnss3.so libnssutil3.so libsmime3.so libnspr4.so \
+                   libplc4.so libplds4.so libssl.so.3 libcrypto.so.3; do
+          rm -fv ./appdir/usr/lib/$lib
+        done
+
     - name: turn AppDir into AppImage
       run: |
         VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION}-daily ./appimagetool-*.AppImage ./appdir
