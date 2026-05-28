@@ -175,17 +175,17 @@ jobs:
         # Manually place CEF files
         cef_release_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | grep -i release | xargs dirname | head -n 1)
         cef_data_dir=$(find $HOME/source/OpenSpace/build -name "resources.pak" | xargs dirname | head -n 1)
-        cp -rv "$cef_data_dir"/*.pak ./appdir/usr/bin/
-        cp -rv "$cef_data_dir"/*.dat ./appdir/usr/bin/
-        cp -rv "$cef_data_dir"/locales ./appdir/usr/bin/
+        # cp -rv "$cef_data_dir"/*.pak ./appdir/usr/bin/
+        # cp -rv "$cef_data_dir"/*.dat ./appdir/usr/bin/
+        # cp -rv "$cef_data_dir"/locales ./appdir/usr/bin/
         
         cp -v "$cef_release_dir"/libcef.so    ./appdir/usr/bin/
         cp -v "$cef_release_dir"/libEGL.so    ./appdir/usr/bin/  2>/dev/null || true
         cp -v "$cef_release_dir"/libGLESv2.so ./appdir/usr/bin/  2>/dev/null || true
-        cp -v "$cef_release_dir"/v8_context_snapshot.bin ./appdir/usr/bin/
-        cp -v "$cef_release_dir"/snapshot_blob.bin       ./appdir/usr/bin/ 2>/dev/null || true
-        cp -v "$cef_release_dir"/libvk_swiftshader.so  ./appdir/usr/bin/
-        cp -v "$cef_release_dir"/vk_swiftshader_icd.json ./appdir/usr/bin/ 2>/dev/null || true
+        # cp -v "$cef_release_dir"/v8_context_snapshot.bin ./appdir/usr/bin/
+        # cp -v "$cef_release_dir"/snapshot_blob.bin       ./appdir/usr/bin/ 2>/dev/null || true
+        # cp -v "$cef_release_dir"/libvk_swiftshader.so  ./appdir/usr/bin/
+        # cp -v "$cef_release_dir"/vk_swiftshader_icd.json ./appdir/usr/bin/ 2>/dev/null || true
         # Install chrome-sandbox with setuid so CEF can find it at initialization
         if [ -f "$cef_release_dir/chrome-sandbox" ]; then
           cp -v "$cef_release_dir/chrome-sandbox" ./appdir/usr/bin/
