@@ -109,7 +109,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
-        
+
     - name: Cache Qt 22.04 host tools
       id: cache-qt-host-tools
       uses: actions/cache@v4
@@ -127,7 +127,7 @@ jobs:
     #    then passed to CMake via -DQT_HOST_PATH.
     # -------------------------------------------------------------------------
     - name: Build Qt 6.9 host tools inside ubuntu:22.04 container
-      if: steps.cache-qt-host-tools.outputs.cache-hit != 'true'   # <-- skip if cached
+      if: steps.cache-qt-host-tools.outputs.cache-hit != 'true'
       run: |
         mkdir -p /opt/qt6-tools-2204
         docker run --rm \
@@ -146,27 +146,48 @@ jobs:
               libx11-dev libfontconfig1-dev libfreetype-dev \
               libssl-dev ca-certificates git wget
 
-            # Download Qt source (same version as prebuilt SDK)
             QT_VER=6.9.0
             cd /tmp
             wget -q https://download.qt.io/official_releases/qt/6.9/\${QT_VER}/submodules/qtbase-everywhere-src-\${QT_VER}.tar.xz
             tar xf qtbase-everywhere-src-\${QT_VER}.tar.xz
             cd qtbase-everywhere-src-\${QT_VER}
 
+            # Do NOT pass QT_BUILD_TOOLS_WHEN_CROSSCOMPILING — we are NOT
+            # cross-compiling; that flag confuses Qt's install layout and
+            # causes tools to land in libexec/ or a host/ subdirectory
+            # instead of the expected bin/.
             cmake -B build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_INSTALL_PREFIX=/qt6-tools-out \
-              -DQT_BUILD_TOOLS_WHEN_CROSSCOMPILING=ON \
               -DQT_BUILD_EXAMPLES=OFF \
               -DQT_BUILD_TESTS=OFF \
               -DBUILD_SHARED_LIBS=OFF
             cmake --build build --parallel \$(nproc)
             cmake --install build
-            echo 'Qt 6 host tools built and installed.'
+
+            echo '--- Install tree: locating moc, rcc, uic ---'
+            find /qt6-tools-out -name 'moc' -o -name 'rcc' -o -name 'uic' | sort
+
+            # Locate moc wherever Qt decided to install it and create stable
+            # symlinks at bin/ so QT_HOST_PATH always resolves correctly.
+            MOC_PATH=\$(find /qt6-tools-out -name 'moc' -type f | head -1)
+            if [ -z \"\$MOC_PATH\" ]; then
+              echo 'ERROR: moc not found after install!' && exit 1
+            fi
+            echo \"Found moc at: \$MOC_PATH\"
+            mkdir -p /qt6-tools-out/bin
+            if [ \"\$MOC_PATH\" != '/qt6-tools-out/bin/moc' ]; then
+              ln -sf \"\$MOC_PATH\" /qt6-tools-out/bin/moc
+              RCC_PATH=\$(find /qt6-tools-out -name 'rcc' -type f | head -1)
+              UIC_PATH=\$(find /qt6-tools-out -name 'uic' -type f | head -1)
+              [ -n \"\$RCC_PATH\" ] && ln -sf \"\$RCC_PATH\" /qt6-tools-out/bin/rcc
+              [ -n \"\$UIC_PATH\" ] && ln -sf \"\$UIC_PATH\" /qt6-tools-out/bin/uic
+            fi
+            echo 'Final check:'
             /qt6-tools-out/bin/moc --version
           "
 
-    # This must run regardless of cache hit, to set QT_HOST_PATH for later steps
+    # This must run regardless of cache hit, to set QT_HOST_PATH for later steps.
     - name: Set QT_HOST_PATH
       run: |
         echo "QT_HOST_PATH=/opt/qt6-tools-2204" >> $GITHUB_ENV
