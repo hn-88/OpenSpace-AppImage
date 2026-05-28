@@ -101,10 +101,14 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -vf deb-patches/*.diff "$openSpaceHome"
-        cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
         cd "$openSpaceHome"
         git apply --verbose --recount --whitespace=fix fix-Windows-Cpack-zip.diff
         git apply --verbose --recount --whitespace=fix DebwithCPack.diff
+
+    - name: Install png for deb
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
         
     - name: Cache Qt 22.04 host tools
       id: cache-qt-host-tools
