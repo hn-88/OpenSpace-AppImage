@@ -107,6 +107,13 @@ jobs:
         cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
         ls -l ext/ghoul/src/misc/*.cpp
 
+    - name: Cache Qt 22.04 host tools
+      id: cache-qt-host-tools
+      uses: actions/cache@v4
+      with:
+        path: /opt/qt6-tools-2204
+        key: qt6-host-tools-22.04-arm-6.9.0
+
     # -------------------------------------------------------------------------
     # 5. Build Qt host tools (moc, rcc, uic) INSIDE an ubuntu:22.04 container.
     #    These are the binaries that actually run on the build machine during
@@ -117,6 +124,7 @@ jobs:
     #    then passed to CMake via -DQT_HOST_PATH.
     # -------------------------------------------------------------------------
     - name: Build Qt 6.9 host tools inside ubuntu:22.04 container
+      if: steps.cache-qt-host-tools.outputs.cache-hit != 'true'   # <-- skip if cached
       run: |
         mkdir -p /opt/qt6-tools-2204
         docker run --rm \
@@ -154,6 +162,10 @@ jobs:
             echo 'Qt 6 host tools built and installed.'
             /qt6-tools-out/bin/moc --version
           "
+
+    # This must run regardless of cache hit, to set QT_HOST_PATH for later steps
+    - name: Set QT_HOST_PATH
+      run: |
         echo "QT_HOST_PATH=/opt/qt6-tools-2204" >> $GITHUB_ENV
         echo "Host tools moc version:"
         /opt/qt6-tools-2204/bin/moc --version
