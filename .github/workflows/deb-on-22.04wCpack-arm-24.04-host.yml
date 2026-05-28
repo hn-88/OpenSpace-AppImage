@@ -1,0 +1,271 @@
+name: deb-on-22.04wCpack-arm-24.04-host
+
+on:
+  workflow_dispatch:      # allows manual trigger
+  #schedule:
+  #  - cron: "57 6 * * *"   # runs daily at 06:57 UTC
+
+env:
+  BUILD_TYPE: Release
+  OPENSPACE_VERSION: "0.22.0rc2+"
+  COMMIT_HASH: "master"
+
+jobs:
+  build:
+    # We use a 24.04-arm runner (required for ubuntu-arm runners on GitHub),
+    # but the actual compile/package steps run inside an ubuntu:22.04 container
+    # so that all binaries link against GLIBC 2.35 (not 2.38+).
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+    - uses: actions/checkout@main
+
+    # -------------------------------------------------------------------------
+    # 1. Free up host disk space BEFORE anything else.
+    #    This reclaims 15-25 GB from tools we don't need on the 24.04 host.
+    # -------------------------------------------------------------------------
+    - name: Free Disk Space (host)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: false
+        docker-images: true
+        swap-storage: false
+
+    - name: Show disk space after cleanup
+      run: df -h
+
+    # -------------------------------------------------------------------------
+    # 2. Install Qt 6.9 on the HOST under a fixed path.
+    #    We then bind-mount that path into the container so moc/rcc/uic etc.
+    #    are NOT used from the Qt prebuilt (which requires GLIBC 2.38).
+    #    Instead, we will point QT_HOST_PATH at a container-built moc below.
+    #
+    #    We still need the Qt libraries themselves for linking; those go under
+    #    /opt/qt6-host on the host and are mounted read-only into the container.
+    # -------------------------------------------------------------------------
+    - name: Install Qt 6.9
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.9.*'
+        dir: '/opt/qt6-host'
+
+    - name: Export Qt environment variables
+      shell: bash
+      run: |
+        echo "Qt installation is at: $QT_ROOT_DIR"
+        echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> $GITHUB_ENV
+        echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> $GITHUB_ENV
+        echo "QT_DIR=$QT_ROOT_DIR" >> $GITHUB_ENV
+        echo "$QT_ROOT_DIR/bin" >> $GITHUB_PATH
+        find $QT_ROOT_DIR -name "libicu*"
+
+    - name: Install CMake 4.3.2 (host, for any host-side steps)
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.3.2'
+
+    # -------------------------------------------------------------------------
+    # 3. Install Homebrew GCC 13 on the HOST (24.04).
+    #    The compiled binaries will be passed into the container via bind-mount.
+    #    Homebrew GCC produces binaries that are portable across 22.04/24.04
+    #    when built with -static-libgcc -static-libstdc++ (already in cmake flags).
+    # -------------------------------------------------------------------------
+    - name: Set up Homebrew
+      uses: Homebrew/actions/setup-homebrew@master
+
+    - name: Install GCC 13 (via Homebrew on host)
+      run: |
+        sudo apt-get install -y software-properties-common
+        brew install gcc@13
+        # Verify the compiler is accessible
+        /home/linuxbrew/.linuxbrew/bin/g++-13 --version
+
+    # -------------------------------------------------------------------------
+    # 4. Clone OpenSpace source onto the HOST filesystem.
+    #    The build directory is also on the host so Docker container layers
+    #    never hold large build artifacts — all I/O goes to host disk.
+    # -------------------------------------------------------------------------
+    - name: Clone OpenSpace
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
+        cd "$openSpaceHome"
+        git checkout "${COMMIT_HASH}" --recurse-submodules
+        mkdir -p "$openSpaceHome/build"
+
+    - name: Apply patches
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cp -vf deb-patches/*.diff "$openSpaceHome"
+        cd "$openSpaceHome"
+        git apply --verbose --recount --whitespace=fix fix-Windows-Cpack-zip.diff
+        git apply --verbose --recount --whitespace=fix DebwithCPack.diff
+        cp -vf deb-patches/openspace.png "$openSpaceHome/support/deb/openspace.png"
+        ls -l ext/ghoul/src/misc/*.cpp
+
+    # -------------------------------------------------------------------------
+    # 5. Build Qt host tools (moc, rcc, uic) INSIDE an ubuntu:22.04 container.
+    #    These are the binaries that actually run on the build machine during
+    #    compilation, so they must be linked against GLIBC 2.35.
+    #    We build only qtbase (the minimal set that provides the host tools).
+    #
+    #    Result is placed at /opt/qt6-tools-2204 on the HOST via bind-mount,
+    #    then passed to CMake via -DQT_HOST_PATH.
+    # -------------------------------------------------------------------------
+    - name: Build Qt 6.9 host tools inside ubuntu:22.04 container
+      run: |
+        mkdir -p /opt/qt6-tools-2204
+        docker run --rm \
+          -v /opt/qt6-tools-2204:/qt6-tools-out \
+          ubuntu:22.04 bash -c "
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y --no-install-recommends \
+              build-essential cmake ninja-build python3 perl \
+              libgl-dev libgles-dev libxcb1-dev libxcb-util-dev \
+              libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev \
+              libxcb-randr0-dev libxcb-render-util0-dev libxcb-shape0-dev \
+              libxcb-sync-dev libxcb-xfixes0-dev libxcb-xinerama0-dev \
+              libxcb-xkb-dev libxkbcommon-dev libxkbcommon-x11-dev \
+              libx11-dev libfontconfig1-dev libfreetype-dev \
+              libssl-dev ca-certificates git wget
+
+            # Download Qt source (same version as prebuilt SDK)
+            QT_VER=6.9.0
+            cd /tmp
+            wget -q https://download.qt.io/official_releases/qt/6.9/\${QT_VER}/submodules/qtbase-everywhere-src-\${QT_VER}.tar.xz
+            tar xf qtbase-everywhere-src-\${QT_VER}.tar.xz
+            cd qtbase-everywhere-src-\${QT_VER}
+
+            cmake -B build -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX=/qt6-tools-out \
+              -DQT_BUILD_TOOLS_WHEN_CROSSCOMPILING=ON \
+              -DQT_BUILD_EXAMPLES=OFF \
+              -DQT_BUILD_TESTS=OFF \
+              -DBUILD_SHARED_LIBS=OFF
+            cmake --build build --parallel \$(nproc)
+            cmake --install build
+            echo 'Qt 6 host tools built and installed.'
+            /qt6-tools-out/bin/moc --version
+          "
+        echo "QT_HOST_PATH=/opt/qt6-tools-2204" >> $GITHUB_ENV
+        echo "Host tools moc version:"
+        /opt/qt6-tools-2204/bin/moc --version
+
+    # -------------------------------------------------------------------------
+    # 6. CMake configure + build + cpack — all inside ubuntu:22.04.
+    #    Bind-mounts:
+    #      $HOME/source/OpenSpace  → /openspace   (source + build dir on host)
+    #      /opt/qt6-host           → /qt6-sdk      (prebuilt Qt libs, read-only)
+    #      /opt/qt6-tools-2204     → /qt6-tools    (22.04-built host tools)
+    #      /home/linuxbrew         → /linuxbrew    (GCC 13, read-only)
+    #      $GITHUB_WORKSPACE       → /workspace    (patches, assets)
+    # -------------------------------------------------------------------------
+    - name: Configure, Build and Package inside ubuntu:22.04 container
+      run: |
+        docker run --rm \
+          -v "$HOME/source/OpenSpace:/openspace" \
+          -v "$QT_DIR:/qt6-sdk:ro" \
+          -v "/opt/qt6-tools-2204:/qt6-tools:ro" \
+          -v "/home/linuxbrew:/linuxbrew:ro" \
+          -v "$GITHUB_WORKSPACE:/workspace:ro" \
+          -e OPENSPACE_VERSION="${OPENSPACE_VERSION}" \
+          ubuntu:22.04 bash -c "
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y --no-install-recommends \
+              glew-utils libpng-dev freeglut3-dev \
+              libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev \
+              libcurl4-openssl-dev libxi-dev libasound2-dev \
+              libgdal-dev libboost1.74-dev qt6-base-dev \
+              libmpv-dev libvulkan-dev \
+              libasound2-data libasound2-plugins \
+              patchelf file cmake ninja-build \
+              software-properties-common ca-certificates
+
+            # Install CMake 4.x (22.04 ships an older cmake)
+            apt-get install -y --no-install-recommends wget
+            wget -q https://github.com/Kitware/CMake/releases/download/v4.3.2/cmake-4.3.2-linux-aarch64.sh
+            bash cmake-4.3.2-linux-aarch64.sh --skip-license --prefix=/usr/local
+            cmake --version
+
+            echo '=== Configuring ==='
+            cd /openspace/build
+            cmake -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_CXX_COMPILER=/linuxbrew/.linuxbrew/bin/g++-13 \
+              -DCMAKE_C_COMPILER=/linuxbrew/.linuxbrew/bin/gcc-13 \
+              -DCMAKE_CXX_STANDARD=23 \
+              -DASSIMP_BUILD_MINIZIP=1 \
+              -DCMAKE_CXX_FLAGS='-static-libgcc -static-libstdc++' \
+              -DCMAKE_EXE_LINKER_FLAGS='-static-libgcc -static-libstdc++' \
+              -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
+              -DOPENSPACE_MODULE_MOLECULE=OFF \
+              -DOPENSPACE_DISTRO=ubuntu22.04 \
+              -DCMAKE_INSTALL_PREFIX=/usr \
+              -DCMAKE_PREFIX_PATH=/qt6-sdk \
+              -DQt6_DIR=/qt6-sdk/lib/cmake/Qt6 \
+              -DQT_HOST_PATH=/qt6-tools \
+              /openspace
+
+            echo '=== Building ==='
+            # Remove vendored libvulkan to avoid conflict with system one
+            cef_orig_dir=\$(find /openspace/build -path '*/Release/libcef.so' | xargs dirname 2>/dev/null || true)
+            if [ -n \"\$cef_orig_dir\" ]; then
+              rm -vf \"\$cef_orig_dir/libvulkan.so.1\" || echo 'libvulkan.so.1 not found, skipping'
+            fi
+            cmake --build /openspace/build --parallel 3
+
+            echo '=== Fixing ELF interpreters ==='
+            ELF_FILES=\$(find /openspace/bin -type f \( -executable -o -name '*.so*' \) \
+              -exec file {} \; | grep ELF | cut -d: -f1)
+            for f in \$ELF_FILES; do
+              if file \"\$f\" | grep -q 'executable'; then
+                echo \"Patching interpreter: \$f\"
+                patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 \"\$f\" || true
+              fi
+            done
+
+            echo '=== Disk space before CPack ==='
+            df -h
+
+            echo '=== Packaging ==='
+            cd /openspace/build
+            cpack -G DEB
+
+            echo '=== Done. Listing .deb files ==='
+            ls -lh /openspace/build/openspace*.deb
+          "
+
+    # -------------------------------------------------------------------------
+    # 7. Upload and release — back on the host, no container needed.
+    # -------------------------------------------------------------------------
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenSpace-Deb-Cpack
+        path: /home/runner/source/OpenSpace/build/openspace*.deb
+
+    - name: Upload .deb to GitHub Release
+      run: |
+        RELEASE_TAG="daily-CPACK-DEB"
+        DEB_FILE=$(ls /home/runner/source/OpenSpace/build/openspace*.deb | head -1)
+
+        gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+          gh release create "$RELEASE_TAG" \
+            -t "OpenSpace CPack Daily Deb Build" \
+            -n "Automated daily .deb build of OpenSpace."
+
+        gh release edit "$RELEASE_TAG" \
+          -t "OpenSpace CPack Daily Deb Build" \
+          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC). On installing this .deb file, you can run openspace by typing 'openspace' in a terminal window. '/usr/bin/openspace' contains a script which sets the user directory and other env variables, which you can change as desired. Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20deb%20created%20with%20cpack"
+
+        gh release upload "$RELEASE_TAG" "$DEB_FILE" --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
