@@ -341,9 +341,13 @@ jobs:
 
         echo "=== Overwriting go-appimage AppRun with lightweight custom launcher ==="
         rm -f appdir/AppRun
-        echo '#!/bin/sh' > appdir/AppRun
+        echo '#!/bin/sh -l' > appdir/AppRun
+        echo 'if [ -z "$OPENSPACE_USER" ]; then' >> appdir/AppRun
+        echo '    export OPENSPACE_USER="$HOME/OpenSpace/user"' >> appdir/AppRun
+        echo 'fi' >> appdir/AppRun
         echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> appdir/AppRun
-        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib64:${LD_LIBRARY_PATH}"' >> appdir/AppRun
+        echo 'export APPDIR="${HERE}"' >> appdir/AppRun
+        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> appdir/AppRun
         echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="${HERE}/usr/plugins"' >> appdir/AppRun
         echo 'exec "${HERE}/usr/bin/OpenSpace" "$@"' >> appdir/AppRun
         chmod +x appdir/AppRun
