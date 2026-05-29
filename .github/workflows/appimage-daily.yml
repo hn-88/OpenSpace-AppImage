@@ -3,7 +3,7 @@ name: appimage-daily
 on: 
   workflow_dispatch:      # allows manual trigger
   schedule:
-    - cron: "7 2 * * *"   # runs daily at 02:07 UTC
+    - cron: "7 23 * * *"   # to run daily at 23:07 UTC, but gets delayed due to github congestion
 
 env:
   BUILD_TYPE: Release
