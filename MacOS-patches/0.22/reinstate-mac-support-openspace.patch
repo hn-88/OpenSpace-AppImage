@@ -6,6 +6,7 @@ index 268a7d9f9e..0da0db26bd 100644
  set_target_properties(run_codegen PROPERTIES FOLDER "support")
  
  
+-begin_header("Configuring Modules")
 +# Qt
 +# Unfortunately, we have to set this value manually; sigh
 +# In the future, if the Qt version is updated, just add to this variable ---abock
@@ -23,7 +24,7 @@ index 268a7d9f9e..0da0db26bd 100644
 +  )
 +endif ()
 +
- begin_header("Configuring Modules")
++begin_header("Configuring Modules")
  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/modules")
  end_header("End: Configuring Modules")
 diff --git a/apps/OpenSpace/CMakeLists.txt b/apps/OpenSpace/CMakeLists.txt
@@ -34,6 +35,7 @@ index 275ee8b16b..8c49998033 100644
  endif ()
  
  
+-create_new_application(OpenSpace
 +#####
 +# MacOS
 +#####
@@ -43,7 +45,7 @@ index 275ee8b16b..8c49998033 100644
 +  set(CMAKE_XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--deep" CACHE STRING "Other Code Signing Flags" FORCE)
 +endif ()
 +
- create_new_application(OpenSpace
++create_new_application(OpenSpace
    ${SGCT_OPENVR_FILES}
    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
 @@ -130,7 +121,7 @@ if (TARGET SGCTTest)
@@ -63,36 +65,40 @@ index 7d2d91e244..2c66c7893d 100644
   * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
   ****************************************************************************************/
  
+-#include <openspace/documentation/documentation.h>
 +// Explicitly including OpenGL for APPLE
 +#ifdef __APPLE__
 +#define GLFW_INCLUDE_NONE
 +#include <OpenGL/gl3.h>
 +#endif // __APPLE__
 +
- #include <openspace/documentation/documentation.h>
++#include <openspace/documentation/documentation.h>
  #include <openspace/engine/configuration.h>
  #include <openspace/engine/globals.h>
 @@ -335,8 +329,6 @@ void mainInitFunc(GLFWwindow*) {
      global::openSpaceEngine->initialize();
      LDEBUG("Initializing OpenSpace Engine finished");
  
+-    {
 +#ifndef __APPLE__
 +    // Apparently: "Cocoa: Regular windows do not have icons on macOS"
-     {
++    {
          const std::filesystem::path path = absPath("${DATA}/openspace-icon.png");
          int x = 0;
 @@ -356,7 +348,6 @@ void mainInitFunc(GLFWwindow*) {
  
          stbi_image_free(icon.pixels);
      }
+-
 +#endif // __APPLE__
- 
++
      currentWindow = Engine::instance().windows().front().get();
      currentViewport = currentWindow->viewports().front().get();
 @@ -1448,22 +1439,10 @@ int main(int argc, char* argv[]) {
  
      global::openSpaceEngine->createUserDirectoriesIfNecessary();
  
+-    if (!global::configuration->bypassLauncher) {
 +    // (abock, 2020-12-07)  For some reason on Apple the keyboard handler in CEF will call
 +    // the Qt one even if the QApplication was destroyed, leading to invalid memory
 +    // access.  The only way we could fix this for the release was to keep the
@@ -103,30 +109,34 @@ index 7d2d91e244..2c66c7893d 100644
 +    QApplication app(qac, nullptr);
 +#endif // __APPLE__
 +
-     if (!global::configuration->bypassLauncher) {
++    if (!global::configuration->bypassLauncher) {
  #ifdef OPENSPACE_HAS_LAUNCHER
+-        int qac = 0;
 +#ifndef __APPLE__
-         int qac = 0;
++        int qac = 0;
          QApplication app(qac, nullptr);
+-
 +#endif // __APPLE__
- 
++
          std::string pwd = std::filesystem::current_path().string();
          if (const size_t it = pwd.find_first_of("'\"[]");  it != std::string::npos) {
 @@ -1614,10 +1593,6 @@ int main(int argc, char* argv[]) {
      Log::instance().setShowLogLevel(false);
      Log::instance().setLogCallback(mainLogCallback);
  
+-    std::filesystem::path winConf =
 +#ifdef __APPLE__
 +    glfwWindowHint(GLFW_STENCIL_BITS, 8);
 +#endif
 +
-     std::filesystem::path winConf =
++    std::filesystem::path winConf =
          commandlineArguments.windowConfig.has_value() ?
          *commandlineArguments.windowConfig :
 @@ -1684,30 +1659,6 @@ int main(int argc, char* argv[]) {
          throw;
      }
  
+-    LINFO("Starting rendering loop");
 +#ifdef __APPLE__
 +    // Workaround for OpenGL bug that Apple introduced in 10.14 Mojave that prevents an
 +    // OpenGL context to display anything until it is first moved or resized in dark
@@ -151,7 +161,7 @@ index 7d2d91e244..2c66c7893d 100644
 +    }
 +#endif // __APPLE__
 +
-     LINFO("Starting rendering loop");
++    LINFO("Starting rendering loop");
      Engine::instance().exec();
      LINFO("Ending rendering loop");
 diff --git a/ext/CMakeLists.txt b/ext/CMakeLists.txt
@@ -162,6 +172,7 @@ index dd745db73d..6561633c5c 100644
  # OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                          #
  ##########################################################################################
  
+-# Ghoul
 +# System libraries
 +if (APPLE)
 +  begin_dependency("Core Libraries")
@@ -184,7 +195,7 @@ index dd745db73d..6561633c5c 100644
 +  end_dependency()
 +endif ()
 +
- # Ghoul
++# Ghoul
  if (NOT OPENSPACE_HAVE_TESTS)
    # Unless overriden, disable ghoul tests if OpenSpace tests are disabled
 diff --git a/modules/audio/CMakeLists.txt b/modules/audio/CMakeLists.txt
@@ -211,12 +222,14 @@ index 6725c47c77..1f9cce9b6a 100644
      _gridProgram->setUniform("gridColor", _color);
  
      // Change GL state:
+-    glLineWidth(_lineWidth);
 +#ifndef __APPLE__
-     glLineWidth(_lineWidth);
++    glLineWidth(_lineWidth);
+-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 +#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
 +    glLineWidth(1.f);
 +#endif // __APPLE__
-     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
++    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
      glEnablei(GL_BLEND, 0);
      glEnable(GL_LINE_SMOOTH);
 diff --git a/modules/base/rendering/grids/renderablegrid.cpp b/modules/base/rendering/grids/renderablegrid.cpp
@@ -227,24 +240,28 @@ index 13acbf8302..4f0801222f 100644
      _gridProgram->setUniform("gridColor", _color);
  
      // Change GL state:
+-    glLineWidth(_lineWidth);
 +#ifndef __APPLE__
-     glLineWidth(_lineWidth);
++    glLineWidth(_lineWidth);
+-    glEnablei(GL_BLEND, 0);
 +#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
 +    glLineWidth(1.f);
 +#endif // __APPLE__
-     glEnablei(GL_BLEND, 0);
++    glEnablei(GL_BLEND, 0);
      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
      glEnable(GL_LINE_SMOOTH);
 @@ -285,11 +281,7 @@ void RenderableGrid::render(const RenderData& data, RendererTasks&) {
      glDrawArrays(_mode, 0, static_cast<GLsizei>(_varray.size()));
  
      // Render major grid
+-    glLineWidth(_highlightLineWidth);
 +#ifndef __APPLE__
-     glLineWidth(_highlightLineWidth);
++    glLineWidth(_highlightLineWidth);
+-    _gridProgram->setUniform("gridColor", _highlightColor);
 +#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
 +    glLineWidth(1.f);
 +#endif // __APPLE__
-     _gridProgram->setUniform("gridColor", _highlightColor);
++    _gridProgram->setUniform("gridColor", _highlightColor);
  
      glBindVertexArray(_highlightVao);
 diff --git a/modules/base/rendering/grids/renderableradialgrid.cpp b/modules/base/rendering/grids/renderableradialgrid.cpp
@@ -255,12 +272,14 @@ index c37daa62e3..a3a368d475 100644
      _gridProgram->setUniform("gridColor", _color);
  
      // Change GL state:
+-    glLineWidth(_lineWidth);
 +#ifndef __APPLE__
-     glLineWidth(_lineWidth);
++    glLineWidth(_lineWidth);
+-    glEnablei(GL_BLEND, 0);
 +#else
 +    glLineWidth(1.f);
 +#endif
-     glEnablei(GL_BLEND, 0);
++    glEnablei(GL_BLEND, 0);
      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
      glEnable(GL_LINE_SMOOTH);
 diff --git a/modules/base/rendering/grids/renderablesphericalgrid.cpp b/modules/base/rendering/grids/renderablesphericalgrid.cpp
@@ -271,13 +290,15 @@ index b1059c11a0..f1d813ec07 100644
      _gridProgram->setUniform("gridColor", _color);
  
      // Change GL state:
+-    glLineWidth(_lineWidth);
 +#ifndef __APPLE__
-     glLineWidth(_lineWidth);
++    glLineWidth(_lineWidth);
+-    glEnablei(GL_BLEND, 0);
 +#else // ^^^^ !__APPLE__ // __APPLE__ vvvv
 +    glLineWidth(1.f);
 +#endif // __APPLE__
 +
-     glEnablei(GL_BLEND, 0);
++    glEnablei(GL_BLEND, 0);
      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
      glEnable(GL_LINE_SMOOTH);
 diff --git a/modules/base/rendering/renderablecartesianaxes.cpp b/modules/base/rendering/renderablecartesianaxes.cpp
@@ -288,12 +309,14 @@ index 3255e0f4ba..ed32b5c571 100644
      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
      glEnablei(GL_BLEND, 0);
      glEnable(GL_LINE_SMOOTH);
+-    glLineWidth(3.f);
 +#ifndef __APPLE__
-     glLineWidth(3.f);
++    glLineWidth(3.f);
+-
 +#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
 +    glLineWidth(1.f);
 +#endif // __APPLE__
- 
++
      glBindVertexArray(_vao);
      glDrawElements(GL_LINES, 6, GL_UNSIGNED_INT, nullptr);
 diff --git a/modules/base/rendering/renderabletrail.cpp b/modules/base/rendering/renderabletrail.cpp
@@ -304,6 +327,7 @@ index 59e57109c0..3c565bee63 100644
  #include <optional>
  
  namespace {
+-    constexpr std::array<const char*, 18> UniformNames = {
 +#ifdef __APPLE__
 +    constexpr std::array<const char*, 16> UniformNames = {
 +        "opacity", "modelViewTransform", "projectionTransform", "color", "useLineFade",
@@ -312,20 +336,22 @@ index 59e57109c0..3c565bee63 100644
 +        "numberOfUniqueVertices"
 +    };
 +#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
-     constexpr std::array<const char*, 18> UniformNames = {
++    constexpr std::array<const char*, 18> UniformNames = {
          "opacity", "modelViewTransform", "projectionTransform", "color", "useLineFade",
          "lineLength", "lineFadeAmount", "vertexSortingMethod", "idOffset", "nVertices",
          "stride", "pointSize", "renderPhase", "viewport", "lineWidth", "floatingOffset",
          "useSplitRenderMode", "numberOfUniqueVertices"
      };
+-
 +#endif // __APPLE__
- 
++
      // The possible values for the _renderingModes property
      enum RenderingMode {
 @@ -259,18 +250,6 @@ void RenderableTrail::initialize() {
  void RenderableTrail::initializeGL() {
      ZoneScoped;
  
+-    _programObject = BaseModule::ProgramObjectManager.request(
 +#ifdef __APPLE__
 +    _programObject = BaseModule::ProgramObjectManager.request(
 +        "EphemerisProgram",
@@ -338,43 +364,48 @@ index 59e57109c0..3c565bee63 100644
 +        }
 +    );
 +#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
-     _programObject = BaseModule::ProgramObjectManager.request(
++    _programObject = BaseModule::ProgramObjectManager.request(
          "EphemerisProgram",
          []() -> std::unique_ptr<ghoul::opengl::ProgramObject> {
 @@ -281,7 +260,6 @@ void RenderableTrail::initializeGL() {
              );
          }
      );
+-
 +#endif // __APPLE__
- 
++
      ghoul::opengl::updateUniformLocations(*_programObject, _uniformCache, UniformNames);
  }
 @@ -353,7 +331,6 @@ void RenderableTrail::internalRender(bool renderLines, bool renderPoints,
      _programObject->setUniform(_uniformCache.numberOfUniqueVertices,
          numberOfUniqueVertices);
  
+-    std::array<GLint, 4> viewport;
 +#ifndef __APPLE__
-     std::array<GLint, 4> viewport;
++    std::array<GLint, 4> viewport;
      global::renderEngine->openglStateCache().viewport(viewport.data());
      _programObject->setUniform(
 @@ -367,7 +344,6 @@ void RenderableTrail::internalRender(bool renderLines, bool renderPoints,
          _uniformCache.lineWidth,
          std::ceil((2.f * 1.f + _appearance.lineWidth) * std::sqrt(2.f))
      );
+-
 +#endif // __APPLE__
- 
++
      if (renderPoints) {
          // The stride parameter determines the distance between larger points and
 @@ -460,11 +436,7 @@ void RenderableTrail::render(const RenderData& data, RendererTasks&) {
                                (_appearance.renderingModes == RenderingModeLinesPoints);
  
      if (renderLines) {
+-        glLineWidth(std::ceil((2.f * 1.f + _appearance.lineWidth) * std::sqrt(2.f)));
 +#ifdef __APPLE__
 +        glLineWidth(1);
 +#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
-         glLineWidth(std::ceil((2.f * 1.f + _appearance.lineWidth) * std::sqrt(2.f)));
++        glLineWidth(std::ceil((2.f * 1.f + _appearance.lineWidth) * std::sqrt(2.f)));
+-    }
 +#endif // __APPLE__
-     }
++    }
      if (renderPoints) {
          glEnable(GL_PROGRAM_POINT_SIZE);
 diff --git a/modules/base/rendering/renderabletrail.h b/modules/base/rendering/renderabletrail.h
@@ -385,19 +416,21 @@ index caded421c0..3567f33811 100644
  
      /// Program object used to render the data stored in RenderInformation
      ghoul::opengl::ProgramObject* _programObject = nullptr;
+-    UniformCache(opacity, modelViewTransform, projectionTransform, color, useLineFade,
 +#ifdef __APPLE__
 +    UniformCache(opacity, modelViewTransform, projectionTransform, color, useLineFade,
 +        lineLength, lineFadeAmount, vertexSortingMethod, idOffset, nVertices, stride,
 +        pointSize, renderPhase, useSplitRenderMode, floatingOffset, numberOfUniqueVertices
 +    ) _uniformCache;
 +#else
-     UniformCache(opacity, modelViewTransform, projectionTransform, color, useLineFade,
++    UniformCache(opacity, modelViewTransform, projectionTransform, color, useLineFade,
          lineLength, lineFadeAmount, vertexSortingMethod, idOffset, nVertices, stride,
          pointSize, renderPhase, viewport, lineWidth, floatingOffset, useSplitRenderMode,
          numberOfUniqueVertices
      ) _uniformCache;
+-};
 +#endif
- };
++};
  
  } // namespace openspace
 diff --git a/modules/fieldlinessequence/rendering/renderablefieldlinessequence.cpp b/modules/fieldlinessequence/rendering/renderablefieldlinessequence.cpp
@@ -408,12 +441,14 @@ index fb1ebdacc6..3d7688456c 100644
      }
  
      glBindVertexArray(_vao);
+-    glLineWidth(_lineWidth);
 +#ifndef __APPLE__
-     glLineWidth(_lineWidth);
++    glLineWidth(_lineWidth);
+-
 +#else
 +    glLineWidth(1.f);
 +#endif
- 
++
      int loadedIndex = _activeIndex;
      if (loadedIndex == -1) {
 diff --git a/modules/fitsfilereader/CMakeLists.txt b/modules/fitsfilereader/CMakeLists.txt
@@ -424,10 +459,11 @@ index 578a8265a5..8b5c6cbbf5 100644
    target_compile_options(CCfits PRIVATE "/W0")
    target_compile_definitions(CCfits PRIVATE "_SCL_SECURE_NO_WARNINGS")
  else ()
+-  target_compile_options(cfitsio PRIVATE "-w")
 +  if (APPLE)
 +    target_compile_options(cfitsio PRIVATE "-Wno-implicit-function-declaration")
 +  endif ()
-   target_compile_options(cfitsio PRIVATE "-w")
++  target_compile_options(cfitsio PRIVATE "-w")
    target_compile_options(CCfits PRIVATE "-w")
  endif ()
 diff --git a/modules/gaia/rendering/renderablegaiastars.cpp b/modules/gaia/rendering/renderablegaiastars.cpp
@@ -447,6 +483,7 @@ index 9ea55e2c8a..54373f7d88 100644
  
      if (p.shaderOption.has_value()) {
          _shaderOption = codegen::map<gaia::ShaderOption>(*p.shaderOption);
+-    }
 +
 +#ifdef __APPLE__
 +        switch (_shaderOption) {
@@ -457,87 +494,97 @@ index 9ea55e2c8a..54373f7d88 100644
 +                _shaderOption = gaia::ShaderOption::PointVBO;
 +        }
 +#endif // __APPLE__
-     }
++    }
      _shaderOption.onChange([this]() {
          _buffersAreDirty = true;
 @@ -973,7 +963,6 @@ void RenderableGaiaStars::render(const RenderData& data, RendererTasks&) {
          shaderOption == gaia::ShaderOption::PointSSBO ||
          shaderOption == gaia::ShaderOption::BillboardSSBONoFBO)
      {
+-        //------------------------ RENDER WITH SSBO ---------------------------
 +#ifndef __APPLE__
-         //------------------------ RENDER WITH SSBO ---------------------------
++        //------------------------ RENDER WITH SSBO ---------------------------
          // Update SSBO Index array with accumulated stars in all chunks.
          glBindBuffer(GL_SHADER_STORAGE_BUFFER, _ssboIdx);
 @@ -1036,7 +1025,6 @@ void RenderableGaiaStars::render(const RenderData& data, RendererTasks&) {
          }
  
          glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+-    }
 +#endif // !__APPLE__
-     }
++    }
      else {
          //---------------------- RENDER WITH VBO -----------------------------
 @@ -1304,7 +1292,6 @@ void RenderableGaiaStars::update(const UpdateData&) {
      if (_program->isDirty() || _shadersAreDirty) {
          switch (shaderOption) {
              case gaia::ShaderOption::PointSSBO: {
+-                std::unique_ptr<ghoul::opengl::ProgramObject> program =
 +#ifndef __APPLE__
-                 std::unique_ptr<ghoul::opengl::ProgramObject> program =
++                std::unique_ptr<ghoul::opengl::ProgramObject> program =
                      ghoul::opengl::ProgramObject::Build(
                          "GaiaStar",
 @@ -1364,7 +1351,6 @@ void RenderableGaiaStars::update(const UpdateData&) {
                  if (!hasProperty(&_tmPointPixelWeightThreshold)) {
                      addProperty(_tmPointPixelWeightThreshold);
                  }
+-                break;
 +    #endif // !__APPLE__
-                 break;
++                break;
              }
              case gaia::ShaderOption::PointVBO: {
 @@ -1408,7 +1394,6 @@ void RenderableGaiaStars::update(const UpdateData&) {
              }
              case gaia::ShaderOption::BillboardSSBO:
              case gaia::ShaderOption::BillboardSSBONoFBO: {
+-                std::unique_ptr<ghoul::opengl::ProgramObject> program;
 +    #ifndef __APPLE__
-                 std::unique_ptr<ghoul::opengl::ProgramObject> program;
++                std::unique_ptr<ghoul::opengl::ProgramObject> program;
                  if (shaderOption == gaia::ShaderOption::BillboardSSBO) {
                      program = ghoul::opengl::ProgramObject::Build(
 @@ -1489,7 +1474,6 @@ void RenderableGaiaStars::update(const UpdateData&) {
                  if (hasProperty(&_tmPointPixelWeightThreshold)) {
                      removeProperty(_tmPointPixelWeightThreshold);
                  }
+-                break;
 +    #endif // !__APPLE__
-                 break;
++                break;
              }
              case gaia::ShaderOption::BillboardVBO: {
 @@ -1659,7 +1643,6 @@ void RenderableGaiaStars::update(const UpdateData&) {
              shaderOption == gaia::ShaderOption::PointSSBO ||
              shaderOption == gaia::ShaderOption::BillboardSSBONoFBO)
          {
+-            _useVBO = false;
 +#ifndef __APPLE__
-             _useVBO = false;
++            _useVBO = false;
  
              // Trigger a rebuild of buffer data from octree.
 @@ -1732,7 +1715,6 @@ void RenderableGaiaStars::update(const UpdateData&) {
                  glNamedBufferData(_vboVel, 0, nullptr, GL_STREAM_DRAW);
              }
              glBindBuffer(GL_ARRAY_BUFFER, 0);
+-        }
 +#endif // !__APPLE__
-         }
++        }
          else { // ------------------ RENDER WITH VBO -----------------------
              _useVBO = true;
 @@ -1864,7 +1846,6 @@ void RenderableGaiaStars::update(const UpdateData&) {
              glBindBuffer(GL_ARRAY_BUFFER, 0);
              glBindVertexArray(0);
  
+-            // Deallocate SSBO buffers if they existed.
 +#ifndef __APPLE__
-             // Deallocate SSBO buffers if they existed.
++            // Deallocate SSBO buffers if they existed.
              if (_ssboIdx != 0) {
                  glBindBuffer(GL_SHADER_STORAGE_BUFFER, _ssboIdx);
 @@ -1875,7 +1856,6 @@ void RenderableGaiaStars::update(const UpdateData&) {
                  glNamedBufferData(_ssboData, 0, nullptr, GL_STREAM_DRAW);
              }
              glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+-        }
 +#endif //!__APPLE__
-         }
++        }
  
          // Generate VAO and VBO for Quad.
 diff --git a/modules/globebrowsing/src/geojson/globegeometryfeature.cpp b/modules/globebrowsing/src/geojson/globegeometryfeature.cpp
@@ -548,12 +595,14 @@ index 05e1107c0c..dd59aab676 100644
  
      const glm::dmat4 projectionTransform = renderData.camera.projectionMatrix();
  
+-    glLineWidth(_properties.lineWidth() * extraRenderData.lineWidthScale);
 +#ifndef __APPLE__
-     glLineWidth(_properties.lineWidth() * extraRenderData.lineWidthScale);
++    glLineWidth(_properties.lineWidth() * extraRenderData.lineWidthScale);
+-
 +#else  // ^^^^ __APPLE__ // !__APPLE__ vvvv
 +    glLineWidth(1.f);
 +#endif // __APPLE__
- 
++
      for (const RenderFeature& r : _renderFeatures) {
          if (r.isExtrusionFeature && !_properties.extrude()) {
 diff --git a/modules/globebrowsing/src/renderableglobe.cpp b/modules/globebrowsing/src/renderableglobe.cpp
@@ -598,12 +647,14 @@ index 76e91c09a3..185facf84d 100644
      _shaderProgram->setUniform("lineColor", _lineColor);
      _shaderProgram->setUniform("opacity", opacity());
  
+-    glLineWidth(_lineWidth);
 +#ifndef __APPLE__
-     glLineWidth(_lineWidth);
++    glLineWidth(_lineWidth);
+-    glBindVertexArray(_vao);
 +#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
 +    glLineWidth(1.f);
 +#endif // __APPLE__
-     glBindVertexArray(_vao);
++    glBindVertexArray(_vao);
      glDrawArrays(GL_LINE_STRIP, 0, 3);
      glBindVertexArray(0);
 diff --git a/modules/webbrowser/src/cefhost.cpp b/modules/webbrowser/src/cefhost.cpp
@@ -614,29 +665,33 @@ index 4f5ffcb1de..accb22af85 100644
  #include <filesystem>
  #include <string_view>
  
+-#ifdef WIN32
 +#ifdef __APPLE__
 +#include <include/wrapper/cef_library_loader.h>
 +#endif // __APPLE__
 +
- #ifdef WIN32
++#ifdef WIN32
  #pragma warning(push)
  #pragma warning(disable : 4100)
 @@ -72,11 +68,7 @@ CefHost::CefHost([[maybe_unused]] const std::string& helperLocation) {
          std::filesystem::path(helperLocation).parent_path();
      const std::filesystem::path cefcache = std::format("{}/cefcache", root);
      CefString(&settings.root_cache_path).FromString(cefcache.string());
+-    CefString(&settings.browser_subprocess_path).FromString(helperLocation);
 +
 +#ifndef __APPLE__
 +    // Apple will always look for helper in a fixed location
-     CefString(&settings.browser_subprocess_path).FromString(helperLocation);
++    CefString(&settings.browser_subprocess_path).FromString(helperLocation);
+-
 +#endif // __APPLE__
- 
++
      settings.windowless_rendering_enabled = 1;
  
 @@ -89,15 +81,6 @@ CefHost::CefHost([[maybe_unused]] const std::string& helperLocation) {
      // cf. https://github.com/chromiumembedded/cef/issues/3685
      settings.chrome_runtime = 1;
  
+-    const CefRefPtr<WebBrowserApp> app = CefRefPtr<WebBrowserApp>(new WebBrowserApp);
 +#ifdef __APPLE__
 +    // Load the CEF framework library at runtime instead of linking directly as required
 +    // by the macOS sandbox implementation
@@ -646,7 +701,7 @@ index 4f5ffcb1de..accb22af85 100644
 +    }
 +#endif // __APPLE__
 +
-     const CefRefPtr<WebBrowserApp> app = CefRefPtr<WebBrowserApp>(new WebBrowserApp);
++    const CefRefPtr<WebBrowserApp> app = CefRefPtr<WebBrowserApp>(new WebBrowserApp);
  
      const CefMainArgs args;
 diff --git a/modules/webbrowser/src/webbrowserapp.cpp b/modules/webbrowser/src/webbrowserapp.cpp
@@ -657,11 +712,12 @@ index 3725d700df..61d9bb50fa 100644
      commandline->AppendSwitch("use-mock-keychain");
      commandline->AppendSwitch("enable-begin-frame-scheduling");
      commandline->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
+-}
 +#ifdef __APPLE__
 +    commandline->AppendSwitch("--disable-gpu-sandbox");
 +    commandline->AppendSwitch("--no-sandbox");
 +#endif // __APPLE__
- }
++}
  
  } // namespace openspace
 diff --git a/modules/webbrowser/webbrowsermodule.cpp b/modules/webbrowser/webbrowsermodule.cpp
@@ -700,6 +756,7 @@ index 407169f246..067d9bc3fb 100644
        set(filename "${basename}.exe")
        set(path "v${version}/win-x64/${filename}")
      endif ()
+-  elseif (UNIX)
 +  elseif (APPLE)
 +    if (CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
 +      set(basename "node-v${version}-darwin-arm64")
@@ -710,7 +767,7 @@ index 407169f246..067d9bc3fb 100644
 +      set(filename "${basename}.tar.gz")
 +      set(path "v${version}/${filename}")
 +    endif ()
-   elseif (UNIX)
++  elseif (UNIX)
      if (CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
        set(basename "node-v${version}-linux-arm64")
 @@ -81,15 +71,7 @@ function(DownloadNodeJs version download_dir)
@@ -738,6 +795,7 @@ index 08a996273a..9e5eb53592 100644
    util/versionchecker.cpp
  )
  
+-set(OPENSPACE_HEADER
 +if (APPLE)
 +  set(OPENSPACE_SOURCE
 +    ${OPENSPACE_SOURCE}
@@ -749,13 +807,14 @@ index 08a996273a..9e5eb53592 100644
 +  )
 +endif ()
 +
- set(OPENSPACE_HEADER
++set(OPENSPACE_HEADER
    ${PROJECT_SOURCE_DIR}/include/openspace/json.h
    ${PROJECT_SOURCE_DIR}/include/openspace/camera/camera.h
 @@ -423,13 +412,6 @@ set(OPENSPACE_HEADER
    ${PROJECT_SOURCE_DIR}/include/openspace/util/histogram.h
  )
  
+-set(OPENSPACE_SHADERS
 +if (APPLE)
 +  set(OPENSPACE_HEADER
 +    ${OPENSPACE_HEADER}
@@ -763,17 +822,18 @@ index 08a996273a..9e5eb53592 100644
 +  )
 +endif ()
 +
- set(OPENSPACE_SHADERS
++set(OPENSPACE_SHADERS
    ${PROJECT_SOURCE_DIR}/shaders/blending.glsl
    ${PROJECT_SOURCE_DIR}/shaders/core/screenspace_fs.glsl
 @@ -566,9 +548,6 @@ configure_file(
    @ONLY
  )
  
+-if (WIN32)
 +if (APPLE)
 +  target_link_libraries(openspace-core INTERFACE external-system-apple)
 +endif ()
- if (WIN32)
++if (WIN32)
    target_link_libraries(openspace-core PUBLIC "pdh")
  endif ()
 diff --git a/src/engine/openspaceengine.cpp b/src/engine/openspaceengine.cpp
@@ -784,22 +844,24 @@ index dbb5507fe2..2d5c6458a2 100644
  #include "Psapi.h"
  #endif // WIN32
  
+-#include "openspaceengine_lua.inl"
 +#ifdef __APPLE__
 +#include <openspace/interaction/touchbar.h>
 +#endif // __APPLE__
 +
- #include "openspaceengine_lua.inl"
++#include "openspaceengine_lua.inl"
  
  namespace {
 @@ -884,10 +880,6 @@ void OpenSpaceEngine::loadAssets() {
          global::syncEngine->addSyncables(_scene->camera()->syncables());
      }
  
+-    runGlobalCustomizationScripts();
 +#ifdef __APPLE__
 +    showTouchbar();
 +#endif // APPLE
 +
-     runGlobalCustomizationScripts();
++    runGlobalCustomizationScripts();
  
      _writeDocumentationTask = std::async(
 diff --git a/src/scene/scene_lua.inl b/src/scene/scene_lua.inl
@@ -810,19 +872,23 @@ index b0ff87034c..9821ce7ee2 100644
  
      std::mutex mutex;
      std::for_each(
+-        std::execution::par_unseq,
 +#ifndef __APPLE__
-         std::execution::par_unseq,
++        std::execution::par_unseq,
+-        properties.cbegin(),
 +#endif // __APPLE__
-         properties.cbegin(),
++        properties.cbegin(),
          properties.cend(),
          [&](Property* prop) {
 @@ -358,9 +356,7 @@ std::vector<openspace::properties::PropertyOwner*> findMatchesInAllPropertyOwner
  
      std::mutex mutex;
      std::for_each(
+-        std::execution::par_unseq,
 +#ifndef __APPLE__
-         std::execution::par_unseq,
++        std::execution::par_unseq,
+-        propertyOwners.cbegin(),
 +#endif // __APPLE__
-         propertyOwners.cbegin(),
++        propertyOwners.cbegin(),
          propertyOwners.cend(),
          [&](PropertyOwner* propOwner) {
