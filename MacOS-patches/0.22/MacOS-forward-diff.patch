@@ -1,3 +1,4 @@
+diff --git a/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h b/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h
 --- a/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h	2025-12-22 09:23:27.455698612 +0000
 +++ b/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h	2025-12-22 09:24:15.012579463 +0000
 @@ -120,6 +120,15 @@
@@ -16,6 +17,7 @@
  #endif
  
  #ifdef TOPS20
+diff --git a/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h b/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h
 --- a/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h	2025-12-22 09:23:27.455698612 +0000
 +++ b/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h	2025-12-22 09:24:14.758580125 +0000
 @@ -404,11 +404,7 @@
@@ -31,6 +33,7 @@
  #    endif
  #  else
  #    include <math.h>
+diff --git a/modules/globebrowsing/src/renderableglobe.cpp b/modules/globebrowsing/src/renderableglobe.cpp
 --- a/modules/globebrowsing/src/renderableglobe.cpp	2025-12-22 09:23:27.454698615 +0000
 +++ b/modules/globebrowsing/src/renderableglobe.cpp	2025-12-22 09:25:46.830303041 +0000
 @@ -55,7 +55,14 @@
@@ -96,6 +99,7 @@
      );
      pairs.emplace_back("showChunkEdges", std::to_string(_debugProperties.showChunkEdges));
      pairs.emplace_back("showHeightResolution", "0");
+diff --git a/ext/ghoul/include/ghoul/misc/memorypool.h b/ext/ghoul/include/ghoul/misc/memorypool.h
 --- a/ext/ghoul/include/ghoul/misc/memorypool.h	2025-12-22 09:23:27.452698619 +0000
 +++ b/ext/ghoul/include/ghoul/misc/memorypool.h	2025-12-22 09:25:46.741303299 +0000
 @@ -29,11 +29,15 @@
@@ -115,51 +119,59 @@
  
  #include <vector>
  
+diff --git a/ext/ghoul/include/ghoul/misc/memorypool.inl b/ext/ghoul/include/ghoul/misc/memorypool.inl
 --- a/ext/ghoul/include/ghoul/misc/memorypool.inl	2025-12-22 09:23:27.452698619 +0000
 +++ b/ext/ghoul/include/ghoul/misc/memorypool.inl	2025-12-22 09:25:46.741303299 +0000
 @@ -27,9 +27,6 @@
  #include <algorithm>
  #include <numeric>
  
+-namespace {
 +#include <memory_resource>
 +namespace pmr = std::pmr;
 +
- namespace {
++namespace {
      constexpr int DebugByte = 0x0F;
      constexpr int AlignmentByte = 0x1F;
+diff --git a/ext/ghoul/src/misc/sharedmemory.cpp b/ext/ghoul/src/misc/sharedmemory.cpp
 --- a/ext/ghoul/src/misc/sharedmemory.cpp	2025-12-22 09:23:27.453698617 +0000
 +++ b/ext/ghoul/src/misc/sharedmemory.cpp	2025-12-22 09:25:08.395415993 +0000
 @@ -36,12 +36,6 @@
  #include <cstring>
  #include <sys/shm.h>
  // Common access type bits, used with ipcperm()
+-constexpr int IPC_R = 000400; // read permission
 +#ifdef __APPLE__
 +// Undefine conflicting macros
 +#undef IPC_R
 +#undef IPC_W
 +#undef IPC_M
 +#endif
- constexpr int IPC_R = 000400; // read permission
++constexpr int IPC_R = 000400; // read permission
  constexpr int IPC_W = 000200; // write/alter permission
  constexpr int IPC_M = 010000; // permission to change control info
+diff --git a/ext/ghoul/src/logging/consolelog.cpp b/ext/ghoul/src/logging/consolelog.cpp
 --- a/ext/ghoul/src/logging/consolelog.cpp	2025-12-22 09:23:27.453698617 +0000
 +++ b/ext/ghoul/src/logging/consolelog.cpp	2025-12-22 09:25:46.747303282 +0000
 @@ -30,11 +30,7 @@
  #include <ghoul/misc/profiling.h>
  #include <iostream>
  #include <string_view>
+-#include <syncstream>
 +#ifndef __APPLE__
- #include <syncstream>
++#include <syncstream>
+-
 +#else
 +#include <mutex>
 +#endif
- 
++
  #ifdef WIN32
  #include <Windows.h>
 @@ -45,21 +41,6 @@
  #include <unistd.h>
  #include <sys/sysctl.h>
  
+-// Function is taken from https://developer.apple.com/library/mac/qa/qa1361/_index.html
 +std::mutex sync_mutex;
 +
 +template <typename T>
@@ -175,51 +187,59 @@
 +}
 +// __APPLE__ has problems with syncstream, use sync_print instead of osyncstream
 +
- // Function is taken from https://developer.apple.com/library/mac/qa/qa1361/_index.html
++// Function is taken from https://developer.apple.com/library/mac/qa/qa1361/_index.html
  // Returns true if the current process is being debugged (either running under the
  // debugger or has a debugger attached post facto).
 @@ -161,18 +142,10 @@
  
      res += message;
      if (level >= LogLevel::Error) {
+-        std::osyncstream(std::cerr) << res << '\n';
 +#ifndef __APPLE__
-         std::osyncstream(std::cerr) << res << '\n';
++        std::osyncstream(std::cerr) << res << '\n';
+-    }
 +#else
 +       sync_print_cerr(res); 
 +#endif
-     }
++    }
      else {
+-        std::osyncstream(std::cout) << res << '\n';
 +#ifndef __APPLE__
-         std::osyncstream(std::cout) << res << '\n';
++        std::osyncstream(std::cout) << res << '\n';
+-    }
 +#else
 +       sync_print_cout(res);
 +#endif
-     }
++    }
  
  
 @@ -181,16 +154,9 @@
      }
  }
  
+-void ConsoleLog::flush() {
 +#ifdef __APPLE__
 +void ConsoleLog::flush() {
 +    std::lock_guard<std::mutex> lock(sync_mutex);
 +    std::cout.flush();
 +}
 +#else
- void ConsoleLog::flush() {
++void ConsoleLog::flush() {
      std::osyncstream(std::cout).flush();
  }
+-
 +#endif
- 
++
  void ConsoleLog::setColorForLevel(LogLevel level) {
  #ifdef WIN32
+diff --git a/include/openspace/documentation/verifier.inl b/include/openspace/documentation/verifier.inl
 --- a/include/openspace/documentation/verifier.inl	2025-12-22 09:23:27.453698617 +0000
 +++ b/include/openspace/documentation/verifier.inl	2025-12-22 09:25:46.787303166 +0000
 @@ -27,21 +27,6 @@
  #include <functional>
  #include <iterator>
  #include <numeric>
+-
 +#include <sstream>
 +
 +// Workaround for macOS libc++ std::format with std::vector<bool>
@@ -235,7 +255,7 @@
 +        }
 +    }
 +}
- 
++
  namespace openspace::documentation {
  
 @@ -391,7 +376,7 @@
@@ -248,12 +268,14 @@
                      return std::format("{}, {}", lhs, rhs);
                  }
  
+diff --git a/modules/space/rendering/renderableorbitalkepler.cpp b/modules/space/rendering/renderableorbitalkepler.cpp
 --- a/modules/space/rendering/renderableorbitalkepler.cpp	2025-12-22 09:23:27.454698615 +0000
 +++ b/modules/space/rendering/renderableorbitalkepler.cpp	2025-12-22 09:25:46.854302972 +0000
 @@ -44,28 +44,6 @@
  #include <fstream>
  #include <random>
  #include <vector>
+-
 +// could link to dispatch to get multithreading on macOS
 +// #ifdef __APPLE__
 +// #include <dispatch/dispatch.h> // Include GCD header & link to libdispatch
@@ -276,13 +298,14 @@
 +//         }
 +//     );
 +// #endif
- 
++
  namespace {
      // The possible values for the _renderingModes property
 @@ -517,15 +495,6 @@
  
      bool isPaused = data.time.j2000Seconds() == data.previousFrameTime.j2000Seconds();
      if (!isPaused || _forceUpdate) {
+-        std::for_each(
 +#ifdef __APPLE__
 +        std::for_each(
 +            _threadIds.begin(),
@@ -292,15 +315,16 @@
 +            }
 +        );
 +#else
-         std::for_each(
++        std::for_each(
              std::execution::par_unseq,
              _threadIds.begin(),
 @@ -534,7 +503,6 @@
                  threadedSegmentCalculations(threadId, data);
              }
          );
+-    }
 +#endif
-     }
++    }
  
      _lineDrawCount = static_cast<GLsizei>(_segmentsPerOrbit.size() * 2);
 @@ -560,9 +528,13 @@
@@ -335,8 +359,10 @@
      orbitIdHolder.resize(_sizeRender);
      std::iota(orbitIdHolder.begin(), orbitIdHolder.end(), 0);
  
+-    std::for_each(
 +#ifdef __APPLE__
-     std::for_each(
++    std::for_each(
+-        std::execution::par_unseq,
 +        // std::execution::par_unseq,
 +        orbitIdHolder.begin(),
 +        orbitIdHolder.end(),
@@ -378,15 +404,16 @@
 +    );
 +#else
 +        std::for_each(
-         std::execution::par_unseq,
++        std::execution::par_unseq,
          orbitIdHolder.begin(),
          orbitIdHolder.end(),
 @@ -862,7 +792,6 @@
              _updateHelper[index].timePerStep = orbit.period / nSegments;
          }
      );
+-
 +#endif
- 
++
      // Calculate how many orbits we calculate per thread
      // 1000 per thread (arbitrary) to not create threads that do little to no work
 @@ -986,7 +915,7 @@
@@ -407,6 +434,7 @@
                          // sections 1 vertex length. A segment must contain at least 2
                          // vertices or more.
                          if (lastVertexIndex - correctVertexIndex == 1) {
+diff --git a/modules/globebrowsing/src/geojson/globegeometryhelper.cpp b/modules/globebrowsing/src/geojson/globegeometryhelper.cpp
 --- a/modules/globebrowsing/src/geojson/globegeometryhelper.cpp	2025-12-22 09:23:27.453698617 +0000
 +++ b/modules/globebrowsing/src/geojson/globegeometryhelper.cpp	2025-12-22 09:25:46.827303050 +0000
 @@ -245,7 +245,7 @@
@@ -443,6 +471,7 @@
          count++;
          if (count == 4) {
              // Skip every 4th coord, as polygons have one extra coord per triangle.
+diff --git a/modules/globebrowsing/src/geojson/globegeometryfeature.cpp b/modules/globebrowsing/src/geojson/globegeometryfeature.cpp
 --- a/modules/globebrowsing/src/geojson/globegeometryfeature.cpp	2025-12-22 09:23:27.453698617 +0000
 +++ b/modules/globebrowsing/src/geojson/globegeometryfeature.cpp	2025-12-22 09:25:46.826303053 +0000
 @@ -187,7 +187,7 @@
@@ -472,18 +501,20 @@
                  pNormalized->normalize();
  
                  const geos::geom::LinearRing* outerRing = pNormalized->getExteriorRing();
+diff --git a/apps/OpenSpace/main.cpp b/apps/OpenSpace/main.cpp
 --- a/apps/OpenSpace/main.cpp	2025-12-22 09:23:27.453698617 +0000
 +++ b/apps/OpenSpace/main.cpp	2025-12-22 09:25:45.073308132 +0000
 @@ -22,11 +22,6 @@
   * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
   ****************************************************************************************/
  
+-#include <openspace/documentation/documentation.h>
 +// Explicitly including OpenGL for APPLE
 +#define GLFW_INCLUDE_NONE
 +#ifdef __APPLE__
 +#include <OpenGL/gl3.h>
 +#endif
- #include <openspace/documentation/documentation.h>
++#include <openspace/documentation/documentation.h>
  #include <openspace/engine/configuration.h>
  #include <openspace/engine/globals.h>
 @@ -1190,7 +1185,7 @@
@@ -495,6 +526,7 @@
      // https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/symbol-path
  
      std::string exeFolder = std::filesystem::path(argv[0]).parent_path().string();
+diff --git a/src/interaction/touchbar.mm b/src/interaction/touchbar.mm
 --- a/src/interaction/touchbar.mm	2025-12-22 09:23:27.455698612 +0000
 +++ b/src/interaction/touchbar.mm	2025-12-22 09:25:46.877302905 +0000
 @@ -174,7 +174,11 @@
@@ -545,6 +577,7 @@
          );
      }
  @end
+diff --git a/modules/webbrowser/CMakeLists.txt b/modules/webbrowser/CMakeLists.txt
 --- a/modules/webbrowser/CMakeLists.txt	2025-12-22 09:23:27.454698615 +0000
 +++ b/modules/webbrowser/CMakeLists.txt	2025-12-22 09:23:45.134657392 +0000
 @@ -202,18 +202,9 @@
@@ -567,6 +600,7 @@
      )
  
      target_compile_options(${target} PRIVATE -Wno-deprecated-declarations)
+diff --git a/modules/webgui/cmake/nodejs_support.cmake b/modules/webgui/cmake/nodejs_support.cmake
 --- a/modules/webgui/cmake/nodejs_support.cmake	2025-12-22 09:23:27.455698612 +0000
 +++ b/modules/webgui/cmake/nodejs_support.cmake	2025-12-22 09:23:45.137657384 +0000
 @@ -38,8 +38,7 @@
@@ -579,18 +613,21 @@
        set(basename "node-v${version}-darwin-arm64")
        set(filename "${basename}.tar.gz")
        set(path "v${version}/${filename}")
+diff --git a/modules/webbrowser/src/webbrowserapp.cpp b/modules/webbrowser/src/webbrowserapp.cpp
 --- a/modules/webbrowser/src/webbrowserapp.cpp	2025-12-22 09:23:27.455698612 +0000
 +++ b/modules/webbrowser/src/webbrowserapp.cpp	2025-12-22 09:23:45.137657384 +0000
 @@ -48,9 +48,6 @@
      commandline->AppendSwitch("enable-begin-frame-scheduling");
      commandline->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
  #ifdef __APPLE__
+-    commandline->AppendSwitch("--disable-gpu-sandbox");
 +    // Disable GPU acceleration on macOS (avoids "GPU unavailable" error)
 +    commandline->AppendSwitch("disable-gpu");
 +    commandline->AppendSwitch("disable-gpu-compositing");
-     commandline->AppendSwitch("--disable-gpu-sandbox");
++    commandline->AppendSwitch("--disable-gpu-sandbox");
      commandline->AppendSwitch("--no-sandbox");
  #endif // __APPLE__
+diff --git a/modules/webbrowser/cmake/webbrowser_helpers.cmake b/modules/webbrowser/cmake/webbrowser_helpers.cmake
 --- a/modules/webbrowser/cmake/webbrowser_helpers.cmake	2025-12-22 09:23:27.454698615 +0000
 +++ b/modules/webbrowser/cmake/webbrowser_helpers.cmake	2025-12-22 09:23:45.135657390 +0000
 @@ -68,14 +68,13 @@
@@ -614,6 +651,7 @@
    set(CEF_FRAMEWORK_LOCATION "${CEF_BINARY_DIR}/Chromium Embedded Framework.framework")
    set(CEF_FRAMEWORK_FINAL_LOCATION "${CEF_FINAL_APP}/Contents/Frameworks/Chromium Embedded Framework.framework")
  
+diff --git a/modules/webbrowser/src/cefhost.cpp b/modules/webbrowser/src/cefhost.cpp
 --- a/modules/webbrowser/src/cefhost.cpp	2025-12-22 09:23:27.454698615 +0000
 +++ b/modules/webbrowser/src/cefhost.cpp	2025-12-22 09:25:46.871302922 +0000
 @@ -53,14 +53,11 @@
@@ -632,6 +670,7 @@
  #endif // __APPLE__
  
      settings.windowless_rendering_enabled = 1;
+diff --git a/ext/ghoul/src/filesystem/filesystem.osx.cpp b/ext/ghoul/src/filesystem/filesystem.osx.cpp
 --- a/ext/ghoul/src/filesystem/filesystem.osx.cpp	2025-12-22 09:23:27.453698617 +0000
 +++ b/ext/ghoul/src/filesystem/filesystem.osx.cpp	2025-12-22 09:25:08.390416008 +0000
 @@ -184,7 +184,7 @@
