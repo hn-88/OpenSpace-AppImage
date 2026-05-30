@@ -341,15 +341,55 @@ jobs:
 
         echo "=== Overwriting go-appimage AppRun with lightweight custom launcher ==="
         rm -f appdir/AppRun
-        echo '#!/bin/sh -l' > appdir/AppRun
-        echo 'if [ -z "$OPENSPACE_USER" ]; then' >> appdir/AppRun
-        echo '    export OPENSPACE_USER="$HOME/OpenSpace/user"' >> appdir/AppRun
-        echo 'fi' >> appdir/AppRun
-        echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> appdir/AppRun
-        echo 'export APPDIR="${HERE}"' >> appdir/AppRun
-        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> appdir/AppRun
-        echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="${HERE}/usr/plugins"' >> appdir/AppRun
-        echo 'exec "${HERE}/usr/bin/OpenSpace" "$@"' >> appdir/AppRun
+        echo '#!/bin/sh'                                                                                                           >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo '# Source user environment files to pick up custom exports'                                                           >> appdir/AppRun
+        echo '# (e.g. OPENSPACE_GLOBEBROWSING, OPENSPACE_SYNC set in ~/.bashrc or ~/.profile)'                                    >> appdir/AppRun
+        echo 'for f in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc"; do'                                                >> appdir/AppRun
+        echo '    [ -r "$f" ] && . "$f"'                                                                                           >> appdir/AppRun
+        echo 'done'                                                                                                                >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo 'if [ -z "$OPENSPACE_USER" ]; then'                                                                                   >> appdir/AppRun
+        echo '    export OPENSPACE_USER="$HOME/OpenSpace/user"'                                                                    >> appdir/AppRun
+        echo 'fi'                                                                                                                  >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo 'HERE="$(dirname "$(readlink -f "${0}")")"'                                                                           >> appdir/AppRun
+        echo 'export APPDIR="${HERE}"'                                                                                             >> appdir/AppRun
+        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"'                    >> appdir/AppRun
+        echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="${HERE}/usr/plugins"'                                                           >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo 'OPENSPACE_BIN="${HERE}/usr/bin/OpenSpace"'                                                                           >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo '# Try terminal emulators in order of preference'                                                                     >> appdir/AppRun
+        echo 'for TERM_EMU in xterm konsole gnome-terminal xfce4-terminal lxterminal mate-terminal tilix kitty alacritty; do'     >> appdir/AppRun
+        echo '    if command -v "$TERM_EMU" > /dev/null 2>&1; then'                                                               >> appdir/AppRun
+        echo '        case "$TERM_EMU" in'                                                                                         >> appdir/AppRun
+        echo '            xterm)'                                                                                                  >> appdir/AppRun
+        echo '                exec xterm -title "OpenSpace" -e "$OPENSPACE_BIN" "$@" ;;'                                          >> appdir/AppRun
+        echo '            konsole)'                                                                                                >> appdir/AppRun
+        echo '                exec konsole --noclose -e "$OPENSPACE_BIN" "$@" ;;'                                                 >> appdir/AppRun
+        echo '            gnome-terminal)'                                                                                         >> appdir/AppRun
+        echo '                exec gnome-terminal --wait -- "$OPENSPACE_BIN" "$@" ;;'                                             >> appdir/AppRun
+        echo '            xfce4-terminal)'                                                                                         >> appdir/AppRun
+        echo '                exec xfce4-terminal --disable-server -x "$OPENSPACE_BIN" "$@" ;;'                                   >> appdir/AppRun
+        echo '            lxterminal)'                                                                                             >> appdir/AppRun
+        echo '                exec lxterminal -e "$OPENSPACE_BIN" "$@" ;;'                                                        >> appdir/AppRun
+        echo '            mate-terminal)'                                                                                          >> appdir/AppRun
+        echo '                exec mate-terminal -e "$OPENSPACE_BIN" "$@" ;;'                                                     >> appdir/AppRun
+        echo '            tilix)'                                                                                                  >> appdir/AppRun
+        echo '                exec tilix -e "$OPENSPACE_BIN" "$@" ;;'                                                             >> appdir/AppRun
+        echo '            kitty)'                                                                                                  >> appdir/AppRun
+        echo '                exec kitty -- "$OPENSPACE_BIN" "$@" ;;'                                                             >> appdir/AppRun
+        echo '            alacritty)'                                                                                              >> appdir/AppRun
+        echo '                exec alacritty -e "$OPENSPACE_BIN" "$@" ;;'                                                         >> appdir/AppRun
+        echo '        esac'                                                                                                        >> appdir/AppRun
+        echo '    fi'                                                                                                              >> appdir/AppRun
+        echo 'done'                                                                                                                >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo '# Fallback: no terminal found, run directly with a warning'                                                          >> appdir/AppRun
+        echo 'echo "Warning: No terminal emulator found. Running OpenSpace without console output." >&2'                           >> appdir/AppRun
+        echo 'echo "Install xterm for console output: sudo apt install xterm" >&2'                                                 >> appdir/AppRun
+        echo 'exec "$OPENSPACE_BIN" "$@"'                                                                                          >> appdir/AppRun
         chmod +x appdir/AppRun
         
         # Make loader executable in case any bundled ELF has it hardcoded as interpreter
