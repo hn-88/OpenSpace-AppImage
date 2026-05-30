@@ -22,7 +22,7 @@ jobs:
     runs-on: macos-26
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@main
     
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/macos.html
@@ -40,6 +40,12 @@ jobs:
     - name: patches for MacOS
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
+        echo "Reinstate files deleted when MacOS support was removed from OpenSpace codebase..."
+        cp -v MacOS-patches/include-openspace-interaction-touchbar.h "$openSpaceHome/include/openspace/interaction/touchbar.h"
+        cp -v MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"
+        cp -v MacOS-patches/modules-base-shaders-renderabletrail_apple_fs.glsl "$openSpaceHome/modules/base/shaders/renderabletrail_apple_fs.glsl"
+        cp -v MacOS-patches/modules-base-shaders-renderabletrail_apple_vs.glsl "$openSpaceHome/modules/base/shaders/renderabletrail_apple_vs.glsl"
+
         cp -v MacOS-patches/0.22/MacOS-forward-diff.patch "$openSpaceHome/MacOS-forward-diff.patch"
         cp -v MacOS-patches/0.22/reinstate-mac-support-ghoul.patch "$openSpaceHome/reinstate-mac-support-ghoul.patch"
         cp -v MacOS-patches/0.22/reinstate-mac-support-openspace.patch "$openSpaceHome/reinstate-mac-support-openspace.patch"
