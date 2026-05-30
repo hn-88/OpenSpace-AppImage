@@ -1,6 +1,6 @@
 diff --git a/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h b/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h
---- a/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h	2025-12-22 09:23:27.455698612 +0000
-+++ b/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h	2025-12-22 09:24:15.012579463 +0000
+--- a/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h
++++ b/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h
 @@ -120,6 +120,15 @@
  
  #if defined(MACOS) || defined(TARGET_OS_MAC)
@@ -18,8 +18,8 @@ diff --git a/apps/OpenSpace/ext/sgct/ext/zlib/zutil.h b/apps/OpenSpace/ext/sgct/
  
  #ifdef TOPS20
 diff --git a/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h b/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h
---- a/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h	2025-12-22 09:23:27.455698612 +0000
-+++ b/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h	2025-12-22 09:24:14.758580125 +0000
+--- a/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h
++++ b/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h
 @@ -404,11 +404,7 @@
        * <fp.h> if possible.
        */
@@ -34,8 +34,8 @@ diff --git a/apps/OpenSpace/ext/sgct/ext/lpng/pngpriv.h b/apps/OpenSpace/ext/sgc
  #  else
  #    include <math.h>
 diff --git a/modules/globebrowsing/src/renderableglobe.cpp b/modules/globebrowsing/src/renderableglobe.cpp
---- a/modules/globebrowsing/src/renderableglobe.cpp	2025-12-22 09:23:27.454698615 +0000
-+++ b/modules/globebrowsing/src/renderableglobe.cpp	2025-12-22 09:25:46.830303041 +0000
+--- a/modules/globebrowsing/src/renderableglobe.cpp
++++ b/modules/globebrowsing/src/renderableglobe.cpp
 @@ -55,7 +55,14 @@
  #include <queue>
  #include <vector>
@@ -100,8 +100,8 @@ diff --git a/modules/globebrowsing/src/renderableglobe.cpp b/modules/globebrowsi
      pairs.emplace_back("showChunkEdges", std::to_string(_debugProperties.showChunkEdges));
      pairs.emplace_back("showHeightResolution", "0");
 diff --git a/ext/ghoul/include/ghoul/misc/memorypool.h b/ext/ghoul/include/ghoul/misc/memorypool.h
---- a/ext/ghoul/include/ghoul/misc/memorypool.h	2025-12-22 09:23:27.452698619 +0000
-+++ b/ext/ghoul/include/ghoul/misc/memorypool.h	2025-12-22 09:25:46.741303299 +0000
+--- a/ext/ghoul/include/ghoul/misc/memorypool.h
++++ b/ext/ghoul/include/ghoul/misc/memorypool.h
 @@ -29,11 +29,15 @@
  #include <ghoul/misc/assert.h>
  #include <array>
@@ -120,8 +120,8 @@ diff --git a/ext/ghoul/include/ghoul/misc/memorypool.h b/ext/ghoul/include/ghoul
  #include <vector>
  
 diff --git a/ext/ghoul/include/ghoul/misc/memorypool.inl b/ext/ghoul/include/ghoul/misc/memorypool.inl
---- a/ext/ghoul/include/ghoul/misc/memorypool.inl	2025-12-22 09:23:27.452698619 +0000
-+++ b/ext/ghoul/include/ghoul/misc/memorypool.inl	2025-12-22 09:25:46.741303299 +0000
+--- a/ext/ghoul/include/ghoul/misc/memorypool.inl
++++ b/ext/ghoul/include/ghoul/misc/memorypool.inl
 @@ -27,9 +27,6 @@
  #include <algorithm>
  #include <numeric>
@@ -134,8 +134,8 @@ diff --git a/ext/ghoul/include/ghoul/misc/memorypool.inl b/ext/ghoul/include/gho
      constexpr int DebugByte = 0x0F;
      constexpr int AlignmentByte = 0x1F;
 diff --git a/ext/ghoul/src/misc/sharedmemory.cpp b/ext/ghoul/src/misc/sharedmemory.cpp
---- a/ext/ghoul/src/misc/sharedmemory.cpp	2025-12-22 09:23:27.453698617 +0000
-+++ b/ext/ghoul/src/misc/sharedmemory.cpp	2025-12-22 09:25:08.395415993 +0000
+--- a/ext/ghoul/src/misc/sharedmemory.cpp
++++ b/ext/ghoul/src/misc/sharedmemory.cpp
 @@ -36,12 +36,6 @@
  #include <cstring>
  #include <sys/shm.h>
@@ -151,8 +151,8 @@ diff --git a/ext/ghoul/src/misc/sharedmemory.cpp b/ext/ghoul/src/misc/sharedmemo
  constexpr int IPC_W = 000200; // write/alter permission
  constexpr int IPC_M = 010000; // permission to change control info
 diff --git a/ext/ghoul/src/logging/consolelog.cpp b/ext/ghoul/src/logging/consolelog.cpp
---- a/ext/ghoul/src/logging/consolelog.cpp	2025-12-22 09:23:27.453698617 +0000
-+++ b/ext/ghoul/src/logging/consolelog.cpp	2025-12-22 09:25:46.747303282 +0000
+--- a/ext/ghoul/src/logging/consolelog.cpp
++++ b/ext/ghoul/src/logging/consolelog.cpp
 @@ -30,11 +30,7 @@
  #include <ghoul/misc/profiling.h>
  #include <iostream>
@@ -233,8 +233,8 @@ diff --git a/ext/ghoul/src/logging/consolelog.cpp b/ext/ghoul/src/logging/consol
  void ConsoleLog::setColorForLevel(LogLevel level) {
  #ifdef WIN32
 diff --git a/include/openspace/documentation/verifier.inl b/include/openspace/documentation/verifier.inl
---- a/include/openspace/documentation/verifier.inl	2025-12-22 09:23:27.453698617 +0000
-+++ b/include/openspace/documentation/verifier.inl	2025-12-22 09:25:46.787303166 +0000
+--- a/include/openspace/documentation/verifier.inl
++++ b/include/openspace/documentation/verifier.inl
 @@ -27,21 +27,6 @@
  #include <functional>
  #include <iterator>
@@ -269,8 +269,8 @@ diff --git a/include/openspace/documentation/verifier.inl b/include/openspace/do
                  }
  
 diff --git a/modules/space/rendering/renderableorbitalkepler.cpp b/modules/space/rendering/renderableorbitalkepler.cpp
---- a/modules/space/rendering/renderableorbitalkepler.cpp	2025-12-22 09:23:27.454698615 +0000
-+++ b/modules/space/rendering/renderableorbitalkepler.cpp	2025-12-22 09:25:46.854302972 +0000
+--- a/modules/space/rendering/renderableorbitalkepler.cpp
++++ b/modules/space/rendering/renderableorbitalkepler.cpp
 @@ -44,28 +44,6 @@
  #include <fstream>
  #include <random>
@@ -435,8 +435,8 @@ diff --git a/modules/space/rendering/renderableorbitalkepler.cpp b/modules/space
                          // vertices or more.
                          if (lastVertexIndex - correctVertexIndex == 1) {
 diff --git a/modules/globebrowsing/src/geojson/globegeometryhelper.cpp b/modules/globebrowsing/src/geojson/globegeometryhelper.cpp
---- a/modules/globebrowsing/src/geojson/globegeometryhelper.cpp	2025-12-22 09:23:27.453698617 +0000
-+++ b/modules/globebrowsing/src/geojson/globegeometryhelper.cpp	2025-12-22 09:25:46.827303050 +0000
+--- a/modules/globebrowsing/src/geojson/globegeometryhelper.cpp
++++ b/modules/globebrowsing/src/geojson/globegeometryhelper.cpp
 @@ -245,7 +245,7 @@
      vertices.reserve(maxSteps * maxSteps);
  
@@ -472,8 +472,8 @@ diff --git a/modules/globebrowsing/src/geojson/globegeometryhelper.cpp b/modules
          if (count == 4) {
              // Skip every 4th coord, as polygons have one extra coord per triangle.
 diff --git a/modules/globebrowsing/src/geojson/globegeometryfeature.cpp b/modules/globebrowsing/src/geojson/globegeometryfeature.cpp
---- a/modules/globebrowsing/src/geojson/globegeometryfeature.cpp	2025-12-22 09:23:27.453698617 +0000
-+++ b/modules/globebrowsing/src/geojson/globegeometryfeature.cpp	2025-12-22 09:25:46.826303053 +0000
+--- a/modules/globebrowsing/src/geojson/globegeometryfeature.cpp
++++ b/modules/globebrowsing/src/geojson/globegeometryfeature.cpp
 @@ -187,7 +187,7 @@
                  // Note that Constrained Delaunay triangulation supports polygons with
                  // holes :)
@@ -502,8 +502,8 @@ diff --git a/modules/globebrowsing/src/geojson/globegeometryfeature.cpp b/module
  
                  const geos::geom::LinearRing* outerRing = pNormalized->getExteriorRing();
 diff --git a/apps/OpenSpace/main.cpp b/apps/OpenSpace/main.cpp
---- a/apps/OpenSpace/main.cpp	2025-12-22 09:23:27.453698617 +0000
-+++ b/apps/OpenSpace/main.cpp	2025-12-22 09:25:45.073308132 +0000
+--- a/apps/OpenSpace/main.cpp
++++ b/apps/OpenSpace/main.cpp
 @@ -22,11 +22,6 @@
   * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
   ****************************************************************************************/
@@ -527,8 +527,8 @@ diff --git a/apps/OpenSpace/main.cpp b/apps/OpenSpace/main.cpp
  
      std::string exeFolder = std::filesystem::path(argv[0]).parent_path().string();
 diff --git a/src/interaction/touchbar.mm b/src/interaction/touchbar.mm
---- a/src/interaction/touchbar.mm	2025-12-22 09:23:27.455698612 +0000
-+++ b/src/interaction/touchbar.mm	2025-12-22 09:25:46.877302905 +0000
+--- a/src/interaction/touchbar.mm
++++ b/src/interaction/touchbar.mm
 @@ -174,7 +174,11 @@
      - (void)pauseResumeButtonAction:(id)sender {
          // No sync or send because time settings are always synced and sent
@@ -578,8 +578,8 @@ diff --git a/src/interaction/touchbar.mm b/src/interaction/touchbar.mm
      }
  @end
 diff --git a/modules/webbrowser/CMakeLists.txt b/modules/webbrowser/CMakeLists.txt
---- a/modules/webbrowser/CMakeLists.txt	2025-12-22 09:23:27.454698615 +0000
-+++ b/modules/webbrowser/CMakeLists.txt	2025-12-22 09:23:45.134657392 +0000
+--- a/modules/webbrowser/CMakeLists.txt
++++ b/modules/webbrowser/CMakeLists.txt
 @@ -202,18 +202,9 @@
      # add_cef_logical_target("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
      add_dependencies(${target} libcef_dll_wrapper)
@@ -601,8 +601,8 @@ diff --git a/modules/webbrowser/CMakeLists.txt b/modules/webbrowser/CMakeLists.t
  
      target_compile_options(${target} PRIVATE -Wno-deprecated-declarations)
 diff --git a/modules/webgui/cmake/nodejs_support.cmake b/modules/webgui/cmake/nodejs_support.cmake
---- a/modules/webgui/cmake/nodejs_support.cmake	2025-12-22 09:23:27.455698612 +0000
-+++ b/modules/webgui/cmake/nodejs_support.cmake	2025-12-22 09:23:45.137657384 +0000
+--- a/modules/webgui/cmake/nodejs_support.cmake
++++ b/modules/webgui/cmake/nodejs_support.cmake
 @@ -38,8 +38,7 @@
        set(path "v${version}/win-x64/${filename}")
      endif ()
@@ -614,8 +614,8 @@ diff --git a/modules/webgui/cmake/nodejs_support.cmake b/modules/webgui/cmake/no
        set(filename "${basename}.tar.gz")
        set(path "v${version}/${filename}")
 diff --git a/modules/webbrowser/src/webbrowserapp.cpp b/modules/webbrowser/src/webbrowserapp.cpp
---- a/modules/webbrowser/src/webbrowserapp.cpp	2025-12-22 09:23:27.455698612 +0000
-+++ b/modules/webbrowser/src/webbrowserapp.cpp	2025-12-22 09:23:45.137657384 +0000
+--- a/modules/webbrowser/src/webbrowserapp.cpp
++++ b/modules/webbrowser/src/webbrowserapp.cpp
 @@ -48,9 +48,6 @@
      commandline->AppendSwitch("enable-begin-frame-scheduling");
      commandline->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
@@ -628,8 +628,8 @@ diff --git a/modules/webbrowser/src/webbrowserapp.cpp b/modules/webbrowser/src/w
      commandline->AppendSwitch("--no-sandbox");
  #endif // __APPLE__
 diff --git a/modules/webbrowser/cmake/webbrowser_helpers.cmake b/modules/webbrowser/cmake/webbrowser_helpers.cmake
---- a/modules/webbrowser/cmake/webbrowser_helpers.cmake	2025-12-22 09:23:27.454698615 +0000
-+++ b/modules/webbrowser/cmake/webbrowser_helpers.cmake	2025-12-22 09:23:45.135657390 +0000
+--- a/modules/webbrowser/cmake/webbrowser_helpers.cmake
++++ b/modules/webbrowser/cmake/webbrowser_helpers.cmake
 @@ -68,14 +68,13 @@
    endif ()
  
@@ -652,8 +652,8 @@ diff --git a/modules/webbrowser/cmake/webbrowser_helpers.cmake b/modules/webbrow
    set(CEF_FRAMEWORK_FINAL_LOCATION "${CEF_FINAL_APP}/Contents/Frameworks/Chromium Embedded Framework.framework")
  
 diff --git a/modules/webbrowser/src/cefhost.cpp b/modules/webbrowser/src/cefhost.cpp
---- a/modules/webbrowser/src/cefhost.cpp	2025-12-22 09:23:27.454698615 +0000
-+++ b/modules/webbrowser/src/cefhost.cpp	2025-12-22 09:25:46.871302922 +0000
+--- a/modules/webbrowser/src/cefhost.cpp
++++ b/modules/webbrowser/src/cefhost.cpp
 @@ -53,14 +53,11 @@
      const std::filesystem::path root =
          std::filesystem::path(helperLocation).parent_path();
@@ -671,8 +671,8 @@ diff --git a/modules/webbrowser/src/cefhost.cpp b/modules/webbrowser/src/cefhost
  
      settings.windowless_rendering_enabled = 1;
 diff --git a/ext/ghoul/src/filesystem/filesystem.osx.cpp b/ext/ghoul/src/filesystem/filesystem.osx.cpp
---- a/ext/ghoul/src/filesystem/filesystem.osx.cpp	2025-12-22 09:23:27.453698617 +0000
-+++ b/ext/ghoul/src/filesystem/filesystem.osx.cpp	2025-12-22 09:25:08.390416008 +0000
+--- a/ext/ghoul/src/filesystem/filesystem.osx.cpp
++++ b/ext/ghoul/src/filesystem/filesystem.osx.cpp
 @@ -184,7 +184,7 @@
          }
      }
