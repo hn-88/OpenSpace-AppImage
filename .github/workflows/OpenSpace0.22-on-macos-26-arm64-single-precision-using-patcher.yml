@@ -49,11 +49,12 @@ jobs:
         cp -v MacOS-patches/0.22/MacOS-forward-diff.patch "$openSpaceHome/MacOS-forward-diff.patch"
         cp -v MacOS-patches/0.22/reinstate-mac-support-ghoul.patch "$openSpaceHome/reinstate-mac-support-ghoul.patch"
         cp -v MacOS-patches/0.22/reinstate-mac-support-openspace.patch "$openSpaceHome/reinstate-mac-support-openspace.patch"
+        cp -v MacOS-patches/smart_patcher.py "$openSpaceHome/smart_patcher.py"
         cd "$openSpaceHome"
         # python3 reverse_patch.py MacOS-reverse-diff-edited.patch
-        git apply --verbose --recount --whitespace=fix reinstate-mac-support-ghoul.patch
-        git apply --verbose --recount --whitespace=fix reinstate-mac-support-openspace.patch
-        git apply --verbose --recount --whitespace=fix MacOS-forward-diff.patch
+        python3 smart_patcher.py reinstate-mac-support-ghoul.patch
+        python3 smart_patcher.py reinstate-mac-support-openspace.patch
+        python3 smart_patcher.py MacOS-forward-diff.patch
         
 
     - name: smart_patcher for MacOS
