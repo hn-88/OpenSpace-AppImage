@@ -6,6 +6,7 @@ index 79ead538..ba77ac19 100644
    target_link_libraries(Ghoul PRIVATE "shlwapi" "WbemUuid.lib" "Ws2_32.lib")
  endif ()
  
+-if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
 +if (APPLE)
 +  begin_dependency("Core Libraries")
 +  find_library(COREFOUNDATION_LIBRARY CoreFoundation REQUIRED)
@@ -17,7 +18,7 @@ index 79ead538..ba77ac19 100644
 +  end_dependency("Core Libraries")
 +endif ()
 +
- if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
++if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
    begin_dependency("iNotify")
    find_library(INOTIFY_LIBRARIES inotify PATHS "/usr/local/lib")
 @@ -152,29 +141,27 @@ if (GHOUL_MODULE_ASSIMP)
@@ -91,10 +92,11 @@ index b5b0940d..0833ef80 100644
  struct DirectoryHandle;
  void readStarter(DirectoryHandle* directoryHandle);
  void callbackHandler(DirectoryHandle* directoryHandle, const std::string& filePath);
+-#endif // WIN32
 +#elif defined(__APPLE__)
 +struct DirectoryHandle;
 +void callbackHandler(const std::string& path);
- #endif // WIN32
++#endif // WIN32
  
  class CacheManager;
 @@ -244,29 +241,7 @@ class FileSystem {
@@ -145,6 +147,7 @@ index b1571885..cfe4f575 100644
  #include <ghoul/format.h>
  #include <ghoul/misc/stringconversion.h>
  
+-#ifdef __unix__
 +#ifdef __APPLE__
 +// The GLM header throw 'anonymous struct' warnings that we do not want. By marking the
 +// following files as system headers, all warnings are ignored
@@ -152,30 +155,33 @@ index b1571885..cfe4f575 100644
 +#pragma clang system_header
 +#endif // __APPLE__
 +
- #ifdef __unix__
++#ifdef __unix__
  #pragma GCC diagnostic push
  #pragma GCC diagnostic ignored "-Wpedantic"
 @@ -50,11 +43,9 @@
  #define GLM_ENABLE_EXPERIMENTAL
  #endif // GLM_ENABLE_EXPERIMENTAL
  
+-#ifndef GLM_FORCE_CTOR_INIT
 +#ifndef __APPLE__
- #ifndef GLM_FORCE_CTOR_INIT
++#ifndef GLM_FORCE_CTOR_INIT
  #define GLM_FORCE_CTOR_INIT
  #endif // GLM_FORCE_CTOR_INIT
+-
 +#endif
- 
++
  // Enabling swizzling breaks binary compatibility between glm::vecX and float* ?
  // #ifndef GLM_SWIZZLE
 @@ -1071,10 +1062,6 @@ struct std::not_equal_to<glm::dvec4> {
      }
  };
  
+-#ifdef __unix__
 +#ifdef __APPLE__
 +#pragma clang diagnostic pop
 +#endif
 +
- #ifdef __unix__
++#ifdef __unix__
  #pragma GCC diagnostic pop
  #endif // __unix__
 diff --git a/ext/ghoul/include/ghoul/misc/memorypool.h b/ext/ghoul/include/ghoul/misc/memorypool.h
@@ -207,18 +213,21 @@ index 97b3a7a4..10e0c5c8 100644
  #ifndef __GHOUL___GHOUL_GL___H__
  #define __GHOUL___GHOUL_GL___H__
  
+-#ifdef __clang__
 +#ifdef __APPLE__
 +#define GL_DO_NOT_WARN_IF_MULTI_GL_VERSION_HEADERS_INCLUDED
 +#undef __gl_h_
 +#endif
 +
- #ifdef __clang__
++#ifdef __clang__
  #pragma clang diagnostic push
+-#pragma clang diagnostic ignored "-Wdeprecated-copy"
 +#ifndef __APPLE__
 +// The Apple Clang compiler doesn't understand this warning yet
- #pragma clang diagnostic ignored "-Wdeprecated-copy"
++#pragma clang diagnostic ignored "-Wdeprecated-copy"
+-#elif defined(__GNUC__)
 +#endif // __APPLE__
- #elif defined(__GNUC__)
++#elif defined(__GNUC__)
  #pragma GCC diagnostic push
  #pragma GCC diagnostic ignored "-Wdeprecated-copy"
 diff --git a/ext/ghoul/src/CMakeLists.txt b/ext/ghoul/src/CMakeLists.txt
@@ -229,8 +238,9 @@ index c24f1706..3658e507 100755
      filesystem/file.cpp
      filesystem/filesystem.cpp
      filesystem/filesystem.linux.cpp
+-    filesystem/filesystem.windows.cpp
 +    filesystem/filesystem.osx.cpp
-     filesystem/filesystem.windows.cpp
++    filesystem/filesystem.windows.cpp
      io/model/modelanimation.cpp
      io/model/modelgeometry.cpp
 diff --git a/ext/ghoul/src/filesystem/filesystem.cpp b/ext/ghoul/src/filesystem/filesystem.cpp
@@ -312,6 +322,7 @@ index 8f38a697..21d22c37 100755
  #include <Windows.h>
  #endif // WIN32
  
+-namespace ghoul::logging {
 +#ifdef __APPLE__
 +#include <assert.h>
 +#include <unistd.h>
@@ -347,7 +358,7 @@ index 8f38a697..21d22c37 100755
 +}
 +#endif // __APPLE__
 +
- namespace ghoul::logging {
++namespace ghoul::logging {
  
  ConsoleLog::ConsoleLog(ColorOutput colorOutput, LogLevel minimumLogLevel)
 @@ -196,7 +161,7 @@ void ConsoleLog::setColorForLevel(LogLevel level) {
@@ -686,7 +697,8 @@ index 6f280178..85d7ffaa 100644
 @@ -62,7 +62,3 @@ target_link_libraries(GhoulTest PRIVATE Catch2 Ghoul)
  target_precompile_headers(GhoulTest PRIVATE
    <catch2/catch_test_macros.hpp>
- )
+-)
++)
 +
 +if (APPLE)
 +  target_link_libraries(GhoulTest PRIVATE ${CARBON_LIBRARY} ${COREFOUNDATION_LIBRARY} ${COCOA_LIBRARY} ${APP_SERVICES_LIBRARY})
