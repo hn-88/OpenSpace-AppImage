@@ -41,7 +41,7 @@ jobs:
         swap-storage: true
 
     - name: Install Qt 6.8
-      uses: jurplel/install-qt-action@main
+      uses: jurplel/install-qt-action@v4
       with:
         version: 6.8.*
 
