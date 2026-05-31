@@ -3,7 +3,7 @@ name: deb-on-22.04wCpack-arm
 on: 
   workflow_dispatch:      # allows manual trigger
   #schedule:
-  #  - cron: "57 6 * * *"   # runs daily at 06:57 UTC
+  #  - cron: "49 23 * * *"   # to run daily at 23:49 UTC, would be delayed by github congestion
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -23,22 +23,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@main
-    
+
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
       with:
         # this might remove tools that are actually needed,
         # if set to "true" but frees about 6 GB
-        tool-cache: false
+        tool-cache: true
         
         # all of these default to true, but feel free to set to
         # "false" if necessary for your workflow
         android: true
         dotnet: true
         haskell: true
-        large-packages: false
+        large-packages: true
         docker-images: true
-        swap-storage: false
+        swap-storage: true
 
     - name: Install Qt 6.9
       uses: jurplel/install-qt-action@v4

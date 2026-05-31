@@ -22,24 +22,24 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@main
 
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
       with:
         # this might remove tools that are actually needed,
         # if set to "true" but frees about 6 GB
-        tool-cache: false
+        tool-cache: true
         
         # all of these default to true, but feel free to set to
         # "false" if necessary for your workflow
         android: true
         dotnet: true
         haskell: true
-        large-packages: false
+        large-packages: true
         docker-images: true
-        swap-storage: false
-        
+        swap-storage: true
+
     - name: Install Qt 6.9
       uses: jurplel/install-qt-action@v4
       with:
