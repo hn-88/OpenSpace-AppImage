@@ -40,10 +40,10 @@ jobs:
         docker-images: true
         swap-storage: true
 
-    - name: Install Qt 6.8
+    - name: Install Qt 6.7
       uses: jurplel/install-qt-action@v4
       with:
-        version: 6.8.*
+        version: 6.7.*
 
     - name: Export Qt environment variables
       shell: bash
