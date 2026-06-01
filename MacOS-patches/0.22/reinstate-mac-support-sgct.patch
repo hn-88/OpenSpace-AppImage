@@ -1,0 +1,115 @@
+diff --git a/apps/OpenSpace/ext/sgct/include/sgct/opengl.h b/apps/OpenSpace/ext/sgct/include/sgct/opengl.h
+--- a/apps/OpenSpace/ext/sgct/include/sgct/opengl.h
++++ b/apps/OpenSpace/ext/sgct/include/sgct/opengl.h
+@@ -9,6 +9,11 @@
+ #ifndef __SGCT__OPENGL_H__
+ #define __SGCT__OPENGL_H__
+ 
++#ifdef __APPLE__
++#define GL_DO_NOT_WARN_IF_MULTI_GL_VERSION_HEADERS_INCLUDED
++#undef __gl_h_
++#endif // __APPLE__
++
+ // Workaround for APIENTRY macro redefinition
+ // Problem: glad.h will define APIENTRY if it is not defined. But if windows.h is included
+ // after glad.h it will also unconditionally set APIENTRY and we get a macro redefinition
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -239,6 +239,11 @@ target_compile_definitions(sgct
+ 
+ if (WIN32)
+   target_link_libraries(sgct PRIVATE ws2_32)
++elseif (APPLE)
++  find_library(COCOA_LIBRARY Cocoa REQUIRED)
++  find_library(IOKIT_LIBRARY IOKit REQUIRED)
++  find_library(COREVIDEO_LIBRARY CoreVideo REQUIRED)
++  target_link_libraries(sgct PRIVATE ${COCOA_LIBRARY} ${IOKIT_LIBRARY} ${COREVIDEO_LIBRARY})
+ else () # Linux
+   find_package(X11 REQUIRED)
+   find_package(Threads REQUIRED)
+diff --git a/src/engine.cpp b/src/engine.cpp
+--- a/src/engine.cpp
++++ b/src/engine.cpp
+@@ -280,6 +280,10 @@ Engine::Engine(config::Cluster cluster, Callbacks callbacks, const Configuration
+     {
+         ZoneScopedN("GLFW initialization");
+ 
++#ifdef __APPLE__
++        glfwInitHint(GLFW_COCOA_MENUBAR, GLFW_FALSE);
++#endif // __APPLE__
++
+         glfwSetErrorCallback(
+             [](int error, const char* desc) {
+                 throw Err(3010, std::format("GLFW error ({}): {}", error, desc));
+@@ -549,7 +553,9 @@ void Engine::initialize() {
+ #ifdef SGCT_HAS_TEXT
+ #ifdef WIN32
+     constexpr std::string_view FontName = "verdanab.ttf";
+-#else // !WIN32
++#elif defined(__APPLE__)
++    constexpr std::string_view FontName = "HelveticaNeue.ttc";
++#else // !WIN32 && !__APPLE__
+     constexpr std::string_view FontName = "FreeSansBold.ttf";
+ #endif // WIN32
+     text::FontManager::instance().addFont("SGCTFont", std::string(FontName));
+@@ -566,11 +572,7 @@ void Engine::initialize() {
+     Window::setBarrier(true);
+     Window::resetSwapGroupFrameNumber();
+ 
+-    std::for_each(
+-        wins.cbegin(),
+-        wins.cend(),
+-        std::mem_fn(&Window::initializeContextSpecific)
+-    );
++    std::for_each(wins.cbegin(), wins.cend(), std::mem_fn(&Window::initializeContextSpecific));
+ 
+ #ifdef SGCT_HAS_VRPN
+     // start sampling tracking data
+diff --git a/src/fontmanager.cpp b/src/fontmanager.cpp
+--- a/src/fontmanager.cpp
++++ b/src/fontmanager.cpp
+@@ -128,7 +128,10 @@ FontManager::FontManager() {
+         SystemFontPath = std::string(wSystemFontPath.begin(), wSystemFontPath.end());
+     }
+ #endif // UNICODE
+-#else // !WIN32
++#elif defined(__APPLE__)
++    // System Fonts
++    SystemFontPath = "/System/Library/Fonts/";
++#else // !WIN32 && !__APPLE__
+     SystemFontPath = "/usr/share/fonts/truetype/freefont/";
+ #endif // WIN32
+ }
+diff --git a/src/networkmanager.cpp b/src/networkmanager.cpp
+--- a/src/networkmanager.cpp
++++ b/src/networkmanager.cpp
+@@ -174,8 +174,13 @@ NetworkManager::NetworkManager(NetworkMode nm,
+     addrinfo* info = nullptr;
+     {
+         ZoneScopedN("getaddrinfo");
+-        const int result = getaddrinfo(Buffer.data(), "http", &hints, &info);
+-        if (result != 0) {
++        //TODO(micah) why does getaddrinfo fail for 'macbookpro.local'
++#ifdef __APPLE__
++            const int result = getaddrinfo("localhost", "http", &hints, &info);
++#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
++            const int result = getaddrinfo(Buffer.data(), "http", &hints, &info);
++#endif // __APPLE__
++    if (result != 0) {
+             std::string err = std::to_string(Network::lastError());
+             throw Err(5028, std::format("Failed to get address info: {}", err));
+         }
+diff --git a/src/window.cpp b/src/window.cpp
+--- a/src/window.cpp
++++ b/src/window.cpp
+@@ -499,6 +499,9 @@ void Window::openWindow(GLFWwindow* share, bool isLastWindow) {
+         if (_noError) {
+             glfwWindowHint(GLFW_CONTEXT_NO_ERROR, GLFW_TRUE);
+         }
++#ifdef __APPLE__
++        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
++#endif // __APPLE__
+         if (!_isVisible) {
+             glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+         }
