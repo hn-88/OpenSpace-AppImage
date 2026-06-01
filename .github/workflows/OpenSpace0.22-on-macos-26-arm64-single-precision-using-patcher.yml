@@ -45,6 +45,7 @@ jobs:
         cp -v MacOS-patches/src-interaction-touchbar.mm "$openSpaceHome/src/interaction/touchbar.mm"
         cp -v MacOS-patches/modules-base-shaders-renderabletrail_apple_fs.glsl "$openSpaceHome/modules/base/shaders/renderabletrail_apple_fs.glsl"
         cp -v MacOS-patches/modules-base-shaders-renderabletrail_apple_vs.glsl "$openSpaceHome/modules/base/shaders/renderabletrail_apple_vs.glsl"
+        cp -v MacOS-patches/Ghoul-src-filesystem-filesystem.osx.cpp "$openSpaceHome/ext/ghoul/src/filesystem/filesystem.osx.cpp"
 
         cp -v MacOS-patches/0.22/MacOS-forward-diff.patch "$openSpaceHome/MacOS-forward-diff.patch"
         cp -v MacOS-patches/0.22/reinstate-mac-support-ghoul.patch "$openSpaceHome/reinstate-mac-support-ghoul.patch"
