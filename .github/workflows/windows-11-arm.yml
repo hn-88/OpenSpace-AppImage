@@ -72,34 +72,11 @@ jobs:
       uses: jurplel/install-qt-action@v4
       with:
         version: 6.9.*
-        
-
-    - name: Install Boost
-      uses: MarkusJx/install-boost@main
-      id: install-boost
-      with:
-        boost_version: 1.87.0
-        toolset: msvc
-        arch: aarch64
-        link: shared
-
-    - name: Cache vcpkg
-      uses: actions/cache@v4
-      with:
-        path: vcpkg/installed
-        key: vcpkg-arm64-assimp-${{ runner.os }}
-
-    - name: Install assimp via vcpkg
-      run: |
-        git clone https://github.com/Microsoft/vcpkg.git
-        cd vcpkg
-        .\bootstrap-vcpkg.bat
-        .\vcpkg install curl[ssl]:arm64-windows zlib:arm64-windows assimp:arm64-windows
     
     - name: Configure CMake
       run: |
         cd "$env:openSpaceHome"
-            cmake -S . -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake"  -DVCPKG_TARGET_TRIPLET=arm64-windows -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL - -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DZLIB_USE_STATIC_LIBS=ON -DOPENSPACE_ENABLE_ALL_MODULES=OFF -DOPENSPACE_MODULE_BASE=ON -DOPENSPACE_MODULE_SPACE=ON -DOPENSPACE_MODULE_GLOBEBROWSING=OFF -DOPENSPACE_MODULE_VIDEO=OFF -DOPENSPACE_MODULE_SPOUT=OFF -DSGCT_SPOUT_SUPPORT=OFF -DSGCT_NDI_SUPPORT=OFF -DSGCT_SCALABLE_SUPPORT=OFF
+            cmake -S . -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DZLIB_USE_STATIC_LIBS=ON -DOPENSPACE_MODULE_MOLECULE=OFF -DOPENSPACE_MODULE_SPOUT=OFF -DSGCT_SPOUT_SUPPORT=OFF -DSGCT_NDI_SUPPORT=OFF -DSGCT_SCALABLE_SUPPORT=OFF
   
 
     - name: Patch dr_mp3 for MSVC ARM64 (disable SIMD)
