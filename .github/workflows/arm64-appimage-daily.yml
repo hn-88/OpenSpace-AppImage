@@ -15,13 +15,13 @@ env:
   SCCACHE_CACHE_SIZE: 5G
   CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
-  OPENSPACE_VERSION: "0.21.4+"
-  APPIMAGE_VERSION: "1"
+  OPENSPACE_VERSION: "0.22.0rc2+"
+  APPIMAGE_VERSION: "2"
   # COMMIT_HASH: "389842f76cab6c7a211faa90c3c157a28df24bd6" # Aug 5 2025
   # COMMIT_HASH: "e8fa72544c445b556018841eafb48116372c288d" # Feb 13 2026
   COMMIT_HASH: "master"
   # from https://github.com/mozilla/sccache/?tab=readme-ov-file#separating-caches-between-invocations
-  SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-22.04-arm-cmake4-homebrew-gcc"
+  SCCACHE_C_CUSTOM_CACHE_BUSTER: "ubuntu-22.04-arm-cmake4.3-homebrew-gcc-qt690"
   
 jobs:
   build:
@@ -152,62 +152,459 @@ jobs:
         cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
         rm -vf "$cef_orig_dir/libvulkan.so.1" || echo "libvulkan.so.1 not found, skipping removal"
         make -j $(nproc)
-        
-    - name: Create appimage
+
+    - name: Create appimage directory
       working-directory: ${{github.workspace}}
       # https://appimage-builder.readthedocs.io/en/latest/hosted-services/github-actions.html
       # But instead of linuxdeployqt as in https://github.com/hn-88/OCVWarp/blob/master/.travis.yml
       # trying with go-appimage
       run: |
-        echo "create appimage"
-        mkdir -p appdir/usr/bin ; cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin ; strip ./appdir/usr/bin/*
+        echo "Creating AppImage layout..."
+        mkdir -p appdir/usr/bin appdir/usr/lib appdir/usr/plugins
+        
+        cp $HOME/source/OpenSpace/bin/OpenSpace_Helper $HOME/source/OpenSpace/bin/OpenSpace ./appdir/usr/bin
+        strip ./appdir/usr/bin/*        
+
+        # Point directly to the executable (no run.sh dependency)
+        # sed -i 's|^Exec=.*|Exec=OpenSpace|' ./appdir/OpenSpace.desktop
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
 
-        # The OpenSpace executable expects these files in the parent directory of its bin directory
+        # Copy resources
         cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders,/documentation/,openspace.cfg} ./appdir/usr/
 
-        # patch file created with diff -u openspace.cfg openspace.edited
-        patch ./appdir/usr/openspace.cfg < ./appdir/openspacef12f5e2.cfg.patch
+        # Patch configuration
+        patch ./appdir/usr/openspace.cfg < ./appdir/openspacef12f5e2.cfg.patch || echo "Patch already applied or skipped"
 
-        # https://stackoverflow.com/questionopenspace.cfgs/43412885/fastest-way-to-delete-files-from-a-directory-tree-whose-names-contain-a-certain
-        # delete source files from modules directory
-        find ./appdir/usr/ -name '*.cpp' -print0 | xargs -0 -P2 rm
-        find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm
-        find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm
-        find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm
+        # Delete source and build-time files
+        find ./appdir/usr/ -name '*.cpp' -print0 | xargs -0 -P2 rm -f
+        find ./appdir/usr/ -name 'CMakeLists.txt'  -print0 | xargs -0 -P2 rm -f
+        find ./appdir/usr/ -name '*.h' -print0 | xargs -0 -P2 rm -f
+        find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm -f
 
-        # https://github.com/probonopd/go-appimage/blob/master/src/appimagetool/README.md
-        wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-aarch64.AppImage" | head -n 1 | cut -d '"' -f 2)
+        # Download appimagetool
+        wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
         chmod +x appimagetool-*.AppImage
 
-        # If you ever get an issue with appimage bundling the wrong Qt version,
-        # try setting the  QTDIR env var (cf. https://github.com/probonopd/go-appimage/issues/268)
-        # ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/*.desktop # Bundle EVERYTHING
-        # or 
-        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/*.desktop # Bundle everything except what comes with the base system
+        # Populate LD_LIBRARY_PATH so go-appimage deploy uses the correct lookup order
+        export LD_LIBRARY_PATH="$(pwd)/appdir/usr/lib:$QT_ROOT_DIR/lib:$LD_LIBRARY_PATH"
 
-        # Install libcef runtime dependencies (the "deploy" step has automatically found libcef.so
-        # thanks to dynamic linking information but can't guess some other dependencies)
-        cef_orig_dir=$(find $HOME/source/OpenSpace/build -path */Release/libcef.so | xargs dirname)
-        cef_install_dir=$(find ./appdir -name libcef.so | xargs dirname)
-        cp -r $cef_orig_dir/* $cef_install_dir
+        # Run deploy (with bundle everything flag)
+        ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/OpenSpace.desktop
 
         # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
         strip --strip-unneeded $cef_install_dir/*.so
 
-        # We install gcc-13 in the build env and it also pulls a libstdc++ that's newer than the
-        # one in Ubuntu 22.04.5 and OpenSpace links to it. As a result, in order to make the
-        # AppImage more portable (at least vanilla Ubuntu 22.04.5), we need to bundle that lib as
-        # well
-        libstdcxx=/lib/aarch64-linux-gnu/libstdc++.so.6
-        cp ${libstdcxx} ./appdir/${libstdcxx}
+        # ----------------- QT BUNDLING PREPARATION -----------------
+        # Copy Qt libraries to AppDir/usr/lib
+        echo "Copying Qt6 libraries..."
+        cp -P "$QT_ROOT_DIR"/lib/libQt6*.so* ./appdir/usr/lib/
 
-        # turn AppDir into AppImage
+        # Copy Qt plugins
+        echo "Copying Qt6 plugins..."
+        cp -r "$QT_ROOT_DIR"/plugins/* ./appdir/usr/plugins/
+
+        # Create qt.conf next to the executable
+        echo "[Paths]" > ./appdir/usr/bin/qt.conf
+        echo "Prefix = .." >> ./appdir/usr/bin/qt.conf
+        echo "Plugins = plugins" >> ./appdir/usr/bin/qt.conf
+        echo "Imports = qml" >> ./appdir/usr/bin/qt.conf
+        echo "Qml2Imports = qml" >> ./appdir/usr/bin/qt.conf
+        # -----------------------------------------------------------
+
+        
+        # Explicitly bundle libmpv and its transitive deps
+        echo "Bundling libmpv explicitly..."
+        for lib in $(ldconfig -p | grep -E 'libmpv' | awk '{print $NF}'); do
+          cp -v "$lib" ./appdir/usr/lib/ || true
+        done
+        (cd ./appdir/usr/lib && \
+          for f in libmpv.so.*.*; do
+            [ -f "$f" ] || continue
+            major=$(echo "$f" | grep -oP '(?<=libmpv\.so\.)\d+')
+            ln -sf "$f" "libmpv.so.${major}" 2>/dev/null || true
+            ln -sf "$f" "libmpv.so"          2>/dev/null || true
+          done)
+
+        
+        # Manually bundle libjack
+        echo "Searching for libjack.so* on runner..."
+        JACK_LIBS=$(find /usr/lib /lib /usr/local/lib \( -name "libjack.so*" -o -name "libjackserver.so*" \) 2>/dev/null | sort -u)
+        if [ -n "$JACK_LIBS" ]; then
+          while IFS= read -r lib; do
+            cp -av "$lib" appdir/usr/lib/
+          done <<< "$JACK_LIBS"
+        fi
+        
+        # Manually place CEF files
+        cef_release_dir=$(find $HOME/source/OpenSpace/build -name "libcef.so" | grep -i release | xargs dirname | head -n 1)
+        cef_data_dir=$(find $HOME/source/OpenSpace/build -name "resources.pak" | xargs dirname | head -n 1)
+        # cp -rv "$cef_data_dir"/*.pak ./appdir/usr/bin/
+        # cp -rv "$cef_data_dir"/*.dat ./appdir/usr/bin/
+        # cp -rv "$cef_data_dir"/locales ./appdir/usr/bin/
+        
+        cp -v "$cef_release_dir"/libcef.so    ./appdir/usr/bin/
+        cp -v "$cef_release_dir"/libEGL.so    ./appdir/usr/bin/  2>/dev/null || true
+        cp -v "$cef_release_dir"/libGLESv2.so ./appdir/usr/bin/  2>/dev/null || true
+        cp -v "$cef_release_dir"/libvk_swiftshader.so  ./appdir/usr/bin/
+        # cp -v "$cef_release_dir"/v8_context_snapshot.bin ./appdir/usr/bin/
+        # cp -v "$cef_release_dir"/snapshot_blob.bin       ./appdir/usr/bin/ 2>/dev/null || true
+        # cp -v "$cef_release_dir"/vk_swiftshader_icd.json ./appdir/usr/bin/ 2>/dev/null || true
+        # Install chrome-sandbox with setuid so CEF can find it at initialization
+        if [ -f "$cef_release_dir/chrome-sandbox" ]; then
+          cp -v "$cef_release_dir/chrome-sandbox" ./appdir/usr/bin/
+          chmod 4755 ./appdir/usr/bin/chrome-sandbox
+        else
+          echo "WARNING: chrome-sandbox not found in $cef_release_dir, CEF may crash on init"
+        fi
+        
+        strip --strip-unneeded ./appdir/usr/bin/libcef.so || true
+        # Symlink critical helper libraries so dynamic loader resolves them from usr/lib
+        ln -sf ../bin/libcef.so ./appdir/usr/lib/libcef.so
+        ln -sf ../bin/libEGL.so ./appdir/usr/lib/libEGL.so || true
+        ln -sf ../bin/libGLESv2.so ./appdir/usr/lib/libGLESv2.so || true
+        ln -sf ../bin/libvk_swiftshader.so ./appdir/usr/lib/libvk_swiftshader.so || true
+        # move CEF resources also to usr/lib
+        # currently not duplicated in bin for testing
+        cp -rv "$cef_data_dir"/*.pak ./appdir/usr/lib/
+        cp -rv "$cef_data_dir"/*.dat ./appdir/usr/lib/        
+        cp -rv "$cef_data_dir"/locales ./appdir/usr/lib/
+        cp -v "$cef_release_dir"/v8_context_snapshot.bin ./appdir/usr/lib/
+        cp -v "$cef_release_dir"/snapshot_blob.bin       ./appdir/usr/lib/ 2>/dev/null || true
+        cp -v "$cef_release_dir"/vk_swiftshader_icd.json ./appdir/usr/lib/ 2>/dev/null || true
+                
+        # Clean up stray Homebrew directories and move libs to usr/lib
+        if [ -d "./appdir/home" ]; then
+          mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblz4.so.1   ./appdir/usr/lib/ 2>/dev/null || true
+          mv ./appdir/home/linuxbrew/.linuxbrew/lib/liblzma.so.5  ./appdir/usr/lib/ 2>/dev/null || true
+          mv ./appdir/home/linuxbrew/.linuxbrew/lib/libzstd.so.1  ./appdir/usr/lib/ 2>/dev/null || true
+          rm -vfr ./appdir/home
+        fi
+
+        # ----------------- UNIFY LIBRARY DIRECTORIES -----------------
+        if [ -d "./appdir/lib" ]; then
+          echo "Merging bundled libraries from appdir/lib into appdir/usr/lib..."
+          mkdir -p ./appdir/usr/lib
+          find ./appdir/lib -name "*.so*" -exec cp -avP {} ./appdir/usr/lib/ \;
+          rm -rf ./appdir/lib
+        fi
+        # -------------------------------------------------------------
+
+        # ----------------- GLOBAL PRECISE DEPENDENCY RESOLUTION -----------------
+        echo "Performing precise global dependency resolution..."
+        
+        # Disable exit-on-error and pipefail temporarily so empty grep matches do not crash the build
+        set +e
+        set +o pipefail
+
+        # Ultra-precise exclusion regex targeting ONLY glibc, low-level runtime layers, and graphics drivers
+        # This protects libraries like libcfitsio, libcurl, or libcrypto while excluding system frameworks
+        EXCLUDE_REGEXP="^(ld-linux.*\.so|ld-[0-9].*\.so|libc\.so|libc-[0-9].*\.so|libm\.so|libm-[0-9].*\.so|libdl\.so|libdl-[0-9].*\.so|libpthread|librt\.so|librt-[0-9].*\.so|libresolv.*\.so|libnss.*\.so|libutil.*\.so|libcrypt\.so|libanl.*\.so|libgcc_s.*\.so|libstdc|libglapi|libGL.*\.so|libEGL.*\.so|libGLES.*\.so|libvulkan.*\.so|libdrm.*\.so|libgbm.*\.so|libnvidia|libva.*\.so|libvdpau.*\.so|libX11|libxcb|libdbus|libasound.*\.so|libudev.*\.so|libgobject|libgio|libglib|libgthread|libgmodule|libffi)"
+
+        # Initialize tracing queue with all existing ELF files in usr/lib and usr/bin
+        TO_CHECK=()
+        for f in $(find ./appdir/usr/lib ./appdir/usr/bin -type f \( -name "*.so*" -o -name "OpenSpac*" \) 2>/dev/null); do
+          if file "$f" | grep -q ELF; then
+            TO_CHECK+=("$f")
+          fi
+        done
+
+        declare -A PROCESSED
+        
+        while [ ${#TO_CHECK[@]} -gt 0 ]; do
+          # Pop the first library from the queue
+          CURRENT_LIB="${TO_CHECK[0]}"
+          TO_CHECK=("${TO_CHECK[@]:1}")
+          
+          if [ -n "${PROCESSED[$CURRENT_LIB]}" ]; then
+            continue
+          fi
+          PROCESSED[$CURRENT_LIB]=1
+          
+          echo "Scanning: $(basename "$CURRENT_LIB")"
+          deps=$(ldd "$CURRENT_LIB" 2>/dev/null | grep "=>" | awk '{print $3}' | grep '^/')
+          for dep in $deps; do
+            dep_name=$(basename "$dep")
+            
+            # Skip core system libraries and driver libraries
+            if [[ "$dep_name" =~ $EXCLUDE_REGEXP ]]; then
+              continue
+            fi
+            
+            target_path="./appdir/usr/lib/$dep_name"
+            if [ ! -f "$target_path" ]; then
+              echo "  -> Copying dependency: $dep"
+              cp -vL "$dep" ./appdir/usr/lib/ || true
+              # Add the newly copied library to the queue to trace its dependencies transitively
+              TO_CHECK+=("$target_path")
+            fi
+          done
+        done
+
+        # Restore standard GitHub Actions exit-on-error behavior
+        set -e
+        set -o pipefail
+        # -------------------------------------------------------------------------
+
+        # Bundle high-version libstdc++ from Homebrew
+        libstdcxx_path=$(find /home/linuxbrew/.linuxbrew -name "libstdc++.so.6" -not -type l | head -n 1)
+        if [ -n "$libstdcxx_path" ]; then
+          echo "Bundling GCC 13 libstdc++ from Homebrew: $libstdcxx_path"
+          cp -vf "$libstdcxx_path" ./appdir/usr/lib/
+          (cd ./appdir/usr/lib && ln -sf $(basename "$libstdcxx_path") libstdc++.so.6)
+          (cd ./appdir/usr/lib && ln -sf $(basename "$libstdcxx_path") libstdc++.so)
+        fi
+
+    - name: Audit bundled libraries
+      run: |
+        echo "=== All bundled .so files ==="
+        find appdir/usr/lib -name "*.so*" -type f | sort
+        echo ""
+        echo "=== Checking for unresolved deps ==="
+        find appdir/usr/bin appdir/usr/lib -type f \( -name "*.so*" -o -name "OpenSpac*" \) | while read f; do
+          file "$f" | grep -q ELF || continue
+          ldd "$f" 2>/dev/null | grep "not found" | while read line; do
+            echo "MISSING in $(basename $f): $line"
+          done
+        done
+
+    - name: Fix AppImage (interpreter + audit)
+      run: |
+        set -e
+
+        echo "=== Purging bundled glibc (must always come from host) ==="
+        rm -f ./appdir/usr/lib/libc.so*
+        rm -f ./appdir/usr/lib/libc-*.so*
+        rm -f ./appdir/usr/lib/libm.so*
+        rm -f ./appdir/usr/lib/libm-*.so*
+        rm -f ./appdir/usr/lib/libdl.so*
+        rm -f ./appdir/usr/lib/libpthread.so*
+        rm -f ./appdir/usr/lib/librt.so*
+        rm -f ./appdir/usr/lib/ld-linux*.so*
+        rm -f ./appdir/usr/lib/ld-*.so*
+
+        echo "=== Replacing Homebrew-sourced libs with system equivalents ==="
+        for lib in liblzma liblz4 libzstd libbrotlidec libbrotlicommon; do
+          sys_lib=$(find /usr/lib/x86_64-linux-gnu -name "${lib}.so*" -not -type l | head -n 1)
+          if [ -n "$sys_lib" ]; then
+            echo "Replacing bundled ${lib} with system: $sys_lib"
+            cp -vf "$sys_lib" ./appdir/usr/lib/
+          fi
+        done
+
+        echo "=== Collecting ELF binaries ==="
+        ELF_FILES=$(find appdir/usr/bin appdir/usr/lib -type f \( -executable -o -name "*.so*" \) -exec file {} \; | grep ELF | cut -d: -f1)
+
+        echo "=== Fixing ELF interpreter (executables only) ==="
+        for f in $ELF_FILES; do
+          if file "$f" | grep -q "executable"; then
+            echo "Patching interpreter: $f"
+            patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
+          fi
+        done
+
+        echo "=== Overwriting go-appimage AppRun with lightweight custom launcher ==="
+        rm -f appdir/AppRun
+        echo '#!/bin/sh'                                                                                                           >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo '# Source user environment files to pick up custom exports'                                                           >> appdir/AppRun
+        echo '# (e.g. OPENSPACE_GLOBEBROWSING, OPENSPACE_SYNC set in ~/.bashrc or ~/.profile)'                                    >> appdir/AppRun
+        echo 'for f in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc"; do'                                                >> appdir/AppRun
+        echo '    [ -r "$f" ] && . "$f"'                                                                                           >> appdir/AppRun
+        echo 'done'                                                                                                                >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo 'if [ -z "$OPENSPACE_USER" ]; then'                                                                                   >> appdir/AppRun
+        echo '    export OPENSPACE_USER="$HOME/OpenSpace/user"'                                                                    >> appdir/AppRun
+        echo 'fi'                                                                                                                  >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo 'HERE="$(dirname "$(readlink -f "${0}")")"'                                                                           >> appdir/AppRun
+        echo 'export APPDIR="${HERE}"'                                                                                             >> appdir/AppRun
+        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"'                    >> appdir/AppRun
+        echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="${HERE}/usr/plugins"'                                                           >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo 'OPENSPACE_BIN="${HERE}/usr/bin/OpenSpace"'                                                                           >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo '# Try terminal emulators in order of preference'                                                                     >> appdir/AppRun
+        echo 'for TERM_EMU in xterm konsole gnome-terminal xfce4-terminal lxterminal mate-terminal tilix kitty alacritty; do'     >> appdir/AppRun
+        echo '    if command -v "$TERM_EMU" > /dev/null 2>&1; then'                                                               >> appdir/AppRun
+        echo '        case "$TERM_EMU" in'                                                                                         >> appdir/AppRun
+        echo '            xterm)'                                                                                                  >> appdir/AppRun
+        echo '                exec xterm -title "OpenSpace" -e "$OPENSPACE_BIN" "$@" ;;'                                          >> appdir/AppRun
+        echo '            konsole)'                                                                                                >> appdir/AppRun
+        echo '                exec konsole --noclose -e "$OPENSPACE_BIN" "$@" ;;'                                                 >> appdir/AppRun
+        echo '            gnome-terminal)'                                                                                         >> appdir/AppRun
+        echo '                exec gnome-terminal --wait -- "$OPENSPACE_BIN" "$@" ;;'                                             >> appdir/AppRun
+        echo '            xfce4-terminal)'                                                                                         >> appdir/AppRun
+        echo '                exec xfce4-terminal --disable-server -x "$OPENSPACE_BIN" "$@" ;;'                                   >> appdir/AppRun
+        echo '            lxterminal)'                                                                                             >> appdir/AppRun
+        echo '                exec lxterminal -e "$OPENSPACE_BIN" "$@" ;;'                                                        >> appdir/AppRun
+        echo '            mate-terminal)'                                                                                          >> appdir/AppRun
+        echo '                exec mate-terminal -e "$OPENSPACE_BIN" "$@" ;;'                                                     >> appdir/AppRun
+        echo '            tilix)'                                                                                                  >> appdir/AppRun
+        echo '                exec tilix -e "$OPENSPACE_BIN" "$@" ;;'                                                             >> appdir/AppRun
+        echo '            kitty)'                                                                                                  >> appdir/AppRun
+        echo '                exec kitty -- "$OPENSPACE_BIN" "$@" ;;'                                                             >> appdir/AppRun
+        echo '            alacritty)'                                                                                              >> appdir/AppRun
+        echo '                exec alacritty -e "$OPENSPACE_BIN" "$@" ;;'                                                         >> appdir/AppRun
+        echo '        esac'                                                                                                        >> appdir/AppRun
+        echo '    fi'                                                                                                              >> appdir/AppRun
+        echo 'done'                                                                                                                >> appdir/AppRun
+        echo ''                                                                                                                    >> appdir/AppRun
+        echo '# Fallback: no terminal found, run directly with a warning'                                                          >> appdir/AppRun
+        echo 'echo "Warning: No terminal emulator found. Running OpenSpace without console output." >&2'                           >> appdir/AppRun
+        echo 'echo "Install xterm for console output: sudo apt install xterm" >&2'                                                 >> appdir/AppRun
+        echo 'exec "$OPENSPACE_BIN" "$@"'                                                                                          >> appdir/AppRun
+        chmod +x appdir/AppRun
+        
+        # Make loader executable in case any bundled ELF has it hardcoded as interpreter
+        find appdir/usr/lib64 -name "ld-linux*.so*" -exec chmod +x {} \; 2>/dev/null || true
+        
+        # Satisfy any find calls on lib/ in the squashfs runtime
+        mkdir -p appdir/lib
+
+        echo "=== Scanning bundled libs for glibc version requirements ==="
+        OFFENDERS=""
+        while IFS= read -r lib; do
+          max=$(strings "$lib" 2>/dev/null | grep -oP 'GLIBC_\d+\.\d+' | sort -V | tail -1)
+          if [ -n "$max" ]; then
+            if [ "$(printf '%s\n' "GLIBC_2.35" "$max" | sort -V | head -1)" != "$max" ]; then
+              echo "OFFENDING LIB (requires $max): $lib"
+              OFFENDERS="$OFFENDERS $lib"
+            fi
+          fi
+        done < <(find appdir/usr/lib -name "*.so*" -type f)
+        if [ -n "$OFFENDERS" ]; then
+          echo "ERROR: The above bundled libs require glibc newer than 2.35."
+          exit 1
+        fi
+
+        echo "=== GLIBC compatibility check (main binary) ==="
+        MAX_GLIBC=$(strings appdir/usr/bin/OpenSpace | grep GLIBC_ | sort -V | tail -1)
+        echo "Max GLIBC required by OpenSpace binary: $MAX_GLIBC"
+        if [ "$(printf '%s\n' "GLIBC_2.35" "$MAX_GLIBC" | sort -V | head -1)" != "$MAX_GLIBC" ]; then
+          echo "ERROR: OpenSpace binary requires newer glibc than Ubuntu 22.04!"
+          exit 1
+        fi
+        echo "GLIBC requirement OK"
+        
+    - name: delete unnecessary files from appdir
+      run: |
+        rm -vf ./appdir/cfgpatch-ui-rewrite-2025.patch
+        rm -vf ./appdir/openspace2048a1b-cfg.patch
+        rm -vf ./appdir/openspace2cffefb.cfg.patch
+        rm -vf ./appdir/openspace6b0de70.cfg.patch
+        rm -vf ./appdir/openspacecfg.patch
+        rm -vf ./appdir/openspacef12f5e2.cfg.patch
+        rm -vf ./appdir/sgct-include-sgct-screencapture.h
+        rm -vf ./appdir/sgct-src-image.cpp
+        rm -vf ./appdir/sgct-src-screencapture.cpp
+        rm -vf ./appdir/readme.txt
+        
+        # Windows-only files
+        rm -vf ./appdir/usr/data/modules/spout/ext/spout/SpoutLibrary.dll
+        rm -vf ./appdir/usr/data/modules/spout/ext/spout/SpoutLibrary.lib
+        rm -vf ./appdir/usr/data/modules/spout/ext/readme.md
+        
+        rm -vf ./appdir/usr/data/modules/webbrowser/cef_webgui.rc
+        rm -vf ./appdir/usr/data/modules/webbrowser/codegentest.exe.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/compatibility.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/DocsWriter.exe.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/OpenSpace.exe.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/OpenSpace_Helper.exe.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/OpenSpace-MinVR.exe.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/OpenSpaceTest.exe.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/Sync.exe.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/TaskRunner.exe.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/Tester.exe.manifest
+        rm -vf ./appdir/usr/data/modules/webbrowser/Wormhole.exe.manifest
+        
+        # macOS Xcode projects and resources
+        rm -rf ./appdir/usr/data/modules/touch/ext/libTUIO11/macosx/
+        
+        # Windows Visual Studio projects and Windows SDL/GL binaries
+        rm -rf ./appdir/usr/data/modules/touch/ext/libTUIO11/windows/
+        
+        # Build system files
+        rm -vf ./appdir/usr/data/modules/touch/ext/libTUIO11/Makefile
+        
+        # Full docs tree
+        rm -rf ./appdir/usr/data/modules/base/ext/soloud/docs/
+        
+        # Code-generation and tooling scripts
+        rm -rf ./appdir/usr/data/modules/base/ext/soloud/scripts/
+        
+        # Non-Linux backend stubs
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/openal/soloud_openal_dll.c
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/portaudio/soloud_portaudio_dll.c
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/sdl/soloud_sdl1_dll.c
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/sdl/soloud_sdl2_dll.c
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/backend/sdl/soloud_openmpt_dll.c 2>/dev/null || true
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/audiosource/openmpt/soloud_openmpt_dll.c
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/src/audiosource/wav/stb_vorbis.c
+        
+        # SoLoud root-level non-essential files
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/issue_template.md
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/PULL_REQUEST_TEMPLATE.md
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/README.md
+        rm -vf ./appdir/usr/data/modules/base/ext/soloud/soloud.png
+        
+        # Full HTML docs tree
+        rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/html/
+        
+        # Autoconf / build system files
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/aclocal.m4
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/configure
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/configure.ac
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/Makefile.am
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/Makefile.in
+        rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/config/
+        rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/CCfits/vs.net/
+        rm -rf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/docs/
+        
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/cookbook.f
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testf77.f
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testf77.out
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testf77.std
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testprog.out
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testprog.std
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/testprog.tpt
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/cfitsio_mac.sit.hqx
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/makefile.bc
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/makefile.vcc
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/makepc.bat
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/winDumpExts.mak
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/windumpexts.c
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/README.MacOS
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/README_OLD.win
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/README.win
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/vmsieee.c
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/configure
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/configure.in
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/Makefile.in
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/install-sh
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/config.guess
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/config.sub
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77.inc
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77_wrap1.c
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77_wrap2.c
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77_wrap3.c
+        rm -vf ./appdir/usr/data/modules/fitsfilereader/ext/cfitsio/f77_wrap4.c
+        
+        rm -vf ./appdir/usr/openspace.cfg.orig
+
+        # Remove NSS/SSL libs that conflict with CEF's internal BoringSSL
+        # CEF bundles its own SSL stack and these cause certificate verification failures
+        for lib in libnss3.so libnssutil3.so libsmime3.so libnspr4.so \
+                   libplc4.so libplds4.so libssl.so.3 libcrypto.so.3; do
+          rm -fv ./appdir/usr/lib/$lib
+        done
+
+    - name: turn AppDir into AppImage
+      run: |
         VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION}-daily ./appimagetool-*.AppImage ./appdir
 
     - name: Upload AppImage Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         # Artifact name
         name: OpenSpace-AppImage
@@ -227,7 +624,7 @@ jobs:
         # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
           -t "OpenSpace AppImage Daily Build" \
-          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see usage notes and issues linked from https://github.com/hn-88/OpenSpace-AppImage/releases/tag/v2-1"
+          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see usage notes and issues linked from https://github.com/hn-88/OpenSpace-AppImage/releases/tag/v0.21.2-1"
     
         # Upload .AppImage asset (overwrite if exists)
         gh release upload "$RELEASE_TAG" "$APP_FILE" --clobber
