@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-22.04-arm
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
@@ -49,9 +49,20 @@ jobs:
         docker-images: true
         swap-storage: true
 
-    - name: Remove CMake 3.31
+    - name: Install Qt 6.9
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: 6.9.*
+
+    - name: Export Qt environment variables
+      shell: bash
       run: |
-        sudo apt-get -y remove cmake cmake-data
+        echo "Qt installation is at: $QT_ROOT_DIR"
+        echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> $GITHUB_ENV
+        echo "Qt6_DIR=$QT_ROOT_DIR/lib/cmake/Qt6" >> $GITHUB_ENV
+        echo "QT_DIR=$QT_ROOT_DIR" >> $GITHUB_ENV
+        echo "$QT_ROOT_DIR/bin" >> $GITHUB_PATH
+        find $QT_ROOT_DIR -name "libicu*"
         
 
     - name: Install CMake 4.3.2
@@ -109,7 +120,7 @@ jobs:
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
         sudo apt update
-        sudo apt install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev        
+        sudo apt install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev libmpv-dev libvulkan-dev        
         # sudo add-apt-repository ppa:ubuntu-toolchain-r/test <-- launchpad seems to be blocking github runners 
         # sudo apt install gcc-13 g++-13
         sudo apt-get install libasound2 libasound2-data libasound2-plugins
