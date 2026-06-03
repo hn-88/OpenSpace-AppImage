@@ -51,7 +51,6 @@ jobs:
             -release \
             -opensource \
             -confirm-license \
-            -no-feature-accessibility \
             -no-opengl \
             -xcb \
             -nomake examples \
