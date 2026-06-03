@@ -2,8 +2,8 @@ name: arm64-appimage-daily
 
 on: 
   workflow_dispatch:      # allows manual trigger
-  #schedule:
-  #  - cron: "18 23 * * *"   # to run daily at 23:18 UTC - usually delayed by github actions congestion
+  schedule:
+    - cron: "18 23 * * *"   # to run daily at 23:18 UTC - usually delayed by github actions congestion
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -642,7 +642,7 @@ jobs:
         # (Optional) update title/notes each run
         gh release edit "$RELEASE_TAG" \
           -t "OpenSpace AppImage Daily Build" \
-          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see usage notes and issues linked from https://github.com/hn-88/OpenSpace-AppImage/releases/tag/v0.21.2-1"
+          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see usage notes and issues linked from https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation"
     
         # Upload .AppImage asset (overwrite if exists)
         gh release upload "$RELEASE_TAG" "$APP_FILE" --clobber
