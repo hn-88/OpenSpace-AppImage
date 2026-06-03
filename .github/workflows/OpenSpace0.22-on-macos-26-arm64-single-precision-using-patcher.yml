@@ -124,6 +124,7 @@ jobs:
         cd "$openSpaceHome/build"
         # https://stackoverflow.com/questions/16700415/cmake-generate-xcode-project-from-existing-sources
         # CMAKE_PREFIX_PATH to /opt/homebrew - https://stackoverflow.com/questions/68105648/configure-cmake-to-work-with-homebrew-libraries-instead-system-provided-librarie
+        TIFF_LIB=$(brew --prefix libtiff)     
         cmake -G Xcode \
                   -Wno-dev \
                   -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
@@ -142,6 +143,8 @@ jobs:
                   -DSGCT_BUILD_TESTS=OFF \
                   -DSGCT_DEP_INCLUDE_LIBPNG=OFF \
                   -DPNG_PNG_INCLUDE_DIR=$(brew --prefix libpng)/include \
+                  -DTIFF_LIBRARY="${TIFF_LIB}/lib/libtiff.dylib" \
+                  -DTIFF_INCLUDE_DIR="${TIFF_LIB}/include" \
                   "$openSpaceHome"
     
     - name: Build
