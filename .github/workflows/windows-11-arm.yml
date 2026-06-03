@@ -74,6 +74,23 @@ jobs:
       run: |
         vcpkg install gdal:arm64-windows curl:arm64-windows
         # not installing mpv, disabling video module instead
+
+    - name: Verify and set VCPKG_INSTALLATION_ROOT
+      run: |
+        if (-not $env:VCPKG_INSTALLATION_ROOT) {
+          Write-Host "VCPKG_INSTALLATION_ROOT is not set, defaulting to C:/vcpkg"
+          echo "VCPKG_INSTALLATION_ROOT=C:/vcpkg" >> $env:GITHUB_ENV
+        } else {
+          Write-Host "VCPKG_INSTALLATION_ROOT is already set to: $env:VCPKG_INSTALLATION_ROOT"
+        }
+        $toolchain = "$(if ($env:VCPKG_INSTALLATION_ROOT) { $env:VCPKG_INSTALLATION_ROOT } else { 'C:/vcpkg' })/scripts/buildsystems/vcpkg.cmake"
+        Write-Host "Toolchain path: $toolchain"
+        if (Test-Path $toolchain) {
+          Write-Host "Toolchain file exists"
+        } else {
+          Write-Error "Toolchain file NOT found at $toolchain"
+          exit 1
+        }
     
     - name: Configure CMake
       run: |
