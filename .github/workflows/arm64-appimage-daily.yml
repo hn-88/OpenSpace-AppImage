@@ -213,9 +213,6 @@ jobs:
         # Run deploy (with bundle everything flag)
         ./appimagetool-*.AppImage -s deploy appdir/usr/share/applications/OpenSpace.desktop
 
-        # Strip libcef (libcef.so goes from 1.3GB to less than 200MB)
-        strip --strip-unneeded $cef_install_dir/*.so
-
         # ----------------- QT BUNDLING PREPARATION -----------------
         # Copy Qt libraries to AppDir/usr/lib
         echo "Copying Qt6 libraries..."
