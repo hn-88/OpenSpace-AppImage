@@ -1,0 +1,100 @@
+# .github/workflows/build-qt-arm64.yml
+name: Build Qt6 for ARM64 Ubuntu 22.04
+
+on:
+  workflow_dispatch:
+    inputs:
+      qt_version:
+        description: 'Qt version to build (e.g. 6.9.3)'
+        required: true
+        default: '6.9.3'
+
+jobs:
+  build-qt:
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build perl python3 \
+            libgl-dev libglu-dev libfontconfig1-dev libfreetype-dev \
+            libx11-dev libx11-xcb-dev libxext-dev libxfixes-dev \
+            libxi-dev libxrender-dev libxcb1-dev libxcb-cursor-dev \
+            libxcb-glx0-dev libxcb-keysyms1-dev libxcb-image0-dev \
+            libxcb-shm0-dev libxcb-icccm4-dev libxcb-sync-dev \
+            libxcb-xfixes0-dev libxcb-shape0-dev libxcb-randr0-dev \
+            libxcb-render-util0-dev libxcb-util-dev libxcb-xinerama0-dev \
+            libxcb-xkb-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libssl-dev zlib1g-dev libdbus-1-dev \
+            wget
+
+      - name: Download Qt source
+        run: |
+          QT_VERSION="${{ github.event.inputs.qt_version }}"
+          # e.g. 6.9.3 -> major=6, minor=9
+          QT_MAJOR_MINOR=$(echo "$QT_VERSION" | cut -d. -f1-2)
+          wget -q "https://download.qt.io/official_releases/qt/${QT_MAJOR_MINOR}/${QT_VERSION}/submodules/qtbase-everywhere-src-${QT_VERSION}.tar.xz"
+          wget -q "https://download.qt.io/official_releases/qt/${QT_MAJOR_MINOR}/${QT_VERSION}/submodules/qttools-everywhere-src-${QT_VERSION}.tar.xz"
+          wget -q "https://download.qt.io/official_releases/qt/${QT_MAJOR_MINOR}/${QT_VERSION}/submodules/qtsvg-everywhere-src-${QT_VERSION}.tar.xz"
+          tar -xf "qtbase-everywhere-src-${QT_VERSION}.tar.xz"
+          tar -xf "qttools-everywhere-src-${QT_VERSION}.tar.xz"
+          tar -xf "qtsvg-everywhere-src-${QT_VERSION}.tar.xz"
+          echo "QT_VERSION=${QT_VERSION}" >> $GITHUB_ENV
+
+      - name: Build qtbase
+        run: |
+          QT_INSTALL_PREFIX="/opt/qt6-arm64"
+          mkdir qtbase-build && cd qtbase-build
+          ../qtbase-everywhere-src-${QT_VERSION}/configure \
+            -prefix "$QT_INSTALL_PREFIX" \
+            -release \
+            -opensource \
+            -confirm-license \
+            -no-feature-accessibility \
+            -no-opengl \
+            -xcb \
+            -nomake examples \
+            -nomake tests \
+            -- -G Ninja
+          cmake --build . --parallel $(nproc)
+          DESTDIR=$(pwd)/staging cmake --install .
+          echo "QTBASE_STAGING=$(pwd)/staging" >> $GITHUB_ENV
+          echo "QT_INSTALL_PREFIX=${QT_INSTALL_PREFIX}" >> $GITHUB_ENV
+
+      - name: Build qttools (provides moc, uic, rcc etc.)
+        run: |
+          mkdir qttools-build && cd qttools-build
+          ${QTBASE_STAGING}${QT_INSTALL_PREFIX}/bin/qt-configure-module \
+            ../qttools-everywhere-src-${QT_VERSION} \
+            -- -G Ninja
+          cmake --build . --parallel $(nproc)
+          DESTDIR=$(pwd)/../qtbase-build/staging cmake --install .
+
+      - name: Build qtsvg
+        run: |
+          mkdir qtsvg-build && cd qtsvg-build
+          ${QTBASE_STAGING}${QT_INSTALL_PREFIX}/bin/qt-configure-module \
+            ../qtsvg-everywhere-src-${QT_VERSION} \
+            -- -G Ninja
+          cmake --build . --parallel $(nproc)
+          DESTDIR=$(pwd)/../qtbase-build/staging cmake --install .
+
+      - name: Package Qt
+        run: |
+          cd qtbase-build/staging
+          tar -cJf "/tmp/qt6-${QT_VERSION}-arm64-ubuntu2204.tar.xz" \
+            --owner=0 --group=0 \
+            .${QT_INSTALL_PREFIX}
+          echo "TARBALL=/tmp/qt6-${QT_VERSION}-arm64-ubuntu2204.tar.xz" >> $GITHUB_ENV
+
+      - name: Create or update GitHub Release and upload tarball
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "qt6-arm64-${{ github.event.inputs.qt_version }}"
+          name: "Qt ${{ github.event.inputs.qt_version }} ARM64 (Ubuntu 22.04)"
+          body: |
+            Pre-built Qt ${{ github.event.inputs.qt_version }} for ubuntu-22.04-arm.
+            Modules: qtbase, qttools, qtsvg
+          files: ${{ env.TARBALL }}
+          token: ${{ secrets.PAT }}
