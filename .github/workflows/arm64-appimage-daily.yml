@@ -204,7 +204,7 @@ jobs:
         find ./appdir/usr/ -name '*.cmake' -print0 | xargs -0 -P2 rm -f
 
         # Download appimagetool
-        wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-x86_64.AppImage" | head -n 1 | cut -d '"' -f 2)
+        wget -c https://github.com/$(wget -q https://github.com/probonopd/go-appimage/releases/expanded_assets/continuous -O - | grep "appimagetool-.*-aarch64.AppImage" | head -n 1 | cut -d '"' -f 2)
         chmod +x appimagetool-*.AppImage
 
         # Populate LD_LIBRARY_PATH so go-appimage deploy uses the correct lookup order
@@ -406,7 +406,7 @@ jobs:
 
         echo "=== Replacing Homebrew-sourced libs with system equivalents ==="
         for lib in liblzma liblz4 libzstd libbrotlidec libbrotlicommon; do
-          sys_lib=$(find /usr/lib/x86_64-linux-gnu -name "${lib}.so*" -not -type l | head -n 1)
+          sys_lib=$(find /usr/lib/aarch64-linux-gnu -name "${lib}.so*" -not -type l | head -n 1)
           if [ -n "$sys_lib" ]; then
             echo "Replacing bundled ${lib} with system: $sys_lib"
             cp -vf "$sys_lib" ./appdir/usr/lib/
@@ -420,7 +420,7 @@ jobs:
         for f in $ELF_FILES; do
           if file "$f" | grep -q "executable"; then
             echo "Patching interpreter: $f"
-            patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 "$f" || true
+            patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 "$f" || true
           fi
         done
 
@@ -440,7 +440,7 @@ jobs:
         echo ''                                                                                                                    >> appdir/AppRun
         echo 'HERE="$(dirname "$(readlink -f "${0}")")"'                                                                           >> appdir/AppRun
         echo 'export APPDIR="${HERE}"'                                                                                             >> appdir/AppRun
-        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"'                    >> appdir/AppRun
+        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"'                    >> appdir/AppRun
         echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="${HERE}/usr/plugins"'                                                           >> appdir/AppRun
         echo ''                                                                                                                    >> appdir/AppRun
         echo 'OPENSPACE_BIN="${HERE}/usr/bin/OpenSpace"'                                                                           >> appdir/AppRun
@@ -478,7 +478,7 @@ jobs:
         chmod +x appdir/AppRun
         
         # Make loader executable in case any bundled ELF has it hardcoded as interpreter
-        find appdir/usr/lib64 -name "ld-linux*.so*" -exec chmod +x {} \; 2>/dev/null || true
+        find appdir/usr/lib -name "ld-linux*.so*" -exec chmod +x {} \; 2>/dev/null || true
         
         # Satisfy any find calls on lib/ in the squashfs runtime
         mkdir -p appdir/lib
