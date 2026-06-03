@@ -49,10 +49,31 @@ jobs:
         docker-images: true
         swap-storage: true
 
-    - name: Install Qt 6.9
-      uses: jurplel/install-qt-action@v4
-      with:
-        version: 6.9.*
+    - name: Install cached Qt6 (ARM64)
+      env:
+        QT_VERSION: '6.9.3'
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        TARBALL="qt6-${QT_VERSION}-arm64-ubuntu2204.tar.xz"
+        RELEASE_TAG="qt6-arm64-${QT_VERSION}"
+
+        # Download from this repo's releases
+        gh release download "$RELEASE_TAG" \
+          --repo "${{ github.repository }}" \
+          --pattern "$TARBALL" \
+          --output "/tmp/$TARBALL"
+
+        sudo tar -xJf "/tmp/$TARBALL" -C /
+
+        # Set Qt environment variables for CMake and build tools
+        QT_ROOT="/opt/qt6-arm64"
+        echo "Qt6_DIR=${QT_ROOT}/lib/cmake/Qt6"           >> $GITHUB_ENV
+        echo "Qt6Core_DIR=${QT_ROOT}/lib/cmake/Qt6Core"   >> $GITHUB_ENV
+        echo "QT_ROOT_DIR=${QT_ROOT}"                      >> $GITHUB_ENV
+        echo "${QT_ROOT}/bin"                              >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=${QT_ROOT}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=${QT_ROOT}/lib/pkgconfig:${PKG_CONFIG_PATH}" >> $GITHUB_ENV
+
 
     - name: Export Qt environment variables
       shell: bash
