@@ -3,7 +3,8 @@ diff --git a/apps/OpenSpace/ext/sgct/include/sgct/opengl.h b/apps/OpenSpace/ext/
 +++ b/apps/OpenSpace/ext/sgct/include/sgct/opengl.h
 @@ -9,6 +9,11 @@
  #ifndef __SGCT__OPENGL_H__
- #define __SGCT__OPENGL_H__
+-#define __SGCT__OPENGL_H__
++#define __SGCT__OPENGL_H__
  
 +#ifdef __APPLE__
 +#define GL_DO_NOT_WARN_IF_MULTI_GL_VERSION_HEADERS_INCLUDED
@@ -13,13 +14,14 @@ diff --git a/apps/OpenSpace/ext/sgct/include/sgct/opengl.h b/apps/OpenSpace/ext/
  // Workaround for APIENTRY macro redefinition
  // Problem: glad.h will define APIENTRY if it is not defined. But if windows.h is included
  // after glad.h it will also unconditionally set APIENTRY and we get a macro redefinition
-diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
---- a/src/CMakeLists.txt
-+++ b/src/CMakeLists.txt
+diff --git a/apps/OpenSpace/ext/sgct/src/CMakeLists.txt b/apps/OpenSpace/ext/sgct/src/CMakeLists.txt
+--- a/apps/OpenSpace/ext/sgct/src/CMakeLists.txt
++++ b/apps/OpenSpace/ext/sgct/src/CMakeLists.txt
 @@ -239,6 +239,11 @@ target_compile_definitions(sgct
  
  if (WIN32)
-   target_link_libraries(sgct PRIVATE ws2_32)
+-  target_link_libraries(sgct PRIVATE ws2_32)
++  target_link_libraries(sgct PRIVATE ws2_32)
 +elseif (APPLE)
 +  find_library(COCOA_LIBRARY Cocoa REQUIRED)
 +  find_library(IOKIT_LIBRARY IOKit REQUIRED)
@@ -28,12 +30,13 @@ diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
  else () # Linux
    find_package(X11 REQUIRED)
    find_package(Threads REQUIRED)
-diff --git a/src/engine.cpp b/src/engine.cpp
---- a/src/engine.cpp
-+++ b/src/engine.cpp
+diff --git a/apps/OpenSpace/ext/sgct/src/engine.cpp b/apps/OpenSpace/ext/sgct/src/engine.cpp
+--- a/apps/OpenSpace/ext/sgct/src/engine.cpp
++++ b/apps/OpenSpace/ext/sgct/src/engine.cpp
 @@ -280,6 +280,10 @@ Engine::Engine(config::Cluster cluster, Callbacks callbacks, const Configuration
      {
-         ZoneScopedN("GLFW initialization");
+-        ZoneScopedN("GLFW initialization");
++        ZoneScopedN("GLFW initialization");
  
 +#ifdef __APPLE__
 +        glfwInitHint(GLFW_COCOA_MENUBAR, GLFW_FALSE);
@@ -66,9 +69,9 @@ diff --git a/src/engine.cpp b/src/engine.cpp
  
  #ifdef SGCT_HAS_VRPN
      // start sampling tracking data
-diff --git a/src/fontmanager.cpp b/src/fontmanager.cpp
---- a/src/fontmanager.cpp
-+++ b/src/fontmanager.cpp
+diff --git a/apps/OpenSpace/ext/sgct/src/fontmanager.cpp b/apps/OpenSpace/ext/sgct/src/fontmanager.cpp
+--- a/apps/OpenSpace/ext/sgct/src/fontmanager.cpp
++++ b/apps/OpenSpace/ext/sgct/src/fontmanager.cpp
 @@ -128,7 +128,10 @@ FontManager::FontManager() {
          SystemFontPath = std::string(wSystemFontPath.begin(), wSystemFontPath.end());
      }
@@ -81,9 +84,9 @@ diff --git a/src/fontmanager.cpp b/src/fontmanager.cpp
      SystemFontPath = "/usr/share/fonts/truetype/freefont/";
  #endif // WIN32
  }
-diff --git a/src/networkmanager.cpp b/src/networkmanager.cpp
---- a/src/networkmanager.cpp
-+++ b/src/networkmanager.cpp
+diff --git a/apps/OpenSpace/ext/sgct/src/networkmanager.cpp b/apps/OpenSpace/ext/sgct/src/networkmanager.cpp
+--- a/apps/OpenSpace/ext/sgct/src/networkmanager.cpp
++++ b/apps/OpenSpace/ext/sgct/src/networkmanager.cpp
 @@ -174,8 +174,13 @@ NetworkManager::NetworkManager(NetworkMode nm,
      addrinfo* info = nullptr;
      {
@@ -100,9 +103,9 @@ diff --git a/src/networkmanager.cpp b/src/networkmanager.cpp
              std::string err = std::to_string(Network::lastError());
              throw Err(5028, std::format("Failed to get address info: {}", err));
          }
-diff --git a/src/window.cpp b/src/window.cpp
---- a/src/window.cpp
-+++ b/src/window.cpp
+diff --git a/apps/OpenSpace/ext/sgct/src/window.cpp b/apps/OpenSpace/ext/sgct/src/window.cpp
+--- a/apps/OpenSpace/ext/sgct/src/window.cpp
++++ b/apps/OpenSpace/ext/sgct/src/window.cpp
 @@ -499,6 +499,9 @@ void Window::openWindow(GLFWwindow* share, bool isLastWindow) {
          if (_noError) {
              glfwWindowHint(GLFW_CONTEXT_NO_ERROR, GLFW_TRUE);
@@ -110,6 +113,7 @@ diff --git a/src/window.cpp b/src/window.cpp
 +#ifdef __APPLE__
 +        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 +#endif // __APPLE__
-         if (!_isVisible) {
+-        if (!_isVisible) {
++        if (!_isVisible) {
              glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
          }
