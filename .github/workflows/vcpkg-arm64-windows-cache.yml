@@ -1,0 +1,43 @@
+name: vcpkg-arm64-windows-cache
+
+on:
+  workflow_dispatch:
+  # Re-run manually whenever you need to update gdal/curl versions
+
+jobs:
+  build-vcpkg-cache:
+    runs-on: windows-11-arm
+
+    steps:
+    - name: Install ARM64 dependencies via vcpkg
+      run: |
+        vcpkg install gdal:arm64-windows curl:arm64-windows
+
+    - name: Zip installed vcpkg packages
+      shell: pwsh
+      run: |
+        $src = "$env:VCPKG_INSTALLATION_ROOT\installed"
+        Write-Host "Zipping from: $src"
+        7z a -tzip -mx=5 vcpkg-arm64-windows.zip "$src\*"
+
+    - name: Upload to GitHub Release
+      shell: pwsh
+      run: |
+        $RELEASE_TAG = "vcpkg-arm64-cache"
+        $ZIP_FILE = "vcpkg-arm64-windows.zip"
+
+        gh release view $RELEASE_TAG > $null 2>&1
+        if ($LASTEXITCODE -ne 0) {
+          gh release create $RELEASE_TAG `
+            -t "vcpkg ARM64 Windows Cache" `
+            -n "Pre-built vcpkg packages for arm64-windows (gdal, curl)."
+        }
+
+        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
+        gh release edit $RELEASE_TAG `
+          -t "vcpkg ARM64 Windows Cache" `
+          -n "Pre-built vcpkg packages: gdal, curl for arm64-windows. Updated $timestamp UTC."
+
+        gh release upload $RELEASE_TAG $ZIP_FILE --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
