@@ -15,6 +15,7 @@ env:
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
   # The install qt action is supposed to set QT_DIR variable.
   buildConfig: RelWithDebInfo
+  VCPKG_INSTALLATION_ROOT: C:/vcpkg
   
 jobs:
   build:
@@ -70,10 +71,32 @@ jobs:
       with:
         version: 6.11.*
 
-    - name: Install ARM64 dependencies via vcpkg
+    - name: Download and restore vcpkg ARM64 cache
+      shell: pwsh
       run: |
-        vcpkg install gdal:arm64-windows curl:arm64-windows
-        # not installing mpv, disabling video module instead
+        $RELEASE_TAG  = "vcpkg-arm64-cache"
+        $ZIP_FILE     = "vcpkg-arm64-windows.zip"
+        $INSTALL_ROOT = $env:VCPKG_INSTALLATION_ROOT
+    
+        Write-Host "Downloading vcpkg cache from release $RELEASE_TAG ..."
+        gh release download $RELEASE_TAG --pattern $ZIP_FILE --clobber
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Failed to download $ZIP_FILE from release $RELEASE_TAG"
+          exit 1
+        }
+    
+        Write-Host "Extracting to $INSTALL_ROOT\installed ..."
+        New-Item -ItemType Directory -Force -Path "$INSTALL_ROOT\installed" | Out-Null
+        7z x $ZIP_FILE -o"$INSTALL_ROOT\installed" -y
+    
+        Write-Host "Verifying key headers exist..."
+        if (-not (Test-Path "$INSTALL_ROOT\installed\arm64-windows\include\gdal.h")) {
+          Write-Error "gdal.h not found — cache extraction may have failed"
+          exit 1
+        }
+        Write-Host "vcpkg cache restored successfully."
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
 
     - name: Verify and set VCPKG_INSTALLATION_ROOT
       run: |
