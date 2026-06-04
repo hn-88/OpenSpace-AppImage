@@ -126,6 +126,22 @@ jobs:
     
     - name: Verify tiff.lib in cache
       run: Test-Path "C:/vcpkg/installed/arm64-windows/lib/tiff.lib"
+
+    - name: Patch vcpkg libs into expected OpenSpace paths
+      run: |
+        # gdal_i.lib - globebrowsing expects it at a hardcoded path
+        $gdalLibDir = "$env:openSpaceHome/modules/globebrowsing/ext/gdal/lib"
+        New-Item -ItemType Directory -Force -Path $gdalLibDir | Out-Null
+        Copy-Item "C:/vcpkg/installed/arm64-windows/lib/gdal.lib" "$gdalLibDir/gdal_i.lib"
+        Write-Host "Copied gdal.lib -> gdal_i.lib"
+        
+        # Verify tiff.lib exists in vcpkg
+        if (Test-Path "C:/vcpkg/installed/arm64-windows/lib/tiff.lib") {
+          Write-Host "tiff.lib found in vcpkg"
+        } else {
+          Write-Error "tiff.lib NOT found in vcpkg installed dir"
+          exit 1
+        }
     
     - name: Configure CMake
       env:
@@ -160,6 +176,9 @@ jobs:
 
 
     - name: Build
+      env:
+        LIB: "C:/vcpkg/installed/arm64-windows/lib;${{ env.LIB }}"
+        
       # Build your program with the given configuration
       run: |
         cd $env:openSpaceHome
