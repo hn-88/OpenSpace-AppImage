@@ -61,6 +61,15 @@ jobs:
         mkdir build
         cd build
 
+    - name: Remove bundled x64 lib files for ARM64 build
+      run: |
+        Write-Host "Searching for .lib files in $env:openSpaceHome ..."
+        $libs = Get-ChildItem -Path "$env:openSpaceHome" -Recurse -Filter "*.lib" -ErrorAction SilentlyContinue
+        Write-Host "Found $($libs.Count) .lib file(s):"
+        $libs | ForEach-Object { Write-Host $_.FullName }
+        $libs | Remove-Item -Force
+        Write-Host "All bundled .lib files removed."
+
     - name: Install CMake 4.3.2
       uses: lukka/get-cmake@latest
       with:
