@@ -150,10 +150,8 @@ jobs:
     - name: Enable sccache
       uses: mozilla-actions/sccache-action@v0.0.9
 
-    
+        
     - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
@@ -161,6 +159,8 @@ jobs:
         -DCMAKE_CXX_COMPILER=/home/linuxbrew/.linuxbrew/bin/g++-13 \
         -DCMAKE_C_COMPILER=/home/linuxbrew/.linuxbrew/bin/gcc-13 \
         -DCMAKE_CXX_STANDARD=23 \
+        -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++" \
+        -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
         -DASSIMP_BUILD_MINIZIP=1 -DBUILD_TESTS=OFF -DOPENSPACE_MODULE_MOLECULE=OFF -DOPENSPACE_HAVE_TESTS=OFF \
         -DSGCT_BUILD_TESTS=OFF "$openSpaceHome"
 
