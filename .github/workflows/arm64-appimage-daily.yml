@@ -373,6 +373,35 @@ jobs:
           (cd ./appdir/usr/lib && ln -sf $(basename "$libstdcxx_path") libstdc++.so)
         fi
 
+        # Bundle HarfBuzz from Homebrew to match the pango version bundled above.
+        # The arm64 system HarfBuzz on Ubuntu 24.04 targets is too old (missing
+        # hb_ot_color_has_paint) relative to the pango that go-appimage deploys,
+        # causing a symbol lookup error at runtime. Homebrew GCC 13 pulls in a
+        # newer HarfBuzz that is consistent with the bundled pango.
+        hb_path=$(find /home/linuxbrew/.linuxbrew -name "libharfbuzz.so.0.*" -not -type l | head -n 1)
+        if [ -n "$hb_path" ]; then
+          echo "Bundling HarfBuzz from Homebrew: $hb_path"
+          cp -vf "$hb_path" ./appdir/usr/lib/
+          (cd ./appdir/usr/lib && ln -sf "$(basename "$hb_path")" libharfbuzz.so.0)
+          (cd ./appdir/usr/lib && ln -sf "$(basename "$hb_path")" libharfbuzz.so)
+        else
+          echo "WARNING: Homebrew HarfBuzz not found, falling back to system version"
+          echo "Installed HarfBuzz candidates:"
+          find /home/linuxbrew/.linuxbrew -name "libharfbuzz*" | sort
+        fi
+
+        # Also bundle libharfbuzz-subset and libharfbuzz-gobject if present,
+        # as pango may pull these in transitively on some systems.
+        for hb_extra in libharfbuzz-subset libharfbuzz-gobject; do
+          hb_extra_path=$(find /home/linuxbrew/.linuxbrew -name "${hb_extra}.so.0.*" -not -type l | head -n 1)
+          if [ -n "$hb_extra_path" ]; then
+            echo "Bundling ${hb_extra} from Homebrew: $hb_extra_path"
+            cp -vf "$hb_extra_path" ./appdir/usr/lib/
+            (cd ./appdir/usr/lib && ln -sf "$(basename "$hb_extra_path")" ${hb_extra}.so.0)
+            (cd ./appdir/usr/lib && ln -sf "$(basename "$hb_extra_path")" ${hb_extra}.so)
+          fi
+        done
+
     - name: Audit bundled libraries
       run: |
         echo "=== All bundled .so files ==="
