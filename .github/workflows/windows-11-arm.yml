@@ -129,19 +129,31 @@ jobs:
 
     - name: Patch vcpkg libs into expected OpenSpace paths
       run: |
-        # gdal_i.lib - globebrowsing expects it at a hardcoded path
-        $gdalLibDir = "$env:openSpaceHome/modules/globebrowsing/ext/gdal/lib"
-        New-Item -ItemType Directory -Force -Path $gdalLibDir | Out-Null
-        Copy-Item "C:/vcpkg/installed/arm64-windows/lib/gdal.lib" "$gdalLibDir/gdal_i.lib"
-        Write-Host "Copied gdal.lib -> gdal_i.lib"
-        
-        # Verify tiff.lib exists in vcpkg
-        if (Test-Path "C:/vcpkg/installed/arm64-windows/lib/tiff.lib") {
-          Write-Host "tiff.lib found in vcpkg"
-        } else {
-          Write-Error "tiff.lib NOT found in vcpkg installed dir"
-          exit 1
+        $vcpkgLib = "C:/vcpkg/installed/arm64-windows/lib"
+    
+        # Helper function to copy a vcpkg lib to a hardcoded source-tree path
+        function Patch-Lib($vcpkgName, $destDir, $destName) {
+          $src = "$vcpkgLib/$vcpkgName"
+          if (-not (Test-Path $src)) {
+            Write-Error "Source not found: $src"
+            exit 1
+          }
+          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+          Copy-Item $src "$destDir/$destName" -Force
+          Write-Host "Patched: $src -> $destDir/$destName"
         }
+    
+        # gdal - globebrowsing expects gdal_i.lib
+        Patch-Lib "gdal.lib" "$env:openSpaceHome/modules/globebrowsing/ext/gdal/lib" "gdal_i.lib"
+    
+        # curl - ext/curl/lib/libcurl.lib
+        Patch-Lib "libcurl.lib" "$env:openSpaceHome/ext/curl/lib" "libcurl.lib"
+    
+        # tiff - needed by vendored openjpeg in solarbrowsing
+        # The LIB env var should handle this but copy as fallback
+        Patch-Lib "tiff.lib" "$env:openSpaceHome/modules/solarbrowsing/ext/openjpeg/lib" "tiff.lib"
+    
+        Write-Host "All patches applied."
     
     - name: Configure CMake
       env:
