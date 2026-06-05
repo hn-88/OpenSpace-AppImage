@@ -156,19 +156,19 @@ jobs:
           Write-Host "Created empty stub: $dest"
         }
     
-        $home = $env:openSpaceHome
+        $oshome = $env:openSpaceHome
     
         # --- vcpkg replacements ---
-        Patch-Lib "libcurl.lib"  "$home/ext/curl/lib"                          "libcurl.lib"
-        Patch-Lib "gdal.lib"     "$home/modules/globebrowsing/ext/gdal/lib"    "gdal_i.lib"
+        Patch-Lib "libcurl.lib"  "$oshome/ext/curl/lib"                          "libcurl.lib"
+        Patch-Lib "gdal.lib"     "$oshome/modules/globebrowsing/ext/gdal/lib"    "gdal_i.lib"
     
         # --- empty stubs for disabled features ---
-        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/scalable"           "mplEasyBlendSDK.lib"
-        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/spout"              "SpoutLibrary.lib"
-        Create-EmptyLib "$home/apps/OpenSpace/ext/spout"                       "SpoutLibrary.lib"
-        Create-EmptyLib "$home/apps/OpenSpace-MinVR/ext/spout"                 "SpoutLibrary.lib"
-        Create-EmptyLib "$home/modules/spout/ext/spout"                        "SpoutLibrary.lib"
-        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/ndi/lib"            "Processing.NDI.Lib.x64.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/scalable"           "mplEasyBlendSDK.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/spout"              "SpoutLibrary.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace/ext/spout"                       "SpoutLibrary.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace-MinVR/ext/spout"                 "SpoutLibrary.lib"
+        Create-EmptyLib "$oshome/modules/spout/ext/spout"                        "SpoutLibrary.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/ndi/lib"            "Processing.NDI.Lib.x64.lib"
     
         Write-Host "All patches applied."
         
