@@ -127,11 +127,10 @@ jobs:
     - name: Verify tiff.lib in cache
       run: Test-Path "C:/vcpkg/installed/arm64-windows/lib/tiff.lib"
 
-    - name: Patch vcpkg libs into expected OpenSpace paths
+    - name: Patch vcpkg arm64 libs into expected OpenSpace paths which had bundled x86_64 libs
       run: |
         $vcpkgLib = "C:/vcpkg/installed/arm64-windows/lib"
     
-        # Helper function to copy a vcpkg lib to a hardcoded source-tree path
         function Patch-Lib($vcpkgName, $destDir, $destName) {
           $src = "$vcpkgLib/$vcpkgName"
           if (-not (Test-Path $src)) {
@@ -143,24 +142,42 @@ jobs:
           Write-Host "Patched: $src -> $destDir/$destName"
         }
     
-        # gdal - globebrowsing expects gdal_i.lib
-        Patch-Lib "gdal.lib" "$env:openSpaceHome/modules/globebrowsing/ext/gdal/lib" "gdal_i.lib"
+        function Create-EmptyLib($destDir, $destName) {
+          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+          $dest = "$destDir/$destName"
+          $libExe = Get-ChildItem "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC" -Recurse -Filter "lib.exe" |
+            Where-Object { $_.FullName -match "Hostarm64\\arm64" } |
+            Select-Object -First 1
+          if (-not $libExe) {
+            Write-Error "lib.exe not found"
+            exit 1
+          }
+          & $libExe.FullName /OUT:"$dest" 2>&1 | Out-Null
+          Write-Host "Created empty stub: $dest"
+        }
     
-        # curl - ext/curl/lib/libcurl.lib
-        Patch-Lib "libcurl.lib" "$env:openSpaceHome/ext/curl/lib" "libcurl.lib"
+        $home = $env:openSpaceHome
     
-        # tiff - needed by vendored openjpeg in solarbrowsing
-        # The LIB env var should handle this but copy as fallback
-        Patch-Lib "tiff.lib" "$env:openSpaceHome/modules/solarbrowsing/ext/openjpeg/lib" "tiff.lib"
+        # --- vcpkg replacements ---
+        Patch-Lib "libcurl.lib"  "$home/ext/curl/lib"                          "libcurl.lib"
+        Patch-Lib "gdal.lib"     "$home/modules/globebrowsing/ext/gdal/lib"    "gdal_i.lib"
+    
+        # --- empty stubs for disabled features ---
+        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/scalable"           "mplEasyBlendSDK.lib"
+        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/spout"              "SpoutLibrary.lib"
+        Create-EmptyLib "$home/apps/OpenSpace/ext/spout"                       "SpoutLibrary.lib"
+        Create-EmptyLib "$home/apps/OpenSpace-MinVR/ext/spout"                 "SpoutLibrary.lib"
+        Create-EmptyLib "$home/modules/spout/ext/spout"                        "SpoutLibrary.lib"
+        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/ndi/lib"            "Processing.NDI.Lib.x64.lib"
     
         Write-Host "All patches applied."
-    
+        
     - name: Configure CMake
       env:
         LIB: "C:/vcpkg/installed/arm64-windows/lib;${{ env.LIB }}"
       run: |
         cd "$env:openSpaceHome"
-        cmake -S . -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DZLIB_USE_STATIC_LIBS=ON -DOPENSPACE_MODULE_MOLECULE=OFF -DOPENSPACE_MODULE_SPOUT=OFF -DSGCT_SPOUT_SUPPORT=OFF -DSGCT_NDI_SUPPORT=OFF -DSGCT_SCALABLE_SUPPORT=OFF -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows -DOPENSPACE_MODULE_VIDEO=OFF -DCMAKE_PREFIX_PATH="C:/vcpkg/installed/arm64-windows"
+        cmake -S . -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DOPENSPACE_MODULE_MOLECULE=OFF -DOPENSPACE_MODULE_SOLARBROWSING=OFF -DOPENSPACE_MODULE_SPOUT=OFF -DSGCT_SPOUT_SUPPORT=OFF -DSGCT_NDI_SUPPORT=OFF -DSGCT_SCALABLE_SUPPORT=OFF -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows -DOPENSPACE_MODULE_VIDEO=OFF -DCMAKE_PREFIX_PATH="C:/vcpkg/installed/arm64-windows"
   
 
     - name: Patch dr_mp3 for MSVC ARM64 (disable SIMD)
