@@ -1,4 +1,4 @@
-name: appimage-daily-24.04
+name: arm64-appimage-daily-24.04
 
 on: 
   workflow_dispatch:      # allows manual trigger
