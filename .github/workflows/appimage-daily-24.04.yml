@@ -48,11 +48,13 @@ jobs:
         cd build
         
     - name: Install dependencies
+      # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
-        sudo apt-get update
-        sudo apt-get install -y glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev
-        sudo apt-get install -y software-properties-common
-        sudo apt-get install -y libasound2 libasound2-data libasound2-plugins libjack0
+        sudo apt update
+        sudo apt-get -y install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost-all-dev libmpv-dev libvulkan-dev
+        sudo apt-get -y install software-properties-common
+        sudo apt-get -y install libasound2t64 
+        # libasound2-data libasound2-plugins
 
 
     - name: Install patch for molecule shaders
