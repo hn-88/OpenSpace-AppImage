@@ -203,6 +203,11 @@ jobs:
         cp -v "$cef_release_dir"/snapshot_blob.bin       ./appdir/usr/lib/ 2>/dev/null || true
         cp -v "$cef_release_dir"/vk_swiftshader_icd.json ./appdir/usr/lib/ 2>/dev/null || true
                 
+        # Clean up stray Homebrew and other /home directories picked up by appimagetool
+        # CEF, QT etc which we have bundled manually above
+        if [ -d "./appdir/home" ]; then
+          rm -vfr ./appdir/home
+        fi
         
         # ----------------- UNIFY LIBRARY DIRECTORIES -----------------
         if [ -d "./appdir/lib" ]; then
