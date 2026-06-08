@@ -1,19 +1,83 @@
 name: vcpkg-arm64-windows-cache
-
 on:
   workflow_dispatch:
   # Re-run manually whenever you need to update gdal/curl versions
-
 jobs:
   build-vcpkg-cache:
     runs-on: windows-11-arm
-
     steps:
     - uses: actions/checkout@v6
-    
-    - name: Install ARM64 dependencies via vcpkg
+
+    - name: Install CMake 4.3.2
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.3.2'
+
+    - name: Install curl via vcpkg
       run: |
-        vcpkg install gdal:arm64-windows curl:arm64-windows
+        vcpkg install curl:arm64-windows
+
+    - name: Build and install gdal 2.4.1 from source
+      shell: pwsh
+      run: |
+        $installDir = "$env:VCPKG_INSTALLATION_ROOT\installed\arm64-windows"
+        $buildDir   = "C:\gdal-build"
+        $sourceDir  = "C:\gdal-src"
+
+        # --- Download gdal 2.4.1 source ---
+        Write-Host "Downloading gdal 2.4.1..."
+        New-Item -ItemType Directory -Force -Path $sourceDir | Out-Null
+        curl -L "https://github.com/OSGeo/gdal/archive/refs/tags/v2.4.1.tar.gz" -o "C:\gdal-2.4.1.tar.gz"
+        7z x "C:\gdal-2.4.1.tar.gz" -o"C:\" -y | Out-Null
+        7z x "C:\gdal-2.4.1.tar" -o"C:\" -y | Out-Null
+        Rename-Item "C:\gdal-gdal-2.4.1" $sourceDir -Force -ErrorAction SilentlyContinue
+
+        # --- Configure ---
+        Write-Host "Configuring gdal 2.4.1..."
+        New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
+        cmake -S $sourceDir -B $buildDir `
+          -G "Visual Studio 17 2022" -A ARM64 `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_INSTALL_PREFIX="$installDir" `
+          -DGDAL_BUILD_OPTIONAL_DRIVERS=OFF `
+          -DOGR_BUILD_OPTIONAL_DRIVERS=OFF `
+          -DBUILD_SHARED_LIBS=ON `
+          -DGDAL_USE_CURL=OFF `
+          -DGDAL_USE_GEOS=OFF `
+          -DGDAL_USE_TIFF_INTERNAL=ON `
+          -DGDAL_USE_GEOTIFF_INTERNAL=ON `
+          -DGDAL_USE_PNG_INTERNAL=ON `
+          -DGDAL_USE_JPEG_INTERNAL=ON `
+          -DGDAL_USE_JSONC_INTERNAL=ON `
+          -DGDAL_USE_ZLIB_INTERNAL=ON
+
+        # --- Build ---
+        Write-Host "Building gdal 2.4.1..."
+        cmake --build $buildDir --config Release --parallel
+
+        # --- Install ---
+        Write-Host "Installing gdal 2.4.1 to $installDir ..."
+        cmake --install $buildDir --config Release
+
+        # --- Create gdal_i.lib alias if needed ---
+        # OpenSpace expects gdal_i.lib (import lib name from older builds)
+        $libDir = "$installDir\lib"
+        if ((Test-Path "$libDir\gdal.lib") -and -not (Test-Path "$libDir\gdal_i.lib")) {
+          Copy-Item "$libDir\gdal.lib" "$libDir\gdal_i.lib"
+          Write-Host "Created gdal_i.lib alias"
+        }
+
+        # --- Verify ---
+        Write-Host "Verifying installation..."
+        if (-not (Test-Path "$installDir\include\gdal.h")) {
+          Write-Error "gdal.h not found after install"
+          exit 1
+        }
+        if (-not (Test-Path "$libDir\gdal_i.lib")) {
+          Write-Error "gdal_i.lib not found after install"
+          exit 1
+        }
+        Write-Host "gdal 2.4.1 installed successfully."
 
     - name: Zip installed vcpkg packages
       shell: pwsh
@@ -26,20 +90,17 @@ jobs:
       shell: pwsh
       run: |
         $RELEASE_TAG = "vcpkg-arm64-cache"
-        $ZIP_FILE = "vcpkg-arm64-windows.zip"
-
+        $ZIP_FILE    = "vcpkg-arm64-windows.zip"
         gh release view $RELEASE_TAG > $null 2>&1
         if ($LASTEXITCODE -ne 0) {
           gh release create $RELEASE_TAG `
             -t "vcpkg ARM64 Windows Cache" `
-            -n "Pre-built vcpkg packages for arm64-windows (gdal, curl)."
+            -n "Pre-built vcpkg packages for arm64-windows (gdal 2.4.1 from source, curl)."
         }
-
         $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
         gh release edit $RELEASE_TAG `
           -t "vcpkg ARM64 Windows Cache" `
-          -n "Pre-built vcpkg packages: gdal, curl for arm64-windows. Updated $timestamp UTC."
-
+          -n "Pre-built vcpkg packages: gdal 2.4.1 (from source), curl for arm64-windows. Updated $timestamp UTC."
         gh release upload $RELEASE_TAG $ZIP_FILE --clobber
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
