@@ -61,6 +61,23 @@ jobs:
         mkdir build
         cd build
 
+    - name: Search CMakeLists for zlib flags
+      run: |
+        Write-Host "=== option() calls mentioning zlib ==="
+        Get-ChildItem -Path $env:openSpaceHome -Recurse -Include "CMakeLists.txt" |
+          Select-String -Pattern "(?i)option.*zlib|zlib.*option" |
+          ForEach-Object { Write-Host "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }
+    
+        Write-Host "=== set() calls mentioning zlib ==="
+        Get-ChildItem -Path $env:openSpaceHome -Recurse -Include "CMakeLists.txt" |
+          Select-String -Pattern "(?i)set.*zlib|zlib.*set" |
+          ForEach-Object { Write-Host "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }
+    
+        Write-Host "=== zlibstatic references ==="
+        Get-ChildItem -Path $env:openSpaceHome -Recurse -Include "CMakeLists.txt" |
+          Select-String -Pattern "(?i)zlibstatic" |
+          ForEach-Object { Write-Host "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }
+
     - name: Remove bundled x64 lib files for ARM64 build
       run: |
         Write-Host "Searching for .lib files in $env:openSpaceHome ..."
@@ -127,48 +144,61 @@ jobs:
     - name: Verify tiff.lib in cache
       run: Test-Path "C:/vcpkg/installed/arm64-windows/lib/tiff.lib"
 
-    - name: Patch vcpkg arm64 libs into expected OpenSpace paths which had bundled x86_64 libs
+    - name: Patch vcpkg libs and headers into expected OpenSpace paths
       run: |
-        $vcpkgLib = "C:/vcpkg/installed/arm64-windows/lib"
+        $vcpkgLib     = "C:/vcpkg/installed/arm64-windows/lib"
+        $vcpkgInclude = "C:/vcpkg/installed/arm64-windows/include"
+        $home         = $env:openSpaceHome
     
         function Patch-Lib($vcpkgName, $destDir, $destName) {
           $src = "$vcpkgLib/$vcpkgName"
-          if (-not (Test-Path $src)) {
-            Write-Error "Source not found: $src"
-            exit 1
-          }
+          if (-not (Test-Path $src)) { Write-Error "Source not found: $src"; exit 1 }
           New-Item -ItemType Directory -Force -Path $destDir | Out-Null
           Copy-Item $src "$destDir/$destName" -Force
-          Write-Host "Patched: $src -> $destDir/$destName"
+          Write-Host "Patched lib: $src -> $destDir/$destName"
         }
     
         function Create-EmptyLib($destDir, $destName) {
           New-Item -ItemType Directory -Force -Path $destDir | Out-Null
-          $dest = "$destDir/$destName"
-          $libExe = Get-ChildItem "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC" -Recurse -Filter "lib.exe" |
-            Where-Object { $_.FullName -match "Hostarm64\\arm64" } |
-            Select-Object -First 1
-          if (-not $libExe) {
-            Write-Error "lib.exe not found"
-            exit 1
-          }
+          $dest   = "$destDir/$destName"
+          $libExe = Get-ChildItem "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC" `
+                      -Recurse -Filter "lib.exe" |
+                      Where-Object { $_.FullName -match "Hostarm64\\arm64" } |
+                      Select-Object -First 1
+          if (-not $libExe) { Write-Error "lib.exe not found"; exit 1 }
           & $libExe.FullName /OUT:"$dest" 2>&1 | Out-Null
           Write-Host "Created empty stub: $dest"
         }
     
-        $oshome = $env:openSpaceHome
+        # --- vcpkg lib replacements ---
+        Patch-Lib "libcurl.lib" "$home/ext/curl/lib"                       "libcurl.lib"
+        Patch-Lib "gdal.lib"    "$home/modules/globebrowsing/ext/gdal/lib" "gdal_i.lib"
     
-        # --- vcpkg replacements ---
-        Patch-Lib "libcurl.lib"  "$oshome/ext/curl/lib"                          "libcurl.lib"
-        Patch-Lib "gdal.lib"     "$oshome/modules/globebrowsing/ext/gdal/lib"    "gdal_i.lib"
+        # --- Replace bundled gdal 2.x headers with vcpkg gdal 3.x headers ---
+        $gdalInclude = "$home/modules/globebrowsing/ext/gdal/include"
+        Write-Host "Clearing bundled gdal headers from $gdalInclude ..."
+        if (Test-Path $gdalInclude) {
+          Remove-Item "$gdalInclude\*" -Recurse -Force
+        } else {
+          New-Item -ItemType Directory -Force -Path $gdalInclude | Out-Null
+        }
+        Write-Host "Copying vcpkg gdal headers to $gdalInclude ..."
+        Copy-Item "$vcpkgInclude\gdal*"  $gdalInclude -Force -ErrorAction SilentlyContinue
+        Copy-Item "$vcpkgInclude\ogr*"   $gdalInclude -Force -ErrorAction SilentlyContinue
+        Copy-Item "$vcpkgInclude\cpl*"   $gdalInclude -Force -ErrorAction SilentlyContinue
+        Copy-Item "$vcpkgInclude\gnm*"   $gdalInclude -Force -ErrorAction SilentlyContinue
+        Copy-Item "$vcpkgInclude\vrt*"   $gdalInclude -Force -ErrorAction SilentlyContinue
+        $count = (Get-ChildItem $gdalInclude).Count
+        Write-Host "Copied $count header files to $gdalInclude"
+        if ($count -eq 0) { Write-Error "No gdal headers found in vcpkg include dir"; exit 1 }
     
-        # --- empty stubs for disabled features ---
-        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/scalable"           "mplEasyBlendSDK.lib"
-        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/spout"              "SpoutLibrary.lib"
-        Create-EmptyLib "$oshome/apps/OpenSpace/ext/spout"                       "SpoutLibrary.lib"
-        Create-EmptyLib "$oshome/apps/OpenSpace-MinVR/ext/spout"                 "SpoutLibrary.lib"
-        Create-EmptyLib "$oshome/modules/spout/ext/spout"                        "SpoutLibrary.lib"
-        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/ndi/lib"            "Processing.NDI.Lib.x64.lib"
+        # --- Empty stubs for disabled features ---
+        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/scalable" "mplEasyBlendSDK.lib"
+        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/spout"    "SpoutLibrary.lib"
+        Create-EmptyLib "$home/apps/OpenSpace/ext/spout"             "SpoutLibrary.lib"
+        Create-EmptyLib "$home/apps/OpenSpace-MinVR/ext/spout"       "SpoutLibrary.lib"
+        Create-EmptyLib "$home/modules/spout/ext/spout"              "SpoutLibrary.lib"
+        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/ndi/lib"  "Processing.NDI.Lib.x64.lib"
     
         Write-Host "All patches applied."
         
