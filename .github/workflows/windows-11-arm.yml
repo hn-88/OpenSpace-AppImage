@@ -174,7 +174,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $destDir | Out-Null
           $dest = "$destDir/$destName"
           # Copy a real small ARM64 lib as a stub - linker will find no needed symbols and move on
-          Copy-Item "$vcpkgLib/zlib.lib" $dest -Force
+          Copy-Item "$vcpkgLib/libcurl.lib" $dest -Force
           Write-Host "Created stub: $dest"
         }
     
