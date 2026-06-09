@@ -148,7 +148,7 @@ jobs:
       run: |
         $vcpkgLib     = "C:/vcpkg/installed/arm64-windows/lib"
         $vcpkgInclude = "C:/vcpkg/installed/arm64-windows/include"
-        $home         = $env:openSpaceHome
+        $oshome         = $env:openSpaceHome
     
         function Patch-Lib($vcpkgName, $destDir, $destName) {
           $src = "$vcpkgLib/$vcpkgName"
@@ -171,11 +171,11 @@ jobs:
         }
     
         # --- vcpkg lib replacements ---
-        Patch-Lib "libcurl.lib" "$home/ext/curl/lib"                       "libcurl.lib"
-        Patch-Lib "gdal.lib"    "$home/modules/globebrowsing/ext/gdal/lib" "gdal_i.lib"
+        Patch-Lib "libcurl.lib" "$oshome/ext/curl/lib"                       "libcurl.lib"
+        Patch-Lib "gdal.lib"    "$oshome/modules/globebrowsing/ext/gdal/lib" "gdal_i.lib"
     
         # --- Replace bundled gdal 2.x headers with vcpkg gdal 3.x headers ---
-        $gdalInclude = "$home/modules/globebrowsing/ext/gdal/include"
+        $gdalInclude = "$oshome/modules/globebrowsing/ext/gdal/include"
         Write-Host "Clearing bundled gdal headers from $gdalInclude ..."
         if (Test-Path $gdalInclude) {
           Remove-Item "$gdalInclude\*" -Recurse -Force
@@ -193,12 +193,12 @@ jobs:
         if ($count -eq 0) { Write-Error "No gdal headers found in vcpkg include dir"; exit 1 }
     
         # --- Empty stubs for disabled features ---
-        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/scalable" "mplEasyBlendSDK.lib"
-        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/spout"    "SpoutLibrary.lib"
-        Create-EmptyLib "$home/apps/OpenSpace/ext/spout"             "SpoutLibrary.lib"
-        Create-EmptyLib "$home/apps/OpenSpace-MinVR/ext/spout"       "SpoutLibrary.lib"
-        Create-EmptyLib "$home/modules/spout/ext/spout"              "SpoutLibrary.lib"
-        Create-EmptyLib "$home/apps/OpenSpace/ext/sgct/ext/ndi/lib"  "Processing.NDI.Lib.x64.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/scalable" "mplEasyBlendSDK.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/spout"    "SpoutLibrary.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace/ext/spout"             "SpoutLibrary.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace-MinVR/ext/spout"       "SpoutLibrary.lib"
+        Create-EmptyLib "$oshome/modules/spout/ext/spout"              "SpoutLibrary.lib"
+        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/ndi/lib"  "Processing.NDI.Lib.x64.lib"
     
         Write-Host "All patches applied."
         
@@ -207,7 +207,16 @@ jobs:
         LIB: "C:/vcpkg/installed/arm64-windows/lib;${{ env.LIB }}"
       run: |
         cd "$env:openSpaceHome"
-        cmake -S . -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DOPENSPACE_MODULE_MOLECULE=OFF -DOPENSPACE_MODULE_GLOBEBROWSING=OFF -DOPENSPACE_MODULE_SOLARBROWSING=OFF -DOPENSPACE_MODULE_SPOUT=OFF -DSGCT_SPOUT_SUPPORT=OFF -DSGCT_NDI_SUPPORT=OFF -DSGCT_SCALABLE_SUPPORT=OFF -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=arm64-windows -DOPENSPACE_MODULE_VIDEO=OFF -DCMAKE_PREFIX_PATH="C:/vcpkg/installed/arm64-windows"
+        cmake -S . -B build -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DSGCT_DEP_INCLUDE_ZLIB=OFF `
+        -DASSIMP_BUILD_ZLIB=OFF `
+        -DCDF_BUILD_ZLIB=OFF `
+        -DCDF_USE_ZLIB=ON-DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
+        -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF -DOPENSPACE_MODULE_MOLECULE=OFF `
+        -DOPENSPACE_MODULE_GLOBEBROWSING=OFF -DOPENSPACE_MODULE_SOLARBROWSING=OFF `
+        -DOPENSPACE_MODULE_SPOUT=OFF -DSGCT_SPOUT_SUPPORT=OFF -DSGCT_NDI_SUPPORT=OFF `
+        -DSGCT_SCALABLE_SUPPORT=OFF -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+        -DVCPKG_TARGET_TRIPLET=arm64-windows -DOPENSPACE_MODULE_VIDEO=OFF `
+        -DCMAKE_PREFIX_PATH="C:/vcpkg/installed/arm64-windows"
   
 
     - name: Patch dr_mp3 for MSVC ARM64 (disable SIMD)
