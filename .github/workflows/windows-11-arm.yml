@@ -169,6 +169,14 @@ jobs:
           & $libExe.FullName /OUT:"$dest" 2>&1 | Out-Null
           Write-Host "Created empty stub: $dest"
         }
+
+        function Create-StubLib($destDir, $destName) {
+          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+          $dest = "$destDir/$destName"
+          # Copy a real small ARM64 lib as a stub - linker will find no needed symbols and move on
+          Copy-Item "$vcpkgLib/zlib.lib" $dest -Force
+          Write-Host "Created stub: $dest"
+        }
     
         # --- vcpkg lib replacements ---
         Patch-Lib "libcurl.lib" "$oshome/ext/curl/lib"                       "libcurl.lib"
@@ -193,12 +201,14 @@ jobs:
         if ($count -eq 0) { Write-Error "No gdal headers found in vcpkg include dir"; exit 1 }
     
         # --- Empty stubs for disabled features ---
-        Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/scalable" "mplEasyBlendSDK.lib"
+        # Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/scalable" "mplEasyBlendSDK.lib"
         Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/spout"    "SpoutLibrary.lib"
         Create-EmptyLib "$oshome/apps/OpenSpace/ext/spout"             "SpoutLibrary.lib"
         Create-EmptyLib "$oshome/apps/OpenSpace-MinVR/ext/spout"       "SpoutLibrary.lib"
         Create-EmptyLib "$oshome/modules/spout/ext/spout"              "SpoutLibrary.lib"
         Create-EmptyLib "$oshome/apps/OpenSpace/ext/sgct/ext/ndi/lib"  "Processing.NDI.Lib.x64.lib"
+
+        Create-StubLib "$oshome/apps/OpenSpace/ext/sgct/ext/scalable" "mplEasyBlendSDK.lib"
     
         Write-Host "All patches applied."
         
