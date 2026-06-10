@@ -33,9 +33,9 @@ jobs:
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
-        git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
+        git clone --recursive https://github.com/hn-88/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
-        git checkout "master" --recurse-submodules
+        git checkout "patch-molecule-via-cmake" --recurse-submodules
         git submodule update --init --recursive
         mkdir build
         cd build
