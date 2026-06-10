@@ -361,7 +361,7 @@ jobs:
         echo Qt runtime DLLs copy completed.
         
         :: Download the Microsoft redistributable
-        curl "https://aka.ms/vs/17/release/vc_redist.x64.exe" --output vc_redist.x64.exe -L
+        curl "https://aka.ms/vs/17/release/vc_redist.arm64.exe" --output vc_redist.arm64.exe -L
         
         echo ### Create main zip file
         :: Need to manually add any new weird paths that don't match the wildcards below
@@ -379,7 +379,7 @@ jobs:
           LICENSE.md^
           openspace.cfg^
           README.md^
-          vc_redist.x64.exe^
+          vc_redist.arm64.exe^
           ^
           modules/*/shaders/*^
           modules/*/scripts/*^
