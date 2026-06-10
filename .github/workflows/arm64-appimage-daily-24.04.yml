@@ -301,7 +301,8 @@ jobs:
         echo ''                                                                                                                    >> appdir/AppRun
         echo 'HERE="$(dirname "$(readlink -f "${0}")")"'                                                                           >> appdir/AppRun
         echo 'export APPDIR="${HERE}"'                                                                                             >> appdir/AppRun
-        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"'                    >> appdir/AppRun
+        echo 'ARCH=$(uname -m)'                                                                                                    >> appdir/AppRun
+        echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib/${ARCH}-linux-gnu:${HERE}/usr/lib/${ARCH}-linux-gnu/pulseaudio:${HERE}/usr/lib64:${HERE}/lib:${HERE}/lib/${ARCH}-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"'   >> appdir/AppRun
         echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="${HERE}/usr/plugins"'                                                           >> appdir/AppRun
         echo ''                                                                                                                    >> appdir/AppRun
         echo 'OPENSPACE_BIN="${HERE}/usr/bin/OpenSpace"'                                                                           >> appdir/AppRun
@@ -357,6 +358,13 @@ jobs:
         rm -vf ./appdir/sgct-src-image.cpp
         rm -vf ./appdir/sgct-src-screencapture.cpp
         rm -vf ./appdir/readme.txt
+
+        # removing ld-linux from the ubuntu24.04 appimage
+        # also some other so files not present in the working x86_64 appimage
+        rm -vf ./appdir/usr/lib/ld-linux-aarch64.so.1
+        rm -vf ./appdir/usr/lib/libuuid.so.1
+        rm -vf ./appdir/usr/lib/libICE.so.6
+        rm -vf ./appdir/usr/lib/libSM.so.6
         
         # Windows-only files
         rm -vf ./appdir/usr/data/modules/spout/ext/spout/SpoutLibrary.dll
