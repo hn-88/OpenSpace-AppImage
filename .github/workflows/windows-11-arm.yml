@@ -211,6 +211,15 @@ jobs:
         Create-StubLib "$oshome/apps/OpenSpace/ext/sgct/ext/scalable" "mplEasyBlendSDK.lib"
     
         Write-Host "All patches applied."
+
+    - name: Patch SGCT to disable Scalable SDK on ARM64
+      run: |
+        $file = "$env:openSpaceHome/apps/OpenSpace/ext/sgct/CMakeLists.txt"
+        (Get-Content $file -Raw).Replace(
+          'option(SGCT_DEP_INCLUDE_SCALABLE "Include Scalable SDK" ON)',
+          'option(SGCT_DEP_INCLUDE_SCALABLE "Include Scalable SDK" OFF)'
+        ) | Set-Content $file -NoNewline
+        Write-Host "Patched SGCT_DEP_INCLUDE_SCALABLE to OFF"
         
     - name: Configure CMake
       env:
