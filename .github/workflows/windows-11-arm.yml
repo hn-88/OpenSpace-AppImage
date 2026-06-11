@@ -301,7 +301,7 @@ jobs:
         $vcpkgBin = "$env:VCPKG_ROOT/installed/arm64-windows/bin"
         $dest = "$env:openSpaceHome/bin/RelWithDebInfo"
         $dlls = Get-ChildItem $vcpkgBin -Filter "*.dll"
-        Write-Host "Found $($dlls.Count) DLLs in $vcpkgBin:"
+        Write-Host "Found $($dlls.Count) DLLs in ${vcpkgBin}:"
         $dlls | ForEach-Object {
           Write-Host "  Copying $($_.Name)"
           Copy-Item $_.FullName $dest -Force
