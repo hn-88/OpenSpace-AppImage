@@ -220,6 +220,15 @@ jobs:
           'option(SGCT_DEP_INCLUDE_SCALABLE "Include Scalable SDK" OFF)'
         ) | Set-Content $file -NoNewline
         Write-Host "Patched SGCT_DEP_INCLUDE_SCALABLE to OFF"
+
+    - name: Patch for not using bundled x64 libcurl dlls
+      run: |
+        $file = "$env:openSpaceHome/ext/CMakeLists.txt"
+        (Get-Content $file -Raw).Replace(
+          'if (WIN32)',
+          'if (WIN32 AND NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")'
+        ) | Set-Content $file -NoNewline
+        Write-Host "Patched for not using bundled x64 libcurl dlls"
         
     - name: Configure CMake
       env:
