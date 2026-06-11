@@ -229,6 +229,7 @@ jobs:
           'if (WIN32 AND NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")'
         ) | Set-Content $file -NoNewline
         Write-Host "Patched for not using bundled x64 libcurl dlls"
+
         
     - name: Configure CMake
       env:
@@ -294,6 +295,18 @@ jobs:
       run: |
         cd $env:openSpaceHome
         # ./deploy.bat This fails, probably due to warnings which are treated as errors, and CMake flags
+
+    - name: Copy vcpkg ARM64 DLLs to bin
+      run: |
+        $vcpkgBin = "$env:VCPKG_ROOT/installed/arm64-windows/bin"
+        $dest = "$env:openSpaceHome/bin"
+        $dlls = Get-ChildItem $vcpkgBin -Filter "*.dll"
+        Write-Host "Found $($dlls.Count) DLLs in $vcpkgBin:"
+        $dlls | ForEach-Object {
+          Write-Host "  Copying $($_.Name)"
+          Copy-Item $_.FullName $dest -Force
+        }
+        Write-Host "Done."
     
     - name: Prepare and deploy
       shell: cmd
