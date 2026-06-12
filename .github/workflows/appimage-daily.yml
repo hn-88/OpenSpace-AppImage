@@ -76,20 +76,22 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cd "$openSpaceHome/build"
+        
+        # Ensure Homebrew's pkg-config also looks at Ubuntu's apt packages
+        export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:$PKG_CONFIG_PATH"
+        
         cmake "$openSpaceHome" \
           -DCMAKE_BUILD_TYPE="Release" \
           -DCMAKE_CXX_COMPILER="/home/linuxbrew/.linuxbrew/bin/g++-13" \
           -DCMAKE_C_COMPILER="/home/linuxbrew/.linuxbrew/bin/gcc-13" \
+          -DCMAKE_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu" \
           -DCMAKE_CXX_STANDARD=23 \
           -DASSIMP_BUILD_MINIZIP=1 \
           -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++" \
           -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
           -DBUILD_TESTS=OFF \
           -DOPENSPACE_HAVE_TESTS=OFF \
-          -DSGCT_BUILD_TESTS=OFF \
-          -DOPENGL_opengl_LIBRARY=/usr/lib/x86_64-linux-gnu/libOpenGL.so \
-          -DOPENGL_glx_LIBRARY=/usr/lib/x86_64-linux-gnu/libGLX.so \
-          -DOPENGL_INCLUDE_DIR=/usr/include
+          -DSGCT_BUILD_TESTS=OFF
 
     - name: Build
       run: |
