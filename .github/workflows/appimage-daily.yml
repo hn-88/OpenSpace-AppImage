@@ -86,7 +86,10 @@ jobs:
           -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
           -DBUILD_TESTS=OFF \
           -DOPENSPACE_HAVE_TESTS=OFF \
-          -DSGCT_BUILD_TESTS=OFF
+          -DSGCT_BUILD_TESTS=OFF \
+          -DOPENGL_opengl_LIBRARY=/usr/lib/x86_64-linux-gnu/libOpenGL.so \
+          -DOPENGL_glx_LIBRARY=/usr/lib/x86_64-linux-gnu/libGLX.so \
+          -DOPENGL_INCLUDE_DIR=/usr/include
 
     - name: Build
       run: |
