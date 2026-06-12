@@ -50,9 +50,11 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev
-        sudo apt-get install -y software-properties-common
-        sudo apt-get install -y libasound2 libasound2-data libasound2-plugins libjack0
+        sudo apt-get install -y glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev \
+        libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev \
+        libboost1.74-dev qt6-base-dev libmpv-dev libvulkan-dev \
+        software-properties-common libopengl-dev libglx-dev \
+        libasound2 libasound2-data libasound2-plugins libjack0
 
     - name: Set up Homebrew
       uses: Homebrew/actions/setup-homebrew@main
