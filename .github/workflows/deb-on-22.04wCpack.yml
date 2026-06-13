@@ -2,8 +2,8 @@ name: deb-on-22.04wCpack
 
 on: 
   workflow_dispatch:      # allows manual trigger
-  schedule:
-    - cron: "49 23 * * *"   # to run daily at 23:49 UTC, would be delayed by github congestion
+  #schedule:
+  #  - cron: "49 23 * * *"   # to run daily at 23:49 UTC, would be delayed by github congestion
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
