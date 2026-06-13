@@ -10,7 +10,7 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: Release
-  OPENSPACE_VERSION: "0.22.0rc1+"
+  OPENSPACE_VERSION: "0.22.0+"
   # COMMIT_HASH: "0bec798cb39c2765373283a21312478d3d2e3c7f"
   COMMIT_HASH: "master"
   

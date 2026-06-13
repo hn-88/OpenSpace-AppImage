@@ -11,7 +11,7 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: RelWithDebInfo
-  OPENSPACE_VERSION: "0.22.0rc2plus"
+  OPENSPACE_VERSION: "0.22.0+"
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
   # The install qt action is supposed to set QT_DIR variable.
   buildConfig: RelWithDebInfo
