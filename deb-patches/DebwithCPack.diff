@@ -143,6 +143,7 @@ index 07fdf76937..15abe03d1d 100644
 +  # Binary
 +    install(TARGETS OpenSpace RUNTIME DESTINATION lib/openspace/bin)
 +    install(TARGETS OpenSpace_Helper RUNTIME DESTINATION lib/openspace/bin)
++    install(TARGETS TaskRunner RUNTIME DESTINATION lib/openspace/bin)
 +
 +    # man page
 +    # Make sure the man directory exists
@@ -440,11 +441,17 @@ index 07fdf76937..15abe03d1d 100644
 +      ${CMAKE_BINARY_DIR}/openspace
 +      @ONLY
 +    )
++  configure_file(
++      ${CMAKE_SOURCE_DIR}/support/deb/openspace-taskrunner.in
++      ${CMAKE_BINARY_DIR}/openspace-taskrunner
++      @ONLY
++    )
 +    
 +    install(
-+      PROGRAMS ${CMAKE_BINARY_DIR}/openspace
-+      DESTINATION bin
-+      RENAME openspace
++      PROGRAMS 
++           ${CMAKE_BINARY_DIR}/openspace
++           ${CMAKE_BINARY_DIR}/openspace-taskrunner
++      DESTINATION bin      
 +    )
 +
 +
@@ -474,6 +481,9 @@ index 07fdf76937..15abe03d1d 100644
 +
 +    # Desktop integration
 +    install(FILES ${CMAKE_SOURCE_DIR}/support/deb/openspace.desktop
++    DESTINATION share/applications
++    )
++    install(FILES ${CMAKE_SOURCE_DIR}/support/deb/openspace-taskrunner.desktop
 +    DESTINATION share/applications
 +    )
 +    install(FILES
@@ -627,7 +637,7 @@ index 0000000000..3a9c948816
 --- /dev/null
 +++ b/support/deb/openspace.1
 @@ -0,0 +1,20 @@
-+.TH OPENSPACE 1 "May 2026" "OpenSpace 0.22.0rc1"
++.TH OPENSPACE 1 "May 2026" "OpenSpace 0.22.0+"
 +.SH NAME
 +openspace \- interactive data visualization tool for astronomy
 +.SH SYNOPSIS
@@ -665,6 +675,24 @@ index 0000000000..cd31a7f586
 +Categories=Education;Science;Astronomy;Graphics;
 +StartupNotify=true
 +Keywords=space;planet;visualization;NASA
+diff --git a/support/deb/openspace-taskrunner.desktop b/support/deb/openspace-taskrunner.desktop
+new file mode 100644
+index 0000000000..cd31a7f586
+--- /dev/null
++++ b/support/deb/openspace-taskrunner.desktop
+@@ -0,0 +1,12 @@
++[Desktop Entry]
++Version=1.0
++Type=Application
++Name=OpenSpace-TaskRunner
++Comment=Run OpenSpace asset processing tasks
++Exec=bash -i -c "openspace-taskrunner; exec bash"
++# using bash execution to load env vars in .bashrc
++Icon=openspace
++Terminal=true
++Categories=Education;Science;Astronomy;Graphics;
++StartupNotify=true
++Keywords=space;planet;visualization;NASA
 diff --git a/support/deb/openspace.in b/support/deb/openspace.in
 new file mode 100644
 index 0000000000..148ef4c5e1
@@ -691,6 +719,33 @@ index 0000000000..148ef4c5e1
 +
 +# Launch OpenSpace
 +exec ./OpenSpace "$@"
++
+diff --git a/support/deb/openspace-taskrunner.in b/support/deb/openspace-taskrunner.in
+new file mode 100644
+index 0000000000..148ef4c5e1
+--- /dev/null
++++ b/support/deb/openspace-taskrunner.in
+@@ -0,0 +1,21 @@
++#!/bin/sh
++# Wrapper to run OpenSpace TaskRunner from its bin directory, with user data in $HOME
++
++# Set environment variables so OpenSpace writes logs & data into $HOME
++export OPENSPACE_USER="$HOME/OpenSpace/user"
++export OPENSPACE_GLOBEBROWSING="$HOME/OpenSpaceData"
++
++# Make sure the directories exist
++mkdir -p "$OPENSPACE_USER" "$OPENSPACE_GLOBEBROWSING"
++mkdir -p "$OPENSPACE_USER/documentation"
++
++# Copy documentation files from /usr/share/doc/openspace
++# without overwriting
++cp -r -u /usr/share/doc/openspace/* "$OPENSPACE_USER/documentation/"
++
++# Go to the installed directory
++cd "@CMAKE_INSTALL_PREFIX@/lib/openspace/bin" || exit 1
++
++# Launch TaskRunner
++exec ./TaskRunner "$@"
 +
 diff --git a/support/deb/postinst.in b/support/deb/postinst.in
 new file mode 100644
