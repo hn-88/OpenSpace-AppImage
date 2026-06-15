@@ -499,7 +499,7 @@ jobs:
     - name: Upload TaskRunner AppImage Artifact
       uses: actions/upload-artifact@v7
       with:
-        name: OpenSpace-AppImage
+        name: TaskRunner-AppImage
         path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/Task*-x86_64.AppImage
 
     - name: Upload .AppImage to GitHub Release
