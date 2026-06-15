@@ -500,7 +500,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: OpenSpace-AppImage
-        path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/Task-*-x86_64.AppImage
+        path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/Task*-x86_64.AppImage
 
     - name: Upload .AppImage to GitHub Release
       run: |
@@ -521,7 +521,7 @@ jobs:
     - name: Upload TaskRunner .AppImage to GitHub Release
       run: |
         RELEASE_TAG="daily-AppImage"
-        APP_FILE=/home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/Task-*-x86_64.AppImage
+        APP_FILE=/home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/Task*-x86_64.AppImage
     
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
           gh release create "$RELEASE_TAG" -t "OpenSpace AppImage Daily Build" -n "Automated daily .AppImage build of OpenSpace."
