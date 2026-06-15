@@ -468,16 +468,56 @@ jobs:
       run: |
         VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION}-daily-ubuntu24.04 ./appimagetool-*.AppImage ./appdir
 
+    - name: prepare AppDir for TaskRunner AppImage
+      run: |
+        rm -vf ./appdir/usr/bin/OpenSpac*
+        cp -v $HOME/source/OpenSpace/bin/TaskRunner ./appdir/usr/bin
+        strip ./appdir/usr/bin/TaskRunner
+        cp -v ./appdir/TaskRunner.desktop ./appdir/usr/share/applications/
+        rm -vf ./appdir/usr/share/applications/OpenSpace.desktop
+
+    - name: run deploy for TaskRunner
+      run: |
+        echo "Not skipping, for RPATH fixing, trying without -s flag" 
+        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/TaskRunner.desktop
+
+    - name: turn TaskRunner AppDir into AppImage
+      run: |
+        VERSION=${OPENSPACE_VERSION}-${APPIMAGE_VERSION}-daily-ubuntu24.04 ./appimagetool-*.AppImage ./appdir
+        
+
     - name: Upload AppImage Artifact
       uses: actions/upload-artifact@v7
       with:
         name: OpenSpace-AppImage
         path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-x86_64.AppImage
 
+    - name: Upload TaskRunner AppImage Artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: OpenSpace-AppImage
+        path: /home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/Task-*-x86_64.AppImage
+
     - name: Upload .AppImage to GitHub Release
       run: |
         RELEASE_TAG="daily-AppImage"
         APP_FILE=/home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/OpenSpace-*-x86_64.AppImage
+    
+        gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+          gh release create "$RELEASE_TAG" -t "OpenSpace AppImage Daily Build" -n "Automated daily .AppImage build of OpenSpace."
+    
+        gh release edit "$RELEASE_TAG" \
+          -t "OpenSpace AppImage Daily Build" \
+          -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  Please see usage notes and issues linked from https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation"
+    
+        gh release upload "$RELEASE_TAG" "$APP_FILE" --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
+
+    - name: Upload TaskRunner .AppImage to GitHub Release
+      run: |
+        RELEASE_TAG="daily-AppImage"
+        APP_FILE=/home/runner/work/OpenSpace-AppImage/OpenSpace-AppImage/Task-*-x86_64.AppImage
     
         gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
           gh release create "$RELEASE_TAG" -t "OpenSpace AppImage Daily Build" -n "Automated daily .AppImage build of OpenSpace."
