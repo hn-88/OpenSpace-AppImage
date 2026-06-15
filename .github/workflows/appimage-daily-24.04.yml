@@ -101,6 +101,7 @@ jobs:
         # sed -i 's|^Exec=.*|Exec=OpenSpace|' ./appdir/OpenSpace.desktop
         mkdir -p appdir/usr/share/applications ; cp ./appdir/OpenSpace.desktop ./appdir/usr/share/applications/
         mkdir -p appdir/usr/share/icons/hicolor/256x256/apps ; cp ./appdir/OpenSpace.png ./appdir/usr/share/icons/hicolor/256x256/apps/
+        mv -v ./appdir/TaskRunner.desktop ./TaskRunner.desktop
 
         # Copy resources
         cp -r $HOME/source/OpenSpace/{config/,modules/,data/,scripts/,shaders,/documentation/,openspace.cfg} ./appdir/usr/
@@ -473,8 +474,10 @@ jobs:
         rm -vf ./appdir/usr/bin/OpenSpac*
         cp -v $HOME/source/OpenSpace/bin/TaskRunner ./appdir/usr/bin
         strip ./appdir/usr/bin/TaskRunner
-        cp -v ./appdir/TaskRunner.desktop ./appdir/usr/share/applications/
+        cp -v ./TaskRunner.desktop ./appdir/usr/share/applications/
+        cp -v ./TaskRunner.desktop ./appdir/
         rm -vf ./appdir/usr/share/applications/OpenSpace.desktop
+        rm -vf ./appdir/OpenSpace.desktop
 
     - name: run deploy for TaskRunner
       run: |
