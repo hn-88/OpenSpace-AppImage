@@ -481,8 +481,9 @@ jobs:
 
     - name: run deploy for TaskRunner
       run: |
-        echo "Not skipping, for RPATH fixing, trying without -s flag" 
-        ./appimagetool-*.AppImage deploy appdir/usr/share/applications/TaskRunner.desktop
+        echo "Skipping deploy, only RPATH fixing..." 
+        # ./appimagetool-*.AppImage deploy appdir/usr/share/applications/TaskRunner.desktop
+        patchelf --set-rpath '$ORIGIN:$ORIGIN/../lib' ./appdir/usr/bin/TaskRunner
 
     - name: turn TaskRunner AppDir into AppImage
       run: |
