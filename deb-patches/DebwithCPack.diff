@@ -322,6 +322,9 @@ index 07fdf76937..15abe03d1d 100644
 +    set_target_properties(OpenSpace_Helper PROPERTIES
 +        INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib"
 +    )
++    set_target_properties(TaskRunner PROPERTIES
++        INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib"
++    )
 +
 +    
 +    # Required assets
