@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=TaskRunner
+Comment=Run OpenSpace asset processing tasks
+Exec=TaskRunner
+Icon=OpenSpace
+Terminal=true
+Type=Application
+Categories=Education;Science;
+Name[en_IN]=TaskRunner
