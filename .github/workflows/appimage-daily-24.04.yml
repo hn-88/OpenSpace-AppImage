@@ -478,6 +478,7 @@ jobs:
         cp -v ./TaskRunner.desktop ./appdir/
         rm -vf ./appdir/usr/share/applications/OpenSpace.desktop
         rm -vf ./appdir/OpenSpace.desktop
+        sed -i 's|OPENSPACE_BIN="${HERE}/usr/bin/OpenSpace"|OPENSPACE_BIN="${HERE}/usr/bin/TaskRunner"|' ./appdir/AppRun
 
     - name: run deploy for TaskRunner
       run: |
