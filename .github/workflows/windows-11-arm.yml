@@ -308,7 +308,7 @@ jobs:
 
     - name: Copy vcpkg ARM64 DLLs to bin/RelWithDebInfo
       run: |
-        $vcpkgBin = "$env:VCPKG_ROOT/installed/arm64-windows/bin"
+        $vcpkgBin = "C:/vcpkg/installed/arm64-windows/bin"
         $dest = "$env:openSpaceHome/bin/RelWithDebInfo"
         $dlls = Get-ChildItem $vcpkgBin -Filter "*.dll"
         Write-Host "Found $($dlls.Count) DLLs in ${vcpkgBin}:"
