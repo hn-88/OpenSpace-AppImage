@@ -285,16 +285,45 @@ jobs:
       shell: pwsh
       run: |
         $file = "$env:openSpaceHome/src/scripting/scriptengine.cpp"
-        $content = Get-Content $file -Raw
-        $patched = $content -replace `
-          'void ScriptEngine::queueScript\(Script script\) \{\r?\n    ZoneScoped;\r?\n    if \(script\.code\.empty\(\)\) \{\r?\n        return;\r?\n    \}\r?\n    _incomingScripts\.push\(std::move\(script\)\);', `
-          "void ScriptEngine::queueScript(Script script) {`r`n    ZoneScoped;`r`n    if (script.code.empty()) {`r`n        return;`r`n    }`r`n    const std::unique_lock lock(_clientScriptsMutex);`r`n    _incomingScripts.push(std::move(script));"
-        if ($content -eq $patched) {
-          Write-Error "Patch failed - pattern not found in $file"
+        $lines = Get-Content $file
+        $targetLine = 'void ScriptEngine::queueScript(Script script) {'
+        $insertAfter = '    _incomingScripts.push(std::move(script));'
+        $insertBefore = '    _incomingScripts.push(std::move(script));'
+        $newLine = '    const std::unique_lock lock(_clientScriptsMutex);'
+    
+        # Find the line number of queueScript(Script script)
+        $funcLine = ($lines | Select-String -SimpleMatch $targetLine | Select-Object -First 1).LineNumber
+        if (-not $funcLine) {
+          Write-Error "Could not find '$targetLine' in $file"
           exit 1
         }
-        Set-Content -Path $file -Value $patched -NoNewline
+        Write-Host "Found queueScript at line $funcLine"
+    
+        # Find the _incomingScripts.push line after the function definition
+        $pushLine = ($lines | Select-Object -Skip $funcLine |
+          Select-String -SimpleMatch $insertBefore |
+          Select-Object -First 1).LineNumber + $funcLine
+        if (-not $pushLine) {
+          Write-Error "Could not find '_incomingScripts.push' after queueScript"
+          exit 1
+        }
+        Write-Host "Found _incomingScripts.push at line $pushLine"
+    
+        # Check not already patched
+        if ($lines[$pushLine - 2] -match '_clientScriptsMutex') {
+          Write-Host "Already patched, skipping"
+          exit 0
+        }
+    
+        # Insert the lock line before the push line (0-indexed: $pushLine - 1)
+        $newLines = $lines[0..($pushLine - 2)] + $newLine + $lines[($pushLine - 1)..($lines.Length - 1)]
+        Set-Content -Path $file -Value $newLines
         Write-Host "Patch applied successfully"
+    
+        # Verify
+        $verify = Get-Content $file | Select-Object -Skip ($pushLine - 2) -First 2
+        Write-Host "Patched lines:"
+        $verify | ForEach-Object { Write-Host "  $_" }
         
     - name: Build
       env:
