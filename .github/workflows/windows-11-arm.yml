@@ -281,7 +281,21 @@ jobs:
     
         Write-Host "Patch applied successfully"
 
-
+    - name: Patch ScriptEngine::queueScript to hold mutex lock
+      shell: pwsh
+      run: |
+        $file = "$env:openSpaceHome/src/scripting/scriptengine.cpp"
+        $content = Get-Content $file -Raw
+        $patched = $content -replace `
+          'void ScriptEngine::queueScript\(Script script\) \{\r?\n    ZoneScoped;\r?\n    if \(script\.code\.empty\(\)\) \{\r?\n        return;\r?\n    \}\r?\n    _incomingScripts\.push\(std::move\(script\)\);', `
+          "void ScriptEngine::queueScript(Script script) {`r`n    ZoneScoped;`r`n    if (script.code.empty()) {`r`n        return;`r`n    }`r`n    const std::unique_lock lock(_clientScriptsMutex);`r`n    _incomingScripts.push(std::move(script));"
+        if ($content -eq $patched) {
+          Write-Error "Patch failed - pattern not found in $file"
+          exit 1
+        }
+        Set-Content -Path $file -Value $patched -NoNewline
+        Write-Host "Patch applied successfully"
+        
     - name: Build
       env:
         LIB: "C:/vcpkg/installed/arm64-windows/lib;${{ env.LIB }}"
