@@ -324,6 +324,30 @@ jobs:
         $verify = Get-Content $file | Select-Object -Skip ($pushLine - 2) -First 2
         Write-Host "Patched lines:"
         $verify | ForEach-Object { Write-Host "  $_" }
+
+    - name: Patch globals.cpp to use heap allocation on ARM64 Windows
+      shell: pwsh
+      run: |
+        $file = "$env:openSpaceHome/src/engine/globals.cpp"
+        $content = Get-Content $file -Raw
+        
+        $patched = $content `
+          -replace '#ifdef WIN32', '#if defined(WIN32) && !defined(_M_ARM64)' `
+          -replace '#else // \^\^\^\^ WIN32 / !WIN32 vvvv', '#else // ^^^^ WIN32 && !ARM64 / everything else vvvv' `
+          -replace '#endif // WIN32', '#endif // WIN32 && !ARM64'
+        
+        if ($content -eq $patched) {
+          Write-Error "Patch failed - pattern not found"
+          exit 1
+        }
+        
+        Set-Content -Path $file -Value $patched -NoNewline
+        Write-Host "Patch applied successfully"
+        
+    - name: Verify globals.cpp patch
+      shell: pwsh
+      run: |
+        Get-Content "$env:openSpaceHome/src/engine/globals.cpp"
         
     - name: Build
       env:
