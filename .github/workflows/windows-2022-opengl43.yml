@@ -87,6 +87,59 @@ jobs:
       run : |
         cp -vf MacOS-patches/0.22/sgct-src-engine.cpp "$openSpaceHome/apps/OpenSpace/ext/sgct/src/engine.cpp"
 
+    - name: Patch globals.cpp to use aligned placement-new on all Windows architectures
+      shell: pwsh
+      run: |
+        $file = "$env:openSpaceHome/src/engine/globals.cpp"
+        $content = Get-Content $file -Raw
+    
+        # Replace the TotalSize constexpr and DataStorage array with a generously
+        # padded version that accounts for alignment on any architecture.
+        # We multiply by 2 and add 1024 bytes of padding per object for alignment slop.
+        $oldStorage = 'constexpr int TotalSize ='
+        $newStorage = 'constexpr size_t MaxAlign = 256; // generous alignment padding per object
+        constexpr size_t TotalSize ='
+    
+        # Replace the DataStorage array declaration to use size_t and add padding
+        $patched = $content -replace `
+          'constexpr int TotalSize =', `
+          'constexpr size_t AlignPadding = 256; // per-object alignment padding for any arch
+        constexpr size_t TotalSize ='
+    
+        # Add AlignPadding to each sizeof() term in TotalSize
+        $patched = $patched -replace `
+          '\+ sizeof\(', `
+          '+ AlignPadding + sizeof('
+    
+        # Fix the first sizeof() which has no leading +
+        $patched = $patched -replace `
+          'TotalSize =\s*\r?\n\s*sizeof\(', `
+          "TotalSize =`r`n        AlignPadding + sizeof("
+    
+        # Replace the currentPos advance to align after each object
+        $patched = $patched -replace `
+          'currentPos \+= sizeof\(([^)]+)\);', `
+          'currentPos += sizeof($1); { size_t a = alignof(std::max_align_t); size_t addr = reinterpret_cast<size_t>(currentPos); currentPos = reinterpret_cast<std::byte*>((addr + a - 1) & ~(a - 1)); }'
+    
+        # Revert the ARM64 condition back to plain WIN32 since we're fixing it properly
+        $patched = $patched `
+          -replace '#if defined\(WIN32\) && !defined\(_M_ARM64\)', '#ifdef WIN32' `
+          -replace '#else // \^\^\^\^ WIN32 && !ARM64 / everything else vvvv', '#else // ^^^^ WIN32 / !WIN32 vvvv' `
+          -replace '#endif // WIN32 && !ARM64', '#endif // WIN32'
+    
+        if ($content -eq $patched) {
+          Write-Error "Patch failed - no changes made"
+          exit 1
+        }
+    
+        Set-Content -Path $file -Value $patched -NoNewline
+        Write-Host "Patch applied successfully"
+    
+    - name: Verify globals.cpp patch
+      shell: pwsh
+      run: |
+        Get-Content "$env:openSpaceHome/src/engine/globals.cpp"
+
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
