@@ -180,7 +180,7 @@ jobs:
         :PostBuildCleanup
         echo ### Dealing with some files
         :: Remove unnecessary files of our own making
-        del bin\RelWithDebInfo\*.pdb
+        :: del bin\RelWithDebInfo\*.pdb retaining the pdb files for debugging
         del bin\RelWithDebInfo\codegen.exe
         del bin\RelWithDebInfo\Qt6Svg.dll
         
