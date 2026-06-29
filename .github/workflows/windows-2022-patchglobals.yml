@@ -1,10 +1,10 @@
-name: windows-2022-opengl43
+name: windows-2022-patchglobals
 
 on: 
   workflow_dispatch:
   
-  schedule:
-    - cron: "0 1 * * *"   # runs daily at 01:00 UTC
+  #schedule:
+  #  - cron: "0 1 * * *"   # runs daily at 01:00 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -82,10 +82,10 @@ jobs:
         git apply --verbose --recount --whitespace=fix patch_2_md_os_c.patch
         git apply --verbose --recount --whitespace=fix patch_3_md_gl_c.patch
 
-    - name: Patch OpenGL 4.6 -> 4.3
-      shell: bash
-      run : |
-        cp -vf MacOS-patches/0.22/sgct-src-engine.cpp "$openSpaceHome/apps/OpenSpace/ext/sgct/src/engine.cpp"
+    #- name: Patch OpenGL 4.6 -> 4.3 - this just causes a crash
+    #  shell: bash
+    #  run : |
+    #    cp -vf MacOS-patches/0.22/sgct-src-engine.cpp "$openSpaceHome/apps/OpenSpace/ext/sgct/src/engine.cpp"
 
     - name: Patch globals.cpp to use aligned placement-new on all Windows architectures
       shell: pwsh
