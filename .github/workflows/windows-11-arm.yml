@@ -230,17 +230,20 @@ jobs:
         ) | Set-Content $file -NoNewline
         Write-Host "Patched for not using bundled x64 libcurl dlls"
 
-    - name: Patch GEOS linking and compile definitions for ARM64
+    - name: Patch GEOS linking to use vcpkg GEOS on ARM64
       shell: pwsh
       run: |
         $file = "$env:openSpaceHome/modules/globebrowsing/CMakeLists.txt"
         $content = Get-Content $file -Raw
+        
+        # Replace the bundled static 'geos' target with vcpkg's dynamic 'GEOS::geos' target
         $patched = $content.Replace(
           'target_link_libraries(openspace-module-globebrowsing PRIVATE geos)',
-          "target_link_libraries(openspace-module-globebrowsing PRIVATE geos geos_c)`r`ntarget_compile_definitions(openspace-module-globebrowsing PUBLIC GEOS_DLL_IMPORT)"
+          "find_package(GEOS CONFIG REQUIRED)`r`ntarget_link_libraries(openspace-module-globebrowsing PRIVATE GEOS::geos)`r`ntarget_compile_definitions(openspace-module-globebrowsing PRIVATE USE_UNSTABLE_GEOS_CPP_API)"
         )
+        
         Set-Content -Path $file -Value $patched -NoNewline
-        Write-Host "Patched GEOS linking to include geos_c and added GEOS_DLL_IMPORT definition"
+        Write-Host "Patched GEOS linking to fully use vcpkg GEOS::geos target and added USE_UNSTABLE_GEOS_CPP_API"
 
         
     - name: Configure CMake
