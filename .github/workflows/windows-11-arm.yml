@@ -380,6 +380,25 @@ jobs:
         }
         Write-Host "Done."
     
+    - name: Copy vcpkg GDAL 3.x and PROJ data
+      shell: pwsh
+      run: |
+        $vcpkgShare = "C:/vcpkg/installed/arm64-windows/share"
+        $oshome = $env:openSpaceHome
+        
+        # 1. Update OpenSpace's bundled GDAL data to GDAL 3.x
+        $gdalDataTarget = "$oshome/modules/globebrowsing/gdal_data"
+        Write-Host "Updating GDAL data in $gdalDataTarget"
+        if (Test-Path $gdalDataTarget) { Remove-Item -Recurse -Force "$gdalDataTarget\*" }
+        New-Item -ItemType Directory -Force -Path $gdalDataTarget | Out-Null
+        Copy-Item -Recurse -Force "$vcpkgShare/gdal/*" $gdalDataTarget
+        
+        # 2. Copy PROJ data (proj.db) to the bin folder
+        # PROJ natively looks for proj.db in the directory where proj_*.dll resides.
+        $projDataTarget = "$oshome/bin/RelWithDebInfo"
+        Write-Host "Copying PROJ data to $projDataTarget"
+        Copy-Item -Recurse -Force "$vcpkgShare/proj/*" $projDataTarget
+        
     - name: Prepare and deploy
       shell: cmd
       run: |
@@ -389,7 +408,9 @@ jobs:
         :PostBuildCleanup
         echo ### Dealing with some files
         :: Remove unnecessary files of our own making
-        :: del bin\RelWithDebInfo\*.pdb we want the pdb files for troubleshooting, temporarily retaining them
+        del bin\RelWithDebInfo\*.pdb 
+        :: we want the pdb files for troubleshooting, can temporarily 
+        :: retain them if necessary
         del bin\RelWithDebInfo\codegen.exe
         del bin\RelWithDebInfo\Qt6Svg.dll
         
