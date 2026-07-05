@@ -35,7 +35,7 @@ jobs:
       run: |
         git clone --recursive https://github.com/hn-88/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
-        git checkout "patch-molecule-via-cmake" --recurse-submodules
+        git checkout "cef-ui-reload-fix" --recurse-submodules
         git submodule update --init --recursive
         mkdir build
         cd build
