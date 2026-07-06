@@ -136,6 +136,7 @@ jobs:
                   -DCMAKE_C_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
                   -DCMAKE_BUILD_TYPE="Release" \
                   -DCMAKE_PREFIX_PATH=/opt/homebrew \
+                  -DCMAKE_EXE_LINKER_FLAGS="-L${TIFF_LIB}/lib" \
                   -DBUILD_TESTS=OFF \
                   -DCOMPILE_WARNING_AS_ERROR=OFF \
                   -DOPENSPACE_MODULE_MOLECULE=OFF \
