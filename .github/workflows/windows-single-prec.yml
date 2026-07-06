@@ -34,8 +34,8 @@ jobs:
       run: |
         git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
-        # git checkout "296081379b18da62686d2c0635c2478daae1b68b" --recurse-submodules
-        git checkout "19b76c39f62d3fe04f5f3df40b8bc287cee743f3" --recurse-submodules
+        git checkout "296081379b18da62686d2c0635c2478daae1b68b" --recurse-submodules
+        # git checkout "19b76c39f62d3fe04f5f3df40b8bc287cee743f3" --recurse-submodules <-- does not work, ext/glm cannot checkout new HEAD etc
         # git checkout "master" --recurse-submodules
         # git submodule update --init --recursive
         mkdir build
