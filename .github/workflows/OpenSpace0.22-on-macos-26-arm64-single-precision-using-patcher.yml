@@ -116,6 +116,9 @@ jobs:
         brew install glew boost freeimage mpv vulkan-headers vulkan-loader brotli gdal qt@6
         df -h
 
+    - name: Install libtiff codec dependencies
+      run: brew install libtiff zstd xz jpeg-turbo lcms2 libpng
+
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
@@ -136,7 +139,7 @@ jobs:
                   -DCMAKE_C_FLAGS="-Wno-error -D_FILE_OFFSET_BITS=64" \
                   -DCMAKE_BUILD_TYPE="Release" \
                   -DCMAKE_PREFIX_PATH=/opt/homebrew \
-                  -DCMAKE_EXE_LINKER_FLAGS="-L${TIFF_LIB}/lib" \
+                  -DCMAKE_EXE_LINKER_FLAGS="-L${TIFF_LIB}/lib -L/opt/homebrew/lib" \
                   -DBUILD_TESTS=OFF \
                   -DCOMPILE_WARNING_AS_ERROR=OFF \
                   -DOPENSPACE_MODULE_MOLECULE=OFF \
