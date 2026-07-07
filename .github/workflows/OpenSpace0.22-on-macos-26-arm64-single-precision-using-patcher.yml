@@ -92,8 +92,33 @@ jobs:
         echo "Running smart_patcher for shader edits..."
         #python smart_patcher.py changes-to-shaders.diff
         python smart_patcher.py changes-to-shadersv2.diff
+            
+    - name: Disable std::execution parallel policies (unsupported on macOS libc++)
+      run: |
+        set -euo pipefail
+    
+        FILES=$(grep -rlE 'std::execution::(par_unseq|par)\b' \
+          --include='*.cpp' --include='*.h' --include='*.hpp' --include='*.inl' \
+          --exclude-dir=ext --exclude-dir=build \
+          "$openSpaceHome" || true)
+    
+        if [ -z "$FILES" ]; then
+          echo "No occurrences of std::execution::par/par_unseq found."
+          exit 0
+        fi
+    
+        echo "Commenting out std::execution::par/par_unseq in:"
+        echo "$FILES"
+    
+        for f in $FILES; do
+          sed -E -i '' \
+            '/std::execution::(par_unseq|par)\b/ s/^([[:space:]]*)([^[:space:]])/\1\/\/ \2/' \
+            "$f"
+        done
+    
+        echo "--- Diff of changes ---"
+        git -C "$openSpaceHome" diff -- '*.cpp' '*.h' '*.hpp' '*.inl' || true
         
-
     - name: Update Homebrew and Install GLM
       run: |
         brew update
