@@ -704,22 +704,6 @@ index 4f5ffcb1de..accb22af85 100644
 +    const CefRefPtr<WebBrowserApp> app = CefRefPtr<WebBrowserApp>(new WebBrowserApp);
  
      const CefMainArgs args;
-diff --git a/modules/webbrowser/src/webbrowserapp.cpp b/modules/webbrowser/src/webbrowserapp.cpp
-index 3725d700df..61d9bb50fa 100644
---- a/modules/webbrowser/src/webbrowserapp.cpp
-+++ b/modules/webbrowser/src/webbrowserapp.cpp
-@@ -47,10 +47,6 @@ void WebBrowserApp::OnBeforeCommandLineProcessing(const CefString&,
-     commandline->AppendSwitch("use-mock-keychain");
-     commandline->AppendSwitch("enable-begin-frame-scheduling");
-     commandline->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
--}
-+#ifdef __APPLE__
-+    commandline->AppendSwitch("--disable-gpu-sandbox");
-+    commandline->AppendSwitch("--no-sandbox");
-+#endif // __APPLE__
-+}
- 
- } // namespace openspace
 diff --git a/modules/webbrowser/webbrowsermodule.cpp b/modules/webbrowser/webbrowsermodule.cpp
 index 10fdb30bb8..b5e01a1bc1 100644
 --- a/modules/webbrowser/webbrowsermodule.cpp
