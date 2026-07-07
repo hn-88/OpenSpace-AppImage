@@ -140,7 +140,7 @@ diff --git a/ext/ghoul/src/misc/sharedmemory.cpp b/ext/ghoul/src/misc/sharedmemo
  #include <cstring>
  #include <sys/shm.h>
  // Common access type bits, used with ipcperm()
--constexpr int IPC_R = 000400; // read permission
+-constexpr int IPC_R = 000400; // Read permission
 +#ifdef __APPLE__
 +// Undefine conflicting macros
 +#undef IPC_R
