@@ -260,9 +260,11 @@ index 3324a66d..6e5a3ac6 100644
  #include <sys/param.h>
  #include <sys/stat.h>
  #include <sys/types.h>
- #include <unistd.h>
- #endif // WIN32
- 
+@@ -45,16 +45,13 @@
+-#include <unistd.h>
+-#endif // WIN32
++#include <unistd.h>
++#endif // WIN32 
 +#if !defined(WIN32) && !defined(__APPLE__)
 +#include <sys/inotify.h>
 +#endif // !defined(WIN32) && !defined(__APPLE__)
