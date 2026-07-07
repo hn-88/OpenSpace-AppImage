@@ -527,32 +527,36 @@ index 02db30d9..63552d01 100644
 --- a/ext/ghoul/src/opengl/shaderpreprocessor.cpp
 +++ b/ext/ghoul/src/opengl/shaderpreprocessor.cpp
 @@ -526,13 +526,9 @@ namespace {
- 
- #ifdef WIN32
-         constexpr std::string_view os = "WIN32";
+-#ifdef WIN32
+-        constexpr std::string_view os = "WIN32";
+-#else  // ^^^^ WIN32 // !WIN32 vvvv
+-        constexpr std::string_view os = "linux";
+-#endif // WIN32
++#ifdef WIN32
++        constexpr std::string_view os = "WIN32";
 +#endif // WIN32
 +#ifdef __APPLE__
 +        constexpr std::string_view os = "APPLE";
 +#endif // __APPLE__
 +#ifdef __linux__
--#else  // ^^^^ WIN32 // !WIN32 vvvv
-         constexpr std::string_view os = "linux";
++        constexpr std::string_view os = "linux";
 +#endif // __linux__
--#endif // WIN32
          _output << std::format(
              "#ifndef __OS__\n"
              "#define __OS__ {0}\n"
 @@ -636,13 +632,12 @@ namespace {
-         ghoul_assert(it != _includedFiles.end(), "File not in included files");
- 
-         std::string_view includeSep;
+-        // Sofar, only Nvidia on Windows supports empty statements in the shader
+-        using Vendor = systemcapabilities::OpenGLCapabilitiesComponent::Vendor;
+-        if (OpenGLCap.gpuVendor() == Vendor::Nvidia) {
+-            includeSep = "; // preprocessor add semicolon to isolate error messages";
+-        }
 +    #ifndef __APPLE__
--
-         // Sofar, only Nvidia on Windows supports empty statements in the shader
-         using Vendor = ghoul::systemcapabilities::OpenGLCapabilitiesComponent::Vendor;
-         if (OpenGLCap.gpuVendor() == Vendor::Nvidia) {
-             includeSep = "; // preprocessor add semicolon to isolate error messages";
-         }
++
++         // Sofar, only Nvidia on Windows supports empty statements in the shader
++         using Vendor = ghoul::systemcapabilities::OpenGLCapabilitiesComponent::Vendor;
++         if (OpenGLCap.gpuVendor() == Vendor::Nvidia) {
++             includeSep = "; // preprocessor add semicolon to isolate error messages";
++         }
 +    #endif // __APPLE__
  
          ptrdiff_t number = std::distance(_includedFiles.begin(), it);
