@@ -100,7 +100,7 @@ jobs:
         brew install glm
     
     - name: Cache Homebrew downloads 
-      uses: actions/cache@v3 
+      uses: actions/cache@v6 
       with: 
         path: | 
           ~/Library/Caches/Homebrew 
