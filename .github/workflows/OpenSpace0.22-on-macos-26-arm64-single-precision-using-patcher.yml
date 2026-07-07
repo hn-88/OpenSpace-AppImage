@@ -96,6 +96,7 @@ jobs:
     - name: Disable std::execution parallel policies (unsupported on macOS libc++)
       run: |
         set -euo pipefail
+        openSpaceHome="$HOME/source/OpenSpace"
     
         FILES=$(grep -rlE 'std::execution::(par_unseq|par)\b' \
           --include='*.cpp' --include='*.h' --include='*.hpp' --include='*.inl' \
