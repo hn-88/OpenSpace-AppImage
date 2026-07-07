@@ -148,16 +148,22 @@ index b1571885..cfe4f575 100644
  #include <ghoul/misc/stringconversion.h>
  
 -#ifdef __unix__
+-#pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Wpedantic"
+-#endif // __unix__
 +#ifdef __APPLE__
 +// The GLM header throw 'anonymous struct' warnings that we do not want. By marking the
 +// following files as system headers, all warnings are ignored
 +#pragma clang diagnostic push
 +#pragma clang system_header
 +#endif // __APPLE__
-+
 +#ifdef __unix__
- #pragma GCC diagnostic push
- #pragma GCC diagnostic ignored "-Wpedantic"
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wpedantic"
++#endif // __unix__
+
+#ifndef GLM_META_PROG_HELPERS
+#define GLM_META_PROG_HELPERS
 @@ -50,11 +43,9 @@
  #define GLM_ENABLE_EXPERIMENTAL
  #endif // GLM_ENABLE_EXPERIMENTAL
@@ -177,13 +183,14 @@ index b1571885..cfe4f575 100644
  };
  
 -#ifdef __unix__
+-#pragma GCC diagnostic pop
+-#endif // __unix__
 +#ifdef __APPLE__
 +#pragma clang diagnostic pop
 +#endif
-+
 +#ifdef __unix__
- #pragma GCC diagnostic pop
- #endif // __unix__
++#pragma GCC diagnostic pop
++#endif // __unix__
 diff --git a/ext/ghoul/include/ghoul/misc/memorypool.h b/ext/ghoul/include/ghoul/misc/memorypool.h
 index 001e90d5..f1f80a6d 100644
 --- a/ext/ghoul/include/ghoul/misc/memorypool.h
