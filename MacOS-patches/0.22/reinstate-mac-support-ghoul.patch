@@ -566,25 +566,34 @@ index 3e29312c..9b6cad74 100644
 --- a/ext/ghoul/src/systemcapabilities/generalcapabilitiescomponent.cpp
 +++ b/ext/ghoul/src/systemcapabilities/generalcapabilitiescomponent.cpp
 @@ -42,14 +42,10 @@
- typedef void (WINAPI* PGNSI)(LPSYSTEM_INFO);
- typedef BOOL (WINAPI *PGPI)(DWORD, DWORD, DWORD, DWORD, DWORD);
- #else // ^^^^ WIN32 // !WIN32 vvvv
+-typedef void (WINAPI* PGNSI)(LPSYSTEM_INFO);
+-typedef BOOL (WINAPI *PGPI)(DWORD, DWORD, DWORD, DWORD, DWORD);
+-#else // ^^^^ WIN32 // !WIN32 vvvv
+-#include <sys/types.h>
+-#include <sys/sysinfo.h>
+-#include <sys/utsname.h>
+-#include <cstring>
+-#endif // WIN32
++typedef void (WINAPI* PGNSI)(LPSYSTEM_INFO);
++typedef BOOL (WINAPI *PGPI)(DWORD, DWORD, DWORD, DWORD, DWORD);
++#else // ^^^^ WIN32 // !WIN32 vvvv
 +#ifdef __APPLE__
 +#include <sys/sysctl.h>
 +#else // ^^^^ __APPLE__ // !__APPLE__vvvv
- #include <sys/types.h>
- #include <sys/sysinfo.h>
++#include <sys/types.h>
++#include <sys/sysinfo.h>
 +#include <cstring>
 +#endif // __APPLE__
- #include <sys/utsname.h>
--#include <cstring>
- #endif // WIN32
++#include <sys/utsname.h>
++#endif // WIN32
  
  namespace ghoul {
 @@ -357,21 +353,11 @@ void GeneralCapabilitiesComponent::detectMemory() {
      catch (const std::runtime_error& e) {
          LWARNINGC("GeneralCapabilitiesComponent", e.what());
      }
+-#else // ^^^^ WIN32 // !WIN32 vvvv
+-    struct sysinfo memInfo;
 +#elif defined(__APPLE__)
 +    int mib[2] = { CTL_HW, HW_MEMSIZE };
 +    size_t len;
@@ -596,13 +605,9 @@ index 3e29312c..9b6cad74 100644
 +    std::memcpy(&value, p.data(), sizeof(int64_t));
 +    _installedMainMemory = static_cast<unsigned int>((value / 1024) / 1024);
 +#else
--#else // ^^^^ WIN32 // !WIN32 vvvv
-     struct sysinfo memInfo;
++    struct sysinfo memInfo;
      sysinfo(&memInfo);
      _installedMainMemory = static_cast<unsigned int>((memInfo.totalram / 1024) / 1024);
-+#endif
--#endif // WIN32
- }
  
  void GeneralCapabilitiesComponent::detectCPU() {
 @@ -483,86 +469,7 @@ void GeneralCapabilitiesComponent::detectCPU() {
