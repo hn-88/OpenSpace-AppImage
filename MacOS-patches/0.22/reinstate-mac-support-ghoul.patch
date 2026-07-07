@@ -161,21 +161,19 @@ index b1571885..cfe4f575 100644
 +#pragma GCC diagnostic push
 +#pragma GCC diagnostic ignored "-Wpedantic"
 +#endif // __unix__
-
-#ifndef GLM_META_PROG_HELPERS
-#define GLM_META_PROG_HELPERS
 @@ -50,11 +43,9 @@
  #define GLM_ENABLE_EXPERIMENTAL
  #endif // GLM_ENABLE_EXPERIMENTAL
  
 -#ifndef GLM_FORCE_CTOR_INIT
+-#define GLM_FORCE_CTOR_INIT
+-#endif // GLM_FORCE_CTOR_INIT
 +#ifndef __APPLE__
 +#ifndef GLM_FORCE_CTOR_INIT
- #define GLM_FORCE_CTOR_INIT
- #endif // GLM_FORCE_CTOR_INIT
--
-+#endif
-+
++#define GLM_FORCE_CTOR_INIT
++#endif // GLM_FORCE_CTOR_INIT
++#endif // APPLE
+
  // Enabling swizzling breaks binary compatibility between glm::vecX and float* ?
  // #ifndef GLM_SWIZZLE
 @@ -1071,10 +1062,6 @@ struct std::not_equal_to<glm::dvec4> {
