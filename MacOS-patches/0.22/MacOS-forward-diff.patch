@@ -682,3 +682,63 @@ diff --git a/ext/ghoul/src/filesystem/filesystem.osx.cpp b/ext/ghoul/src/filesys
  }
  
  void callbackHandler(const std::string& path) {
+ diff --git a/modules/volume/rendering/renderablevectorfield.cpp b/modules/volume/rendering/renderablevectorfield.cpp
+--- a/modules/volume/rendering/renderablevectorfield.cpp
++++ b/modules/volume/rendering/renderablevectorfield.cpp
+@@ around line 40 @@
+-#include <execution>
+-#include <numeric>
++#include <execution>
++#include <numeric>
++// link to dispatch to get multithreading on macOS
++#ifdef __APPLE__
++#include <dispatch/dispatch.h> // Include GCD header & link to libdispatch
++#endif
+
+@@ around line 710 @@
+-    std::for_each(
+-        std::execution::par,
+-        blockIndices.begin(),
+-        blockIndices.end(),
+-        computeArrowInstance
+-    );
++#ifdef __APPLE__
++// #include <dispatch/dispatch.h> // Include GCD header & link to libdispatch
++
++//  Use Apple's Grand Central Dispatch for parallelism
++    const size_t count = blockIndices.size();
++
++    dispatch_apply(count, DISPATCH_APPLY_AUTO, ^(size_t i) {
++        computeArrowInstance(blockIndices[i]);
++    });
++#else
++    std::for_each(
++        std::execution::par,
++        blockIndices.begin(),
++        blockIndices.end(),
++        computeArrowInstance
++    );
++#endif
+
+@@ around line 750 @@
+-    std::for_each(
+-        std::execution::par,
+-        indices.begin(),
+-        indices.end(),
+-        computeArrowInstance
+-    );
++#ifdef __APPLE__
++    { // extra braces to avoid re-declaring the count constant
++        const size_t count = indices.size();
++        dispatch_apply(count, DISPATCH_APPLY_AUTO, ^(size_t i) {
++            computeArrowInstance(indices[i]);
++        });
++    }
++#else
++    std::for_each(
++        std::execution::par,
++        indices.begin(),
++        indices.end(),
++        computeArrowInstance
++    );
++#endif
