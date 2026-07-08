@@ -682,7 +682,8 @@ diff --git a/ext/ghoul/src/filesystem/filesystem.osx.cpp b/ext/ghoul/src/filesys
  }
  
  void callbackHandler(const std::string& path) {
- diff --git a/modules/volume/rendering/renderablevectorfield.cpp b/modules/volume/rendering/renderablevectorfield.cpp
+ 
+diff --git a/modules/volume/rendering/renderablevectorfield.cpp b/modules/volume/rendering/renderablevectorfield.cpp
 --- a/modules/volume/rendering/renderablevectorfield.cpp
 +++ b/modules/volume/rendering/renderablevectorfield.cpp
 @@ around line 40 @@
@@ -742,3 +743,172 @@ diff --git a/ext/ghoul/src/filesystem/filesystem.osx.cpp b/ext/ghoul/src/filesys
 +        computeArrowInstance
 +    );
 +#endif
+
+diff --git a/src/scene/scene_lua.inl b/src/scene/scene_lua.inl
+--- a/src/scene/scene_lua.inl
++++ b/src/scene/scene_lua.inl
+@@ around line 307 @@
+-        std::for_each(
+-            std::execution::par_unseq,
+-            properties.cbegin(),
+-            properties.cend(),
+-            [&](Property* prop) {
+-                const std::string_view uri = prop->uri();
+-
+-                bool isMatch = checkUriMatchFromRegexResults(
+-                    uri,
+-                    { parentUri, propertyIdentifier, isLiteral },
+-                    groupTag,
+-                    prop->owner()
+-                );
+-
+-                if (isMatch) {
+-                    std::unique_lock lock(mutex);
+-                    matches.push_back(prop);
+-                }
+-            }
+-        );
++#ifdef __APPLE__
++        std::for_each(
++            // std::execution::par_unseq,
++            properties.cbegin(),
++            properties.cend(),
++            [&](Property* prop) {
++                const std::string_view uri = prop->uri();
++
++                bool isMatch = checkUriMatchFromRegexResults(
++                    uri,
++                    { parentUri, propertyIdentifier, isLiteral },
++                    groupTag,
++                    prop->owner()
++                );
++
++                if (isMatch) {
++                    std::unique_lock lock(mutex);
++                    matches.push_back(prop);
++                }
++            }
++        );
++#else
++        std::for_each(
++            std::execution::par_unseq,
++            properties.cbegin(),
++            properties.cend(),
++            [&](Property* prop) {
++                const std::string_view uri = prop->uri();
++
++                bool isMatch = checkUriMatchFromRegexResults(
++                    uri,
++                    { parentUri, propertyIdentifier, isLiteral },
++                    groupTag,
++                    prop->owner()
++                );
++
++                if (isMatch) {
++                    std::unique_lock lock(mutex);
++                    matches.push_back(prop);
++                }
++            }
++        );
++#endif
+@@ around line 350 @@
+-        std::for_each(
+-            std::execution::par_unseq,
+-            propertyOwners.cbegin(),
+-            propertyOwners.cend(),
+-            [&](PropertyOwner* propOwner) {
+-                if (inputIsOnlyTag) {
+-                    // If we only got a tag as input, the result is all owners that
+-                    // directly match the group tag (without looking recursively in parent
+-                    // owners)
+-                    if (!ownerMatchesGroupTag(propOwner, groupTag, false)) {
+-                        return;
+-                    }
+-                }
+-                else {
+-                    const std::string uri = propOwner->uri();
+-
+-                    bool isMatch = checkUriMatchFromRegexResults(
+-                        uri,
+-                        { parentUri, ownerIdentifier, isLiteral },
+-                        groupTag,
+-                        propOwner->owner()
+-                    );
+-
+-                    if (!isMatch) {
+-                        return;
+-                    }
+-                }
+-
+-                std::unique_lock lock(mutex);
+-                matches.push_back(propOwner);
+-            }
+-        );
++#ifdef __APPLE__
++        std::for_each(
++            // std::execution::par_unseq,
++            propertyOwners.cbegin(),
++            propertyOwners.cend(),
++            [&](PropertyOwner* propOwner) {
++                if (inputIsOnlyTag) {
++                    // If we only got a tag as input, the result is all owners that
++                    // directly match the group tag (without looking recursively in parent
++                    // owners)
++                    if (!ownerMatchesGroupTag(propOwner, groupTag, false)) {
++                        return;
++                    }
++                }
++                else {
++                    const std::string uri = propOwner->uri();
++
++                    bool isMatch = checkUriMatchFromRegexResults(
++                        uri,
++                        { parentUri, ownerIdentifier, isLiteral },
++                        groupTag,
++                        propOwner->owner()
++                    );
++
++                    if (!isMatch) {
++                        return;
++                    }
++                }
++
++                std::unique_lock lock(mutex);
++                matches.push_back(propOwner);
++            }
++        );
++#else
++        std::for_each(
++            std::execution::par_unseq,
++            propertyOwners.cbegin(),
++            propertyOwners.cend(),
++            [&](PropertyOwner* propOwner) {
++                if (inputIsOnlyTag) {
++                    // If we only got a tag as input, the result is all owners that
++                    // directly match the group tag (without looking recursively in parent
++                    // owners)
++                    if (!ownerMatchesGroupTag(propOwner, groupTag, false)) {
++                        return;
++                    }
++                }
++                else {
++                    const std::string uri = propOwner->uri();
++
++                    bool isMatch = checkUriMatchFromRegexResults(
++                        uri,
++                        { parentUri, ownerIdentifier, isLiteral },
++                        groupTag,
++                        propOwner->owner()
++                    );
++
++                    if (!isMatch) {
++                        return;
++                    }
++                }
++
++                std::unique_lock lock(mutex);
++                matches.push_back(propOwner);
++            }
++        );
++#endif
+
