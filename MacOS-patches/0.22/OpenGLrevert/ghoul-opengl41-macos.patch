@@ -60,7 +60,7 @@ index 0299cf6..8c97d1f 100644
      /**
       * Initializes the OpenGL state of this texture.
 diff --git a/include/ghoul/opengl/textureunit.h b/include/ghoul/opengl/textureunit.h
-index bd35a81..00117eb 100644
+index bd35a81..9402d0a 100644
 --- a/include/ghoul/opengl/textureunit.h
 +++ b/include/ghoul/opengl/textureunit.h
 @@ -31,6 +31,8 @@
@@ -72,7 +72,7 @@ index bd35a81..00117eb 100644
  namespace ghoul::opengl {
  
  /**
-@@ -64,9 +66,13 @@ public:
+@@ -64,9 +66,23 @@ public:
      TextureUnit(TextureUnit&&) noexcept = default;
  
      /**
@@ -82,9 +82,19 @@ index bd35a81..00117eb 100644
 +     * (`GL_TEXTURE_1D`, `GL_TEXTURE_2D`, etc) can be bound without relying on
 +     * `glBindTextureUnit`, which is OpenGL 4.5 Direct State Access and unavailable on
 +     * platforms such as macOS that only expose OpenGL 4.1.
++     */
++    void bind(const Texture& texture);
++
++    /**
++     * Activates and binds the provided raw texture name to the TextureUnit. Use this
++     * overload when the caller only has a raw OpenGL texture name and no
++     * `ghoul::opengl::Texture` wrapper (for example a texture owned by an external
++     * library such as CEF). \p target defaults to `GL_TEXTURE_2D`, the common case;
++     * pass the correct target explicitly for anything else (`GL_TEXTURE_1D`,
++     * `GL_TEXTURE_3D`, `GL_TEXTURE_CUBE_MAP`, etc).
       */
 -    void bind(GLuint texture);
-+    void bind(const Texture& texture);
++    void bind(GLuint texture, GLenum target = GL_TEXTURE_2D);
  
      /**
       * This method will deactivate the enum assigned to this TextureUnit and mark it as
@@ -698,10 +708,10 @@ index 1011e3b..b0d1ca7 100644
  
  const std::vector<std::byte> Texture::cachedPixelData() const {
 diff --git a/src/opengl/textureunit.cpp b/src/opengl/textureunit.cpp
-index dc6d75a..23f861c 100644
+index dc6d75a..df9714c 100644
 --- a/src/opengl/textureunit.cpp
 +++ b/src/opengl/textureunit.cpp
-@@ -51,12 +51,16 @@ TextureUnit::~TextureUnit() {
+@@ -51,12 +51,28 @@ TextureUnit::~TextureUnit() {
      unassign();
  }
  
@@ -717,6 +727,18 @@ index dc6d75a..23f861c 100644
 +    // glActiveTexture + glBindTexture pattern instead.
 +    glActiveTexture(_glEnum);
 +    texture.bind();
++}
++
++void TextureUnit::bind(GLuint texture, GLenum target) {
++    if (!_assigned) {
++        assignUnit();
++    }
++
++    // Same rationale as the Texture& overload above, for callers that only have a raw
++    // texture name (e.g. a texture owned by an external library) and no
++    // ghoul::opengl::Texture wrapper to read the target from.
++    glActiveTexture(_glEnum);
++    glBindTexture(target, texture);
  }
  
  void TextureUnit::unassign() {
