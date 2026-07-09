@@ -1,0 +1,722 @@
+diff --git a/include/ghoul/opengl/ghoul_gl.h b/include/ghoul/opengl/ghoul_gl.h
+index f6b792e..16a3552 100644
+--- a/include/ghoul/opengl/ghoul_gl.h
++++ b/include/ghoul/opengl/ghoul_gl.h
+@@ -35,7 +35,7 @@
+ #pragma GCC diagnostic ignored "-Wuseless-cast"
+ #endif // __clang__
+ 
+-#include <glbinding/gl46core/gl.h>
++#include <glbinding/gl41core/gl.h>
+ #include <glbinding/Binding.h>
+ #define __GL_H__
+ 
+@@ -62,16 +62,23 @@ namespace ghoul {
+ template <int ID = 0>
+ struct GLDebugGroup {
+     explicit GLDebugGroup(std::string_view name) {
+-        glPushDebugGroup(
+-            GL_DEBUG_SOURCE_APPLICATION,
+-            ID,
+-            static_cast<GLsizei>(name.length()),
+-            name.data()
+-        );
++        // glPushDebugGroup/glPopDebugGroup are KHR_debug / OpenGL 4.3 and are not
++        // guaranteed to be present on every platform (e.g. macOS's OpenGL 4.1 core
++        // context), so guard against them not being resolved.
++        if (glbinding::Binding::PushDebugGroup.isResolved()) {
++            glPushDebugGroup(
++                GL_DEBUG_SOURCE_APPLICATION,
++                ID,
++                static_cast<GLsizei>(name.length()),
++                name.data()
++            );
++        }
+     }
+ 
+     ~GLDebugGroup() {
+-        glPopDebugGroup();
++        if (glbinding::Binding::PopDebugGroup.isResolved()) {
++            glPopDebugGroup();
++        }
+     }
+ };
+ 
+diff --git a/include/ghoul/opengl/texture.h b/include/ghoul/opengl/texture.h
+index 0299cf6..8c97d1f 100644
+--- a/include/ghoul/opengl/texture.h
++++ b/include/ghoul/opengl/texture.h
+@@ -375,6 +375,12 @@ public:
+     template <class T>
+     const T& texel(const glm::uvec3& pos) const;
+ 
++    /**
++     * Binds this texture to its texture type (`GL_TEXTURE_1D`, `GL_TEXTURE_2D`, etc) on
++     * the currently active texture unit, by calling `glBindTexture`.
++     */
++    void bind() const;
++
+ protected:
+     /**
+      * Initializes the OpenGL state of this texture.
+diff --git a/include/ghoul/opengl/textureunit.h b/include/ghoul/opengl/textureunit.h
+index bd35a81..00117eb 100644
+--- a/include/ghoul/opengl/textureunit.h
++++ b/include/ghoul/opengl/textureunit.h
+@@ -31,6 +31,8 @@
+ #include <string>
+ #include <vector>
+ 
++namespace ghoul::opengl { class Texture; }
++
+ namespace ghoul::opengl {
+ 
+ /**
+@@ -64,9 +66,13 @@ public:
+     TextureUnit(TextureUnit&&) noexcept = default;
+ 
+     /**
+-     * Activates and binds the provided texture to the TextureUnit.
++     * Activates and binds the provided texture to the TextureUnit. The texture object
++     * (rather than a raw name) is required so the correct texture target
++     * (`GL_TEXTURE_1D`, `GL_TEXTURE_2D`, etc) can be bound without relying on
++     * `glBindTextureUnit`, which is OpenGL 4.5 Direct State Access and unavailable on
++     * platforms such as macOS that only expose OpenGL 4.1.
+      */
+-    void bind(GLuint texture);
++    void bind(const Texture& texture);
+ 
+     /**
+      * This method will deactivate the enum assigned to this TextureUnit and mark it as
+diff --git a/src/font/fontrenderer.cpp b/src/font/fontrenderer.cpp
+index b663d67..6a51000 100644
+--- a/src/font/fontrenderer.cpp
++++ b/src/font/fontrenderer.cpp
+@@ -227,44 +227,43 @@ FontRenderer::FontRenderer(std::unique_ptr<opengl::ProgramObject> program,
+         glm::vec2 texCoordsOutline;
+     };
+ 
+-    glCreateBuffers(1, &_orthogonal.vbo);
+-    glCreateBuffers(1, &_orthogonal.ibo);
+-
+-    glCreateVertexArrays(1, &_orthogonal.vao);
+-    glVertexArrayVertexBuffer(
+-        _orthogonal.vao,
+-        0,
+-        _orthogonal.vbo,
+-        0,
+-        sizeof(OrthogonalVertex)
+-    );
+-    glVertexArrayElementBuffer(_orthogonal.vao, _orthogonal.ibo);
++    // glCreateBuffers/glCreateVertexArrays and the glVertexArrayAttribFormat/Binding
++    // "decoupled" attribute model are OpenGL 4.5 Direct State Access and OpenGL 4.3
++    // (ARB_vertex_attrib_binding) respectively — neither is available on platforms such
++    // as macOS that only expose OpenGL 4.1, so fall back to the classic
++    // bind-then-glVertexAttribPointer model, which has been core since OpenGL 2.0.
++    glGenBuffers(1, &_orthogonal.vbo);
++    glGenBuffers(1, &_orthogonal.ibo);
++    glGenVertexArrays(1, &_orthogonal.vao);
++
++    glBindVertexArray(_orthogonal.vao);
++    glBindBuffer(GL_ARRAY_BUFFER, _orthogonal.vbo);
++    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _orthogonal.ibo);
+ 
+-    glEnableVertexArrayAttrib(_orthogonal.vao, 0);
+-    glVertexArrayAttribFormat(_orthogonal.vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_orthogonal.vao, 0, 0);
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(OrthogonalVertex), nullptr);
+ 
+-    glEnableVertexArrayAttrib(_orthogonal.vao, 1);
+-    glVertexArrayAttribFormat(
+-        _orthogonal.vao,
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(
+         1,
+         2,
+         GL_FLOAT,
+         GL_FALSE,
+-        offsetof(OrthogonalVertex, texCoords)
++        sizeof(OrthogonalVertex),
++        reinterpret_cast<const void*>(offsetof(OrthogonalVertex, texCoords))
+     );
+-    glVertexArrayAttribBinding(_orthogonal.vao, 1, 0);
+ 
+-    glEnableVertexArrayAttrib(_orthogonal.vao, 2);
+-    glVertexArrayAttribFormat(
+-        _orthogonal.vao,
++    glEnableVertexAttribArray(2);
++    glVertexAttribPointer(
+         2,
+         2,
+         GL_FLOAT,
+         GL_FALSE,
+-        offsetof(OrthogonalVertex, texCoordsOutline)
++        sizeof(OrthogonalVertex),
++        reinterpret_cast<const void*>(offsetof(OrthogonalVertex, texCoordsOutline))
+     );
+-    glVertexArrayAttribBinding(_orthogonal.vao, 2, 0);
++
++    glBindVertexArray(0);
+ 
+ 
+     //
+@@ -275,43 +274,38 @@ FontRenderer::FontRenderer(std::unique_ptr<opengl::ProgramObject> program,
+         glm::vec2 texCoordsOutline;
+     };
+ 
+-    glCreateBuffers(1, &_perspective.vbo);
+-    glCreateBuffers(1, &_perspective.ibo);
+-    glCreateVertexArrays(1, &_perspective.vao);
+-    glVertexArrayVertexBuffer(
+-        _perspective.vao,
+-        0,
+-        _perspective.vbo,
+-        0,
+-        sizeof(PerspectiveVertex)
+-    );
+-    glVertexArrayElementBuffer(_perspective.vao, _perspective.ibo);
++    glGenBuffers(1, &_perspective.vbo);
++    glGenBuffers(1, &_perspective.ibo);
++    glGenVertexArrays(1, &_perspective.vao);
++
++    glBindVertexArray(_perspective.vao);
++    glBindBuffer(GL_ARRAY_BUFFER, _perspective.vbo);
++    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _perspective.ibo);
+ 
+-    glEnableVertexArrayAttrib(_perspective.vao, 0);
+-    glVertexArrayAttribFormat(_perspective.vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_perspective.vao, 0, 0);
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PerspectiveVertex), nullptr);
+ 
+-    glEnableVertexArrayAttrib(_perspective.vao, 1);
+-    glVertexArrayAttribFormat(
+-        _perspective.vao,
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(
+         1,
+         2,
+         GL_FLOAT,
+         GL_FALSE,
+-        offsetof(PerspectiveVertex, texCoords)
++        sizeof(PerspectiveVertex),
++        reinterpret_cast<const void*>(offsetof(PerspectiveVertex, texCoords))
+     );
+-    glVertexArrayAttribBinding(_perspective.vao, 1, 0);
+ 
+-    glEnableVertexArrayAttrib(_perspective.vao, 2);
+-    glVertexArrayAttribFormat(
+-        _perspective.vao,
++    glEnableVertexAttribArray(2);
++    glVertexAttribPointer(
+         2,
+         2,
+         GL_FLOAT,
+         GL_FALSE,
+-        offsetof(PerspectiveVertex, texCoordsOutline)
++        sizeof(PerspectiveVertex),
++        reinterpret_cast<const void*>(offsetof(PerspectiveVertex, texCoordsOutline))
+     );
+-    glVertexArrayAttribBinding(_perspective.vao, 2, 0);
++
++    glBindVertexArray(0);
+ }
+ 
+ FontRenderer::~FontRenderer() {
+@@ -545,15 +539,19 @@ FontRenderer::BoundingBoxInformation FontRenderer::render(Font& font,
+         glm::ortho(0.f, _framebufferSize.x, 0.f, _framebufferSize.y)
+     );
+ 
+-    glNamedBufferData(
+-        _orthogonal.vbo,
++    // glNamedBufferData is OpenGL 4.5 Direct State Access; bind then glBufferData
++    // instead so this works on OpenGL 4.1 (e.g. macOS).
++    glBindBuffer(GL_ARRAY_BUFFER, _orthogonal.vbo);
++    glBufferData(
++        GL_ARRAY_BUFFER,
+         vertexBuffer.size() * sizeof(float),
+         vertexBuffer.data(),
+         GL_DYNAMIC_DRAW
+     );
+ 
+-    glNamedBufferData(
+-        _orthogonal.ibo,
++    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _orthogonal.ibo);
++    glBufferData(
++        GL_ELEMENT_ARRAY_BUFFER,
+         indexBuffer.size() * sizeof(GLushort),
+         indexBuffer.data(),
+         GL_DYNAMIC_DRAW
+@@ -764,15 +762,17 @@ FontRenderer::BoundingBoxInformation FontRenderer::render(Font& font,
+         labelInfo.disableTransmittance
+     );
+ 
+-    glNamedBufferData(
+-        _perspective.vbo,
++    glBindBuffer(GL_ARRAY_BUFFER, _perspective.vbo);
++    glBufferData(
++        GL_ARRAY_BUFFER,
+         vertexBuffer.size() * sizeof(float),
+         vertexBuffer.data(),
+         GL_DYNAMIC_DRAW
+     );
+ 
+-    glNamedBufferData(
+-        _perspective.ibo,
++    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _perspective.ibo);
++    glBufferData(
++        GL_ELEMENT_ARRAY_BUFFER,
+         indexBuffer.size() * sizeof(GLushort),
+         indexBuffer.data(),
+         GL_DYNAMIC_DRAW
+diff --git a/src/io/model/modelmesh.cpp b/src/io/model/modelmesh.cpp
+index 5a0ba65..60a8c26 100644
+--- a/src/io/model/modelmesh.cpp
++++ b/src/io/model/modelmesh.cpp
+@@ -253,45 +253,76 @@ void ModelMesh::initialize() {
+         return;
+     }
+ 
+-    glCreateBuffers(1, &_vbo);
+-    glNamedBufferStorage(
+-        _vbo,
++    // glCreateBuffers/glNamedBufferStorage (immutable storage, GL 4.4/4.5 DSA) and
++    // glCreateVertexArrays + the decoupled glVertexArrayAttribFormat/Binding model
++    // (GL 4.3/4.5) are not available on platforms such as macOS that only expose
++    // OpenGL 4.1. Fall back to classic mutable buffers and glVertexAttribPointer.
++    glGenBuffers(1, &_vbo);
++    glGenVertexArrays(1, &_vao);
++    glGenBuffers(1, &_ibo);
++
++    glBindVertexArray(_vao);
++
++    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
++    glBufferData(
++        GL_ARRAY_BUFFER,
+         _vertices.size() * sizeof(Vertex),
+         _vertices.data(),
+-        GL_NONE_BIT
++        GL_STATIC_DRAW
+     );
+ 
+-    glCreateBuffers(1, &_ibo);
+-    glNamedBufferStorage(
+-        _ibo,
++    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ibo);
++    glBufferData(
++        GL_ELEMENT_ARRAY_BUFFER,
+         _indices.size() * sizeof(unsigned int),
+         _indices.data(),
+-        GL_NONE_BIT
++        GL_STATIC_DRAW
+     );
+ 
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
+-    glVertexArrayElementBuffer(_vao, _ibo);
+-
+-    glEnableVertexArrayAttrib(_vao, 0);
+-    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_vao, 0, 0);
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
++
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(
++        1,
++        2,
++        GL_FLOAT,
++        GL_FALSE,
++        sizeof(Vertex),
++        reinterpret_cast<const void*>(offsetof(Vertex, tex))
++    );
+ 
+-    glEnableVertexArrayAttrib(_vao, 1);
+-    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, tex));
+-    glVertexArrayAttribBinding(_vao, 1, 0);
++    glEnableVertexAttribArray(2);
++    glVertexAttribPointer(
++        2,
++        3,
++        GL_FLOAT,
++        GL_FALSE,
++        sizeof(Vertex),
++        reinterpret_cast<const void*>(offsetof(Vertex, normal))
++    );
+ 
+-    glEnableVertexArrayAttrib(_vao, 2);
+-    glVertexArrayAttribFormat(_vao, 2, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
+-    glVertexArrayAttribBinding(_vao, 2, 0);
++    glEnableVertexAttribArray(3);
++    glVertexAttribPointer(
++        3,
++        3,
++        GL_FLOAT,
++        GL_FALSE,
++        sizeof(Vertex),
++        reinterpret_cast<const void*>(offsetof(Vertex, tangent))
++    );
+ 
+-    glEnableVertexArrayAttrib(_vao, 3);
+-    glVertexArrayAttribFormat(_vao, 3, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, tangent));
+-    glVertexArrayAttribBinding(_vao, 3, 0);
++    glEnableVertexAttribArray(4);
++    glVertexAttribPointer(
++        4,
++        3,
++        GL_FLOAT,
++        GL_FALSE,
++        sizeof(Vertex),
++        reinterpret_cast<const void*>(offsetof(Vertex, color))
++    );
+ 
+-    glEnableVertexArrayAttrib(_vao, 4);
+-    glVertexArrayAttribFormat(_vao, 4, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, color));
+-    glVertexArrayAttribBinding(_vao, 4, 0);
++    glBindVertexArray(0);
+ 
+     // Initialize textures
+     // Also check if there are several textures/colors of the same type for this mesh
+diff --git a/src/opengl/framebufferobject.cpp b/src/opengl/framebufferobject.cpp
+index 510fe2d..f39bf95 100644
+--- a/src/opengl/framebufferobject.cpp
++++ b/src/opengl/framebufferobject.cpp
+@@ -90,17 +90,23 @@ bool FramebufferObject::isActive() const {
+ void FramebufferObject::attachTexture(Texture* texture, GLenum attachment, int mipLevel,
+                                       int zSlice)
+ {
++    // glNamedFramebufferTexture(Layer) is OpenGL 4.5 Direct State Access and is not
++    // available on platforms such as macOS that only expose OpenGL 4.1. The
++    // non-DSA equivalents (glFramebufferTexture / glFramebufferTextureLayer, both core
++    // since OpenGL 3.2) require this framebuffer to be bound first.
++    glBindFramebuffer(GL_FRAMEBUFFER, _id);
++
+     switch (texture->type()) {
+         case GL_TEXTURE_1D:
+         case GL_TEXTURE_2D:
+         case GL_TEXTURE_RECTANGLE:
+-            glNamedFramebufferTexture(_id, attachment, *texture, mipLevel);
++            glFramebufferTexture(GL_FRAMEBUFFER, attachment, *texture, mipLevel);
+             break;
+         case GL_TEXTURE_3D:
+-            glNamedFramebufferTextureLayer(_id, attachment, *texture, mipLevel, zSlice);
++            glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, *texture, mipLevel, zSlice);
+             break;
+         case GL_TEXTURE_2D_ARRAY:
+-            glNamedFramebufferTextureLayer(_id, attachment, *texture, mipLevel, zSlice);
++            glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, *texture, mipLevel, zSlice);
+             break;
+         default:
+             LERROR("Unknown texture type");
+@@ -118,7 +124,8 @@ void FramebufferObject::detachTexture(GLenum attachment) {
+         LWARNING("Trying to detach unknown texture");
+     }
+ 
+-    glNamedFramebufferTexture(_id, attachment, 0, 0);
++    glBindFramebuffer(GL_FRAMEBUFFER, _id);
++    glFramebufferTexture(GL_FRAMEBUFFER, attachment, 0, 0);
+ }
+ 
+ void FramebufferObject::detachAll() {
+@@ -139,7 +146,7 @@ GLuint FramebufferObject::getActiveObject() {
+ }
+ 
+ GLuint FramebufferObject::generateId() {
+-    glCreateFramebuffers(1, &_id);
++    glGenFramebuffers(1, &_id);
+     return _id;
+ }
+ 
+diff --git a/src/opengl/programobject.cpp b/src/opengl/programobject.cpp
+index 2c77536..ba5535d 100644
+--- a/src/opengl/programobject.cpp
++++ b/src/opengl/programobject.cpp
+@@ -65,12 +65,17 @@ ProgramObject::ProgramObject(std::string name)
+     if (_id == 0) {
+         throw ProgramObjectError("glCreateProgram returned 0");
+     }
+-    glObjectLabel(
+-        GL_PROGRAM,
+-        _id,
+-        static_cast<GLsizei>(_programName.length() + 1),
+-        _programName.c_str()
+-    );
++    // glObjectLabel is KHR_debug / OpenGL 4.3 and is not guaranteed to be present on
++    // every platform (e.g. macOS's OpenGL 4.1 core context), so guard against it not
++    // being resolved instead of calling it unconditionally.
++    if (glbinding::Binding::ObjectLabel.isResolved()) {
++        glObjectLabel(
++            GL_PROGRAM,
++            _id,
++            static_cast<GLsizei>(_programName.length() + 1),
++            _programName.c_str()
++        );
++    }
+ }
+ 
+ ProgramObject::~ProgramObject() {
+diff --git a/src/opengl/shaderobject.cpp b/src/opengl/shaderobject.cpp
+index bbecdea..13ae923 100644
+--- a/src/opengl/shaderobject.cpp
++++ b/src/opengl/shaderobject.cpp
+@@ -64,7 +64,9 @@ ShaderObject::ShaderObject(ShaderType shaderType, const std::filesystem::path& f
+         throw ShaderObjectError("glCreateShader returned 0");
+     }
+ 
+-    if (!_shaderName.empty()) {
++    if (!_shaderName.empty() && glbinding::Binding::ObjectLabel.isResolved()) {
++        // glObjectLabel is KHR_debug / OpenGL 4.3 and is not guaranteed to be present
++        // on every platform (e.g. macOS's OpenGL 4.1 core context).
+         glObjectLabel(
+             GL_SHADER,
+             _id,
+diff --git a/src/opengl/texture.cpp b/src/opengl/texture.cpp
+index 1011e3b..b0d1ca7 100644
+--- a/src/opengl/texture.cpp
++++ b/src/opengl/texture.cpp
+@@ -231,13 +231,18 @@ Texture::~Texture() {
+     glDeleteTextures(1, &_id);
+ }
+ 
++void Texture::bind() const {
++    glBindTexture(_type, _id);
++}
++
+ void Texture::initialize(const std::byte* data) {
+     ZoneScoped;
+ 
+     //
+     // Create OpenGL name
+     //
+-    glCreateTextures(_type, 1, &_id);
++    glGenTextures(1, &_id);
++    bind();
+ 
+ 
+     //
+@@ -245,22 +250,22 @@ void Texture::initialize(const std::byte* data) {
+     //
+     switch (_filter) {
+         case FilterMode::Nearest:
+-            glTextureParameteri(_id, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-            glTextureParameteri(_id, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++            glTexParameteri(_type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++            glTexParameteri(_type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+             break;
+         case FilterMode::Linear:
+-            glTextureParameteri(_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-            glTextureParameteri(_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++            glTexParameteri(_type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++            glTexParameteri(_type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+             break;
+         case FilterMode::LinearMipMap:
+-            glTextureParameteri(_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+-            glTextureParameteri(_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-            glTextureParameteri(_id, GL_TEXTURE_MAX_LEVEL, _mipMapLevel - 1);
++            glTexParameteri(_type, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
++            glTexParameteri(_type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++            glTexParameteri(_type, GL_TEXTURE_MAX_LEVEL, _mipMapLevel - 1);
+             break;
+         case FilterMode::AnisotropicMipMap:
+-            glTextureParameteri(_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+-            glTextureParameteri(_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-            glTextureParameteri(_id, GL_TEXTURE_MAX_LEVEL, _mipMapLevel - 1);
++            glTexParameteri(_type, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
++            glTexParameteri(_type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++            glTexParameteri(_type, GL_TEXTURE_MAX_LEVEL, _mipMapLevel - 1);
+             if (std::equal_to<>()(_anisotropyLevel, -1.f)) {
+                 GLfloat maxTextureAnisotropy = 1.0;
+                 glGetFloatv(
+@@ -269,8 +274,8 @@ void Texture::initialize(const std::byte* data) {
+                 );
+                 _anisotropyLevel = maxTextureAnisotropy;
+             }
+-            glTextureParameterf(_id, GL_TEXTURE_MAX_ANISOTROPY_EXT, _anisotropyLevel);
+-            glTextureParameteri(_id, GL_TEXTURE_BASE_LEVEL, 0);
++            glTexParameterf(_type, GL_TEXTURE_MAX_ANISOTROPY_EXT, _anisotropyLevel);
++            glTexParameteri(_type, GL_TEXTURE_BASE_LEVEL, 0);
+             break;
+     }
+ 
+@@ -280,16 +285,16 @@ void Texture::initialize(const std::byte* data) {
+     //
+     switch (_type) {
+         case GL_TEXTURE_1D:
+-            glTextureParameteri(_id, GL_TEXTURE_WRAP_S, static_cast<GLint>(_wrapping.s));
++            glTexParameteri(_type, GL_TEXTURE_WRAP_S, static_cast<GLint>(_wrapping.s));
+             break;
+         case GL_TEXTURE_2D:
+-            glTextureParameteri(_id, GL_TEXTURE_WRAP_S, static_cast<GLint>(_wrapping.s));
+-            glTextureParameteri(_id, GL_TEXTURE_WRAP_T, static_cast<GLint>(_wrapping.t));
++            glTexParameteri(_type, GL_TEXTURE_WRAP_S, static_cast<GLint>(_wrapping.s));
++            glTexParameteri(_type, GL_TEXTURE_WRAP_T, static_cast<GLint>(_wrapping.t));
+             break;
+         case GL_TEXTURE_3D:
+-            glTextureParameteri(_id, GL_TEXTURE_WRAP_S, static_cast<GLint>(_wrapping.s));
+-            glTextureParameteri(_id, GL_TEXTURE_WRAP_T, static_cast<GLint>(_wrapping.t));
+-            glTextureParameteri(_id, GL_TEXTURE_WRAP_R, static_cast<GLint>(_wrapping.r));
++            glTexParameteri(_type, GL_TEXTURE_WRAP_S, static_cast<GLint>(_wrapping.s));
++            glTexParameteri(_type, GL_TEXTURE_WRAP_T, static_cast<GLint>(_wrapping.t));
++            glTexParameteri(_type, GL_TEXTURE_WRAP_R, static_cast<GLint>(_wrapping.r));
+             break;
+         default:
+             throw MissingCaseException();
+@@ -300,7 +305,7 @@ void Texture::initialize(const std::byte* data) {
+     // Apply the swizzle mask
+     //
+     if (_swizzleMask.has_value()) {
+-        glTextureParameteriv(_id, GL_TEXTURE_SWIZZLE_RGBA, _swizzleMask->data());
++        glTexParameteriv(_type, GL_TEXTURE_SWIZZLE_RGBA, _swizzleMask->data());
+     }
+ 
+ 
+@@ -308,7 +313,7 @@ void Texture::initialize(const std::byte* data) {
+     // Set the border color
+     //
+     if (_borderColor.has_value()) {
+-        glTextureParameterfv(_id, GL_TEXTURE_BORDER_COLOR, glm::value_ptr(*_borderColor));
++        glTexParameterfv(_type, GL_TEXTURE_BORDER_COLOR, glm::value_ptr(*_borderColor));
+     }
+ 
+ 
+@@ -341,11 +346,11 @@ void Texture::initialize(const std::byte* data) {
+ 
+     switch (_type) {
+         case GL_TEXTURE_1D:
+-            glTextureStorage1D(_id, nMipMapLevels, _internalFormat, _dimensions.x);
++            glTexStorage1D(_type, nMipMapLevels, _internalFormat, _dimensions.x);
+             break;
+         case GL_TEXTURE_2D:
+-            glTextureStorage2D(
+-                _id,
++            glTexStorage2D(
++                _type,
+                 nMipMapLevels,
+                 _internalFormat,
+                 _dimensions.x,
+@@ -353,8 +358,8 @@ void Texture::initialize(const std::byte* data) {
+             );
+             break;
+         case GL_TEXTURE_3D:
+-            glTextureStorage3D(
+-                _id,
++            glTexStorage3D(
++                _type,
+                 nMipMapLevels,
+                 _internalFormat,
+                 _dimensions.x,
+@@ -374,7 +379,7 @@ void Texture::initialize(const std::byte* data) {
+         uploadTexture(data);
+ 
+         if (_usesMipMapping) {
+-            glGenerateTextureMipmap(_id);
++            glGenerateMipmap(_type);
+         }
+     }
+ }
+@@ -382,13 +387,13 @@ void Texture::initialize(const std::byte* data) {
+ void Texture::uploadTexture(const std::byte* data) const {
+     ghoul_assert(data, "Data must be provided");
+ 
+-    glBindTexture(_type, _id);
++    bind();
+     glPixelStorei(GL_UNPACK_ALIGNMENT, _pixelAlignment);
+ 
+     switch (_type) {
+         case GL_TEXTURE_1D:
+-            glTextureSubImage1D(
+-                _id,
++            glTexSubImage1D(
++                _type,
+                 0,
+                 0,
+                 GLsizei(_dimensions.x),
+@@ -398,8 +403,8 @@ void Texture::uploadTexture(const std::byte* data) const {
+             );
+             break;
+         case GL_TEXTURE_2D:
+-            glTextureSubImage2D(
+-                _id,
++            glTexSubImage2D(
++                _type,
+                 0,
+                 0,
+                 0,
+@@ -411,8 +416,8 @@ void Texture::uploadTexture(const std::byte* data) const {
+             );
+             break;
+         case GL_TEXTURE_3D:
+-            glTextureSubImage3D(
+-                _id,
++            glTexSubImage3D(
++                _type,
+                 0,
+                 0,
+                 0,
+@@ -430,7 +435,7 @@ void Texture::uploadTexture(const std::byte* data) const {
+     }
+ 
+     if (_usesMipMapping) {
+-        glGenerateTextureMipmap(_id);
++        glGenerateMipmap(_type);
+     }
+ }
+ 
+@@ -451,7 +456,12 @@ Texture::operator GLuint() const {
+ 
+ void Texture::setName(std::string name) {
+     _name = std::move(name);
+-    glObjectLabel(GL_TEXTURE, _id, static_cast<GLsizei>(_name.size()), _name.data());
++    // glObjectLabel is KHR_debug / OpenGL 4.3 and is not guaranteed to be present on
++    // every platform (e.g. macOS's OpenGL 4.1 core context), so guard against it not
++    // being resolved instead of calling it unconditionally.
++    if (glbinding::Binding::ObjectLabel.isResolved()) {
++        glObjectLabel(GL_TEXTURE, _id, static_cast<GLsizei>(_name.size()), _name.data());
++    }
+ }
+ 
+ const std::string& Texture::name() const {
+@@ -488,7 +498,8 @@ std::vector<std::byte> Texture::pixelData() const {
+ 
+     const int nBytes = expectedPixelDataSize();
+     std::vector<std::byte> res = std::vector<std::byte>(nBytes);
+-    glGetTextureImage(_id, 0, GLenum(_format), _dataType, nBytes, res.data());
++    bind();
++    glGetTexImage(_type, 0, GLenum(_format), _dataType, res.data());
+     return res;
+ }
+ 
+@@ -515,7 +526,8 @@ void Texture::downloadTexture() {
+ 
+     const int nBytes = expectedPixelDataSize();
+     _pixels.resize(nBytes);
+-    glGetTextureImage(_id, 0, GLenum(_format), _dataType, nBytes, _pixels.data());
++    bind();
++    glGetTexImage(_type, 0, GLenum(_format), _dataType, _pixels.data());
+ }
+ 
+ const std::vector<std::byte> Texture::cachedPixelData() const {
+diff --git a/src/opengl/textureunit.cpp b/src/opengl/textureunit.cpp
+index dc6d75a..23f861c 100644
+--- a/src/opengl/textureunit.cpp
++++ b/src/opengl/textureunit.cpp
+@@ -51,12 +51,16 @@ TextureUnit::~TextureUnit() {
+     unassign();
+ }
+ 
+-void TextureUnit::bind(GLuint texture) {
++void TextureUnit::bind(const Texture& texture) {
+     if (!_assigned) {
+         assignUnit();
+     }
+ 
+-    glBindTextureUnit(_number, texture);
++    // glBindTextureUnit is OpenGL 4.5 Direct State Access and is not available on
++    // platforms such as macOS that only expose OpenGL 4.1, so use the classic
++    // glActiveTexture + glBindTexture pattern instead.
++    glActiveTexture(_glEnum);
++    texture.bind();
+ }
+ 
+ void TextureUnit::unassign() {
