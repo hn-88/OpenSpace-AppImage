@@ -614,6 +614,8 @@ index 3e29312c..9b6cad74 100644
      GetNativeSystemInfo(&systemInfo);
      _cores = systemInfo.dwNumberOfProcessors;
  #endif // _M_ARM64
+-#else // ^^^^ WIN32 // !WIN32 vvvv
+-    FILE* file = nullptr;
 +#elif defined(__APPLE__)
 +    int mib[2];
 +    size_t len = 512;
@@ -694,8 +696,7 @@ index 3e29312c..9b6cad74 100644
 +    _L2Associativity = static_cast<unsigned int>(intValue);
 +//    delete[] p;
 +#else
--#else // ^^^^ WIN32 // !WIN32 vvvv
-     FILE* file = nullptr;
++    FILE* file = nullptr;
      const unsigned int maxSize = 2048;
      char line[maxSize];
 diff --git a/ext/ghoul/tests/CMakeLists.txt b/ext/ghoul/tests/CMakeLists.txt
