@@ -88,9 +88,9 @@ jobs:
         cp -v ghoul-patches/* "$openSpaceHome"
         cp -v diff-files/* "$openSpaceHome"
         cd "$openSpaceHome"
-        mv -v uniform_conversion.h ext/ghoul/src/opengl/uniform_conversion.h
-        mv -v ghoul-src-opengl-programobject.cpp ext/ghoul/src/opengl/programobject.cpp
-        python smart_patcher.py applesilicon.diffedited.txt
+        #mv -v uniform_conversion.h ext/ghoul/src/opengl/uniform_conversion.h
+        #mv -v ghoul-src-opengl-programobject.cpp ext/ghoul/src/opengl/programobject.cpp
+        #python smart_patcher.py applesilicon.diffedited.txt
         # check for doubles in glsl files which might have remained
         GREP_OUTPUT=$(grep -rEn --include="*.glsl" --include="*.hglsl" --color=always "\b(double|dvec[234]?|dmat[234]?)\b" . || true)
         if [ -n "$GREP_OUTPUT" ]; then
