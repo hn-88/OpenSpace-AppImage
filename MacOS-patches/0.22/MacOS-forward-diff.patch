@@ -822,6 +822,7 @@ index 2ef4a12..f4927f5 100644
 +            // elsewhere in this file, and locale-independent by default).
 +            auto res = scn::scan<double>(meanMotion, "{}");
 +            if (!res) {
+@@ contiguous line @@
 -                throw ghoul::RuntimeError(std::format(
 -                    "Error parsing 'MeanMotion' of CSV file with error '{}'",
 -                    std::make_error_code(ec).message()
@@ -854,6 +855,7 @@ index 2ef4a12..f4927f5 100644
 -            if (ptr != eccentricity.data() + eccentricity.size() || ec != std::errc()) {
 +            auto res = scn::scan<double>(eccentricity, "{}");
 +            if (!res) {
+@@ contiguous line @@
 -                throw ghoul::RuntimeError(std::format(
 -                    "Error parsing 'Eccentricity' of CSV file with error '{}'",
 -                    std::make_error_code(ec).message()
@@ -874,6 +876,7 @@ index 2ef4a12..f4927f5 100644
          }
          {
              std::string_view inclination = entry[5];
+@@ contiguous line @@
 -            auto [ptr, ec] = std::from_chars(
 -                inclination.data(),
 -                inclination.data() + inclination.size(),
@@ -882,6 +885,7 @@ index 2ef4a12..f4927f5 100644
 -            if (ptr != inclination.data() + inclination.size() || ec != std::errc()) {
 +            auto res = scn::scan<double>(inclination, "{}");
 +            if (!res) {
+@@ contiguous line @@
 -                throw ghoul::RuntimeError(std::format(
 -                    "Error parsing 'Inclination' of CSV file with error '{}'",
 -                    std::make_error_code(ec).message()
@@ -902,6 +906,7 @@ index 2ef4a12..f4927f5 100644
          }
          {
              std::string_view ascendingNode = entry[6];
+@@ contiguous line @@
 -            auto [ptr, ec] = std::from_chars(
 -                ascendingNode.data(),
 -                ascendingNode.data() + ascendingNode.size(),
@@ -910,6 +915,7 @@ index 2ef4a12..f4927f5 100644
 -            if (ptr != ascendingNode.data() + ascendingNode.size() || ec != std::errc()) {
 +            auto res = scn::scan<double>(ascendingNode, "{}");
 +            if (!res) {
+@@ contiguous line @@
 -                throw ghoul::RuntimeError(std::format(
 -                    "Error parsing 'AscendingNode' of CSV file with error '{}'",
 -                    std::make_error_code(ec).message()
@@ -930,6 +936,7 @@ index 2ef4a12..f4927f5 100644
          }
          {
              std::string_view argumentOfPeriapsis = entry[7];
+@@ contiguous line @@
 -            auto [ptr, ec] = std::from_chars(
 -                argumentOfPeriapsis.data(),
 -                argumentOfPeriapsis.data() + argumentOfPeriapsis.size(),
@@ -940,6 +947,7 @@ index 2ef4a12..f4927f5 100644
 -            {
 +            auto res = scn::scan<double>(argumentOfPeriapsis, "{}");
 +            if (!res) {
+@@ contiguous line @@
 -                throw ghoul::RuntimeError(std::format(
 -                    "Error parsing 'ArgumentOfPeriapsis' of CSV file with error '{}'",
 -                    std::make_error_code(ec).message()
@@ -960,6 +968,7 @@ index 2ef4a12..f4927f5 100644
          }
          {
              std::string_view meanAnomaly = entry[8];
+@@ contiguous line @@
 -            auto [ptr, ec] = std::from_chars(
 -                meanAnomaly.data(),
 -                meanAnomaly.data() + meanAnomaly.size(),
@@ -968,6 +977,7 @@ index 2ef4a12..f4927f5 100644
 -            if (ptr != meanAnomaly.data() + meanAnomaly.size() || ec != std::errc()) {
 +            auto res = scn::scan<double>(meanAnomaly, "{}");
 +            if (!res) {
+@@ contiguous line @@
 -                throw ghoul::RuntimeError(std::format(
 -                    "Error parsing 'MeanAnomaly' of CSV file with error '{}'",
 -                    std::make_error_code(ec).message()
