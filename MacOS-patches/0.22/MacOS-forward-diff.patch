@@ -272,21 +272,19 @@ diff --git a/modules/space/rendering/renderableorbitalkepler.cpp b/modules/space
 --- a/modules/space/rendering/renderableorbitalkepler.cpp
 +++ b/modules/space/rendering/renderableorbitalkepler.cpp
 @@ -44,28 +44,6 @@
- #include <fstream>
- #include <random>
--#include <vector>
-+#include <vector>
+-#include <random>
+-#include <thread>
++#include <random>
++#include <thread>
 +// could link to dispatch to get multithreading on macOS
 +// #ifdef __APPLE__
 +// #include <dispatch/dispatch.h> // Include GCD header & link to libdispatch
-+
 +//     // Use Apple's Grand Central Dispatch for parallelism
 +//     dispatch_apply(_threadIds.size(), dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^(size_t index) {
 +//         // dispatch_apply gives you an index (0 to size-1), so we use it to access the threadId
 +//         int threadId = _threadIds[index];
 +//         threadedSegmentCalculations(threadId, data);
 +//     });
-+
 +// #else
 +//     // Standard C++17 Parallelism
 +//     std::for_each(
@@ -298,7 +296,7 @@ diff --git a/modules/space/rendering/renderableorbitalkepler.cpp b/modules/space
 +//         }
 +//     );
 +// #endif
-+
+
  namespace {
      // The possible values for the _renderingModes property
 @@ -517,15 +495,6 @@
@@ -306,90 +304,25 @@ diff --git a/modules/space/rendering/renderableorbitalkepler.cpp b/modules/space
      bool isPaused = data.time.j2000Seconds() == data.previousFrameTime.j2000Seconds();
      if (!isPaused || _forceUpdate) {
 -        std::for_each(
-+#ifdef __APPLE__
+-            std::execution::par_unseq,
+-            _threadIds.begin(),
 +        std::for_each(
-+            _threadIds.begin(),
-+            _threadIds.end(),
-+            [&](int threadId) {
-+                threadedSegmentCalculations(threadId, data);
-+            }
-+        );
-+#else
-+        std::for_each(
-             std::execution::par_unseq,
-             _threadIds.begin(),
-@@ -534,7 +503,6 @@
-                 threadedSegmentCalculations(threadId, data);
-             }
-         );
--    }
++#ifndef __APPLE__
++            std::execution::par_unseq,
 +#endif
-+    }
- 
-     _lineDrawCount = static_cast<GLsizei>(_segmentsPerOrbit.size() * 2);
++            _threadIds.begin(),
+
 @@ -780,49 +752,7 @@
-     orbitIdHolder.resize(_sizeRender);
-     std::iota(orbitIdHolder.begin(), orbitIdHolder.end(), 0);
- 
 -    std::for_each(
-+#ifdef __APPLE__
-+    std::for_each(
 -        std::execution::par_unseq,
-+        // std::execution::par_unseq,
+-        orbitIdHolder.begin(),
+-        orbitIdHolder.end(),
++    std::for_each(
++#ifndef __APPLE__
++        std::execution::par_unseq,
++#endif
 +        orbitIdHolder.begin(),
 +        orbitIdHolder.end(),
-+        [&](int index) {
-+            ZoneScoped;
-+
-+            const kepler::Parameters& orbit = _parameters[index];
-+
-+            const KeplerCalculator calc = KeplerCalculator(
-+                orbit.eccentricity,
-+                orbit.semiMajorAxis,
-+                orbit.inclination,
-+                orbit.ascendingNode,
-+                orbit.argumentOfPeriapsis,
-+                orbit.meanAnomaly,
-+                orbit.period,
-+                orbit.epoch
-+            );
-+
-+            const int nVerts = _segmentsPerOrbit[index];
-+            const int offset = _vertexBufferOffset[index];
-+            const int nSegments = nVerts - 1;
-+            for (GLint j = 0; j < nVerts; j++) {
-+                const double timeOffset = orbit.period *
-+                    static_cast<double>(j) / static_cast<double>(nSegments);
-+
-+                const glm::dvec3 position = calc.position(timeOffset + orbit.epoch);
-+
-+                _vertexBufferData[offset + j].x = static_cast<float>(position.x);
-+                _vertexBufferData[offset + j].y = static_cast<float>(position.y);
-+                _vertexBufferData[offset + j].z = static_cast<float>(position.z);
-+                _vertexBufferData[offset + j].time = timeOffset;
-+                _vertexBufferData[offset + j].epoch = orbit.epoch;
-+                _vertexBufferData[offset + j].period = orbit.period;
-+            }
-+
-+            _updateHelper[index].timePerStep = orbit.period / nSegments;
-+        }
-+    );
-+#else
-+        std::for_each(
-+        std::execution::par_unseq,
-         orbitIdHolder.begin(),
-         orbitIdHolder.end(),
-@@ -862,7 +792,6 @@
--            _updateHelper[index].timePerStep = orbit.period / nSegments;
--         }
--    );
-+            _updateHelper[index].timePerStep = orbit.period / nSegments;
-+         }
-+    );
-+#endif
-+
-     // Calculate how many orbits we calculate per thread
-     // 1000 per thread (arbitrary) to not create threads that do little to no work
 
 diff --git a/modules/globebrowsing/src/geojson/globegeometryhelper.cpp b/modules/globebrowsing/src/geojson/globegeometryhelper.cpp
 --- a/modules/globebrowsing/src/geojson/globegeometryhelper.cpp
