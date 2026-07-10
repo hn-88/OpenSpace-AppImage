@@ -802,3 +802,189 @@ diff --git a/src/scene/scene_lua.inl b/src/scene/scene_lua.inl
 +        );
 +#endif
 
+diff --git a/modules/space/kepler.cpp b/modules/space/kepler.cpp
+index 2ef4a12..f4927f5 100644
+--- a/modules/space/kepler.cpp
++++ b/modules/space/kepler.cpp
+@@ -770,17 +770,24 @@ std::vector<Parameters> readCsvFile(const std::filesystem::path& file) {
+         {
+             std::string_view meanMotion = entry[3];
+             double mm = 0.0;
+-            auto [ptr, ec] = std::from_chars(
+-                meanMotion.data(),
+-                meanMotion.data() + meanMotion.size(),
+-                mm
+-            );
+-            if (ptr != meanMotion.data() + meanMotion.size() || ec != std::errc()) {
++            // std::from_chars for floating-point types is gated behind a macOS 26.0
++            // availability check in libc++ and is unavailable with older deployment
++            // targets, so use scn::scan instead (already a project dependency, used
++            // elsewhere in this file, and locale-independent by default).
++            auto res = scn::scan<double>(meanMotion, "{}");
++            if (!res) {
+-                throw ghoul::RuntimeError(std::format(
+-                    "Error parsing 'MeanMotion' of CSV file with error '{}'",
+-                    std::make_error_code(ec).message()
+-                ));
+-            }
++                throw ghoul::RuntimeError(std::format(
++                    "Error parsing 'MeanMotion' of CSV file with error '{}'",
++                    res.error().msg()
++                ));
++            }
++            if (!res->range().empty()) {
++                throw ghoul::RuntimeError(
++                    "Error parsing 'MeanMotion' of CSV file. Trailing characters "
++                    "after value"
++                );
++            }
++            mm = res->value();
+             if (mm == 0.0) {
+                 throw ghoul::RuntimeError(
+                     "Error parsing 'MeanMotion' of CSV file. Mean motion of 0 not valid"
+@@ -792,75 +799,88 @@ std::vector<Parameters> readCsvFile(const std::filesystem::path& file) {
+         }
+         {
+             std::string_view eccentricity = entry[4];
+-            auto [ptr, ec] = std::from_chars(
+-                eccentricity.data(),
+-                eccentricity.data() + eccentricity.size(),
+-                current.eccentricity
+-            );
+-            if (ptr != eccentricity.data() + eccentricity.size() || ec != std::errc()) {
++            auto res = scn::scan<double>(eccentricity, "{}");
++            if (!res) {
+-                throw ghoul::RuntimeError(std::format(
+-                    "Error parsing 'Eccentricity' of CSV file with error '{}'",
+-                    std::make_error_code(ec).message()
+-                ));
+-            }
++                throw ghoul::RuntimeError(std::format(
++                    "Error parsing 'Eccentricity' of CSV file with error '{}'",
++                    res.error().msg()
++                ));
++            }
++            if (!res->range().empty()) {
++                throw ghoul::RuntimeError(
++                    "Error parsing 'Eccentricity' of CSV file. Trailing characters "
++                    "after value"
++                );
++            }
++            current.eccentricity = res->value();
+         }
+         {
+             std::string_view inclination = entry[5];
+-            auto [ptr, ec] = std::from_chars(
+-                inclination.data(),
+-                inclination.data() + inclination.size(),
+-                current.inclination
+-            );
+-            if (ptr != inclination.data() + inclination.size() || ec != std::errc()) {
++            auto res = scn::scan<double>(inclination, "{}");
++            if (!res) {
+-                throw ghoul::RuntimeError(std::format(
+-                    "Error parsing 'Inclination' of CSV file with error '{}'",
+-                    std::make_error_code(ec).message()
+-                ));
+-            }
++                throw ghoul::RuntimeError(std::format(
++                    "Error parsing 'Inclination' of CSV file with error '{}'",
++                    res.error().msg()
++                ));
++            }
++            if (!res->range().empty()) {
++                throw ghoul::RuntimeError(
++                    "Error parsing 'Inclination' of CSV file. Trailing characters "
++                    "after value"
++                );
++            }
++            current.inclination = res->value();
+         }
+         {
+             std::string_view ascendingNode = entry[6];
+-            auto [ptr, ec] = std::from_chars(
+-                ascendingNode.data(),
+-                ascendingNode.data() + ascendingNode.size(),
+-                current.ascendingNode
+-            );
+-            if (ptr != ascendingNode.data() + ascendingNode.size() || ec != std::errc()) {
++            auto res = scn::scan<double>(ascendingNode, "{}");
++            if (!res) {
+-                throw ghoul::RuntimeError(std::format(
+-                    "Error parsing 'AscendingNode' of CSV file with error '{}'",
+-                    std::make_error_code(ec).message()
+-                ));
+-            }
++                throw ghoul::RuntimeError(std::format(
++                    "Error parsing 'AscendingNode' of CSV file with error '{}'",
++                    res.error().msg()
++                ));
++            }
++            if (!res->range().empty()) {
++                throw ghoul::RuntimeError(
++                    "Error parsing 'AscendingNode' of CSV file. Trailing characters "
++                    "after value"
++                );
++            }
++            current.ascendingNode = res->value();
+         }
+         {
+             std::string_view argumentOfPeriapsis = entry[7];
+-            auto [ptr, ec] = std::from_chars(
+-                argumentOfPeriapsis.data(),
+-                argumentOfPeriapsis.data() + argumentOfPeriapsis.size(),
+-                current.argumentOfPeriapsis
+-            );
+-            if (ptr != argumentOfPeriapsis.data() + argumentOfPeriapsis.size() ||
+-                ec != std::errc())
+-            {
++            auto res = scn::scan<double>(argumentOfPeriapsis, "{}");
++            if (!res) {
+-                throw ghoul::RuntimeError(std::format(
+-                    "Error parsing 'ArgumentOfPeriapsis' of CSV file with error '{}'",
+-                    std::make_error_code(ec).message()
+-                ));
+-            }
++                throw ghoul::RuntimeError(std::format(
++                    "Error parsing 'ArgumentOfPeriapsis' of CSV file with error '{}'",
++                    res.error().msg()
++                ));
++            }
++            if (!res->range().empty()) {
++                throw ghoul::RuntimeError(
++                    "Error parsing 'ArgumentOfPeriapsis' of CSV file. Trailing "
++                    "characters after value"
++                );
++            }
++            current.argumentOfPeriapsis = res->value();
+         }
+         {
+             std::string_view meanAnomaly = entry[8];
+-            auto [ptr, ec] = std::from_chars(
+-                meanAnomaly.data(),
+-                meanAnomaly.data() + meanAnomaly.size(),
+-                current.meanAnomaly
+-            );
+-            if (ptr != meanAnomaly.data() + meanAnomaly.size() || ec != std::errc()) {
++            auto res = scn::scan<double>(meanAnomaly, "{}");
++            if (!res) {
+-                throw ghoul::RuntimeError(std::format(
+-                    "Error parsing 'MeanAnomaly' of CSV file with error '{}'",
+-                    std::make_error_code(ec).message()
+-                ));
+-            }
++                throw ghoul::RuntimeError(std::format(
++                    "Error parsing 'MeanAnomaly' of CSV file with error '{}'",
++                    res.error().msg()
++                ));
++            }
++            if (!res->range().empty()) {
++                throw ghoul::RuntimeError(
++                    "Error parsing 'MeanAnomaly' of CSV file. Trailing characters "
++                    "after value"
++                );
++            }
++            current.meanAnomaly = res->value();
+         }
+ 
+         result.push_back(current);
