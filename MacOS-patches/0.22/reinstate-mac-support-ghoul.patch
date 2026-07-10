@@ -287,21 +287,17 @@ index 3324a66d..6e5a3ac6 100644
 +#endif
 -#endif // WIN32
  }
- 
- FileSystem::~FileSystem() {
-+#if defined WIN32
+
+@@ just the next line @@ 
+-FileSystem::~FileSystem() {
 -#ifdef WIN32
-     deinitializeInternalWindows();
+-    deinitializeInternalWindows();
++FileSystem::~FileSystem() {
++#ifdef WIN32
++    deinitializeInternalWindows();
 +#elif defined __APPLE__
 +    deinitializeInternalApple();
-+#else
--#else // ^^^^ WIN32 // !WIN32 vvvv
-     deinitializeInternalLinux();
-+#endif
--#endif // WIN32
- }
  
- void FileSystem::initialize() {
 diff --git a/ext/ghoul/src/filesystem/filesystem.linux.cpp b/ext/ghoul/src/filesystem/filesystem.linux.cpp
 index dd769230..1825535c 100644
 --- a/ext/ghoul/src/filesystem/filesystem.linux.cpp
