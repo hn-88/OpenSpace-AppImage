@@ -42,19 +42,16 @@ index xxxx..xxxx 100644
 --- a/modules/globebrowsing/src/renderableglobe.cpp
 +++ b/modules/globebrowsing/src/renderableglobe.cpp
 @@ line 622
--_shadowMappingProperties({
-+_shadowMappingProperties{
-@@ 
--BoolProperty(ShadowMappingInfo, false),
-+.shadowMapping = BoolProperty(ShadowMappingInfo, false),
-@@ 
--FloatProperty(ZFightingPercentageInfo, 0.995f, 0.000001f, 1.f),
-+.zFightingPercentage = FloatProperty(ZFightingPercentageInfo, 0.995f, 0.000001f, 1.f),
-@@ 
+-    , _shadowMappingProperties({
+-        BoolProperty(ShadowMappingInfo, false),
+-        FloatProperty(ZFightingPercentageInfo, 0.995f, 0.000001f, 1.f),
 -        IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
 -    })
-+.nShadowSamples = IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
-+}
++    , _shadowMappingProperties{
++       .shadowMapping = BoolProperty(ShadowMappingInfo, false),
++       .zFightingPercentage = FloatProperty(ZFightingPercentageInfo, 0.995f, 0.000001f, 1.f),
++       .nShadowSamples = IntProperty(NumberShadowSamplesInfo, 5, 1, 7)
++   }
 
 diff --git a/modules/globebrowsing/shaders/localrenderer_vs.glsl b/modules/globebrowsing/shaders/localrenderer_vs.glsl
 index xxxx..xxxx 100644
