@@ -41,32 +41,6 @@ diff --git a/modules/globebrowsing/src/renderableglobe.cpp b/modules/globebrowsi
 index xxxx..xxxx 100644
 --- a/modules/globebrowsing/src/renderableglobe.cpp
 +++ b/modules/globebrowsing/src/renderableglobe.cpp
-@@ around line 612
--_debugProperties({
-+_debugProperties{
-@@ 
--BoolProperty(ShowChunkEdgeInfo, false),
-+.showChunkEdges = BoolProperty(ShowChunkEdgeInfo, false),
-@@ 
--BoolProperty(LevelProjectedAreaInfo, true),
-+.levelByProjectedAreaElseDistance = BoolProperty(LevelProjectedAreaInfo, true),
-@@ 
--TriggerProperty(ResetTileProviderInfo),
-+.resetTileProviders = TriggerProperty(ResetTileProviderInfo),
-@@ 
--BoolProperty(PerformFrustumCullingInfo, true),
-+.performFrustumCulling = BoolProperty(PerformFrustumCullingInfo, true),
-@@ 
--BoolProperty(PerformHorizonCullingInfo, true),
-+.performHorizonCulling = BoolProperty(PerformHorizonCullingInfo, true),
-@@ 
--IntProperty(ModelSpaceRenderingInfo, 14, 1, 22),
-+.modelSpaceRenderingCutoffLevel = IntProperty(ModelSpaceRenderingInfo, 14, 1, 22),
-@@ 
--        IntProperty(DynamicLodIterationCountInfo, 16, 4, 128)
--    })
-+.dynamicLodIterationCount = IntProperty(DynamicLodIterationCountInfo, 16, 4, 128)
-+}
 @@ line 622
 -_shadowMappingProperties({
 +_shadowMappingProperties{
