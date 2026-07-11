@@ -998,3 +998,31 @@ index 2ef4a12..f4927f5 100644
          }
  
          result.push_back(current);
+
+diff --git a/modules/solarbrowsing/tasks/helioviewerdownloadtask.cpp b/modules/solarbrowsing/tasks/helioviewerdownloadtask.cpp
+index 2ef4a12..f4927f5 100644
+--- a/modules/solarbrowsing/tasks/helioviewerdownloadtask.cpp
++++ b/modules/solarbrowsing/tasks/helioviewerdownloadtask.cpp
+@@ around line 215 @@ 
+-    std::for_each(
+-        std::execution::par,
+-        epochAsIsoString.begin(),
++    std::for_each(
++#ifndef __APPLE__
++        std::execution::par,
++#endif
++        epochAsIsoString.begin(),
+
+diff --git a/modules/solarbrowsing/util/solarbrowsinghelper.cpp b/modules/solarbrowsing/util/solarbrowsinghelper.cpp
+index 2ef4a12..f4927f5 100644
+--- a/modules/solarbrowsing/util/solarbrowsinghelper.cpp
++++ b/modules/solarbrowsing/util/solarbrowsinghelper.cpp
+@@ around line 215 @@ 
+-    std::for_each(
+-        std::execution::par,
+-        sequencePaths.begin(),
++    std::for_each(
++#ifndef __APPLE__
++        std::execution::par,
++#endif
++        sequencePaths.begin(),
