@@ -61,6 +61,7 @@ jobs:
         cp -v MacOS-patches/0.22/reinstate-mac-support-ghoul.patch "$openSpaceHome/reinstate-mac-support-ghoul.patch"
         cp -v MacOS-patches/0.22/reinstate-mac-support-openspace.patch "$openSpaceHome/reinstate-mac-support-openspace.patch"
         cp -v MacOS-patches/0.22/reinstate-mac-support-sgct.patch "$openSpaceHome/reinstate-mac-support-sgct.patch"
+        cp -v MacOS-patches/0.22/gdal3dot13compat.patch "$openSpaceHome/gdal3dot13compat.patch"
         cp -v MacOS-patches/smart_patcher.py "$openSpaceHome/smart_patcher.py"
         cd "$openSpaceHome"
         # python3 reverse_patch.py MacOS-reverse-diff-edited.patch
@@ -68,6 +69,7 @@ jobs:
         python3 smart_patcher.py reinstate-mac-support-openspace.patch
         python3 smart_patcher.py reinstate-mac-support-sgct.patch
         python3 smart_patcher.py MacOS-forward-diff.patch
+        python3 smart_patcher.py gdal3dot13compat.patch
         
 
     - name: smart_patcher for MacOS
