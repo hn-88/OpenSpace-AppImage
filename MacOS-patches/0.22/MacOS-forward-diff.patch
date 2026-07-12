@@ -94,13 +94,10 @@ diff --git a/ext/ghoul/src/logging/consolelog.cpp b/ext/ghoul/src/logging/consol
 -#include <syncstream>
 +#ifndef __APPLE__
 +#include <syncstream>
--
 +#else
 +#include <mutex>
 +#endif
-+
- #ifdef WIN32
- #include <Windows.h>
+
 @@ -45,21 +41,6 @@
  #include <unistd.h>
  #include <sys/sysctl.h>
@@ -124,27 +121,29 @@ diff --git a/ext/ghoul/src/logging/consolelog.cpp b/ext/ghoul/src/logging/consol
 +// Function is taken from https://developer.apple.com/library/mac/qa/qa1361/_index.html
  // Returns true if the current process is being debugged (either running under the
  // debugger or has a debugger attached post facto).
-@@ -161,18 +142,10 @@
- 
-     res += message;
-     if (level >= LogLevel::Error) {
+
+@@ around line 160 @@
+-    if (level >= LogLevel::Error) {
 -        std::osyncstream(std::cerr) << res << '\n';
+-    }
+-    else {
+-        std::osyncstream(std::cout) << res << '\n';
+-    }
++        if (level >= LogLevel::Error) {
 +#ifndef __APPLE__
 +        std::osyncstream(std::cerr) << res << '\n';
--    }
 +#else
 +       sync_print_cerr(res); 
 +#endif
 +    }
-     else {
--        std::osyncstream(std::cout) << res << '\n';
++    else {
 +#ifndef __APPLE__
 +        std::osyncstream(std::cout) << res << '\n';
--    }
 +#else
 +       sync_print_cout(res);
 +#endif
 +    }
+
  
  
 @@ -181,16 +154,9 @@
@@ -152,6 +151,8 @@ diff --git a/ext/ghoul/src/logging/consolelog.cpp b/ext/ghoul/src/logging/consol
  }
  
 -void ConsoleLog::flush() {
+-    std::osyncstream(std::cout).flush();
+-}
 +#ifdef __APPLE__
 +void ConsoleLog::flush() {
 +    std::lock_guard<std::mutex> lock(sync_mutex);
@@ -159,13 +160,11 @@ diff --git a/ext/ghoul/src/logging/consolelog.cpp b/ext/ghoul/src/logging/consol
 +}
 +#else
 +void ConsoleLog::flush() {
-     std::osyncstream(std::cout).flush();
- }
--
++    std::osyncstream(std::cout).flush();
++}
 +#endif
-+
- void ConsoleLog::setColorForLevel(LogLevel level) {
- #ifdef WIN32
+
+ 
 diff --git a/include/openspace/documentation/verifier.inl b/include/openspace/documentation/verifier.inl
 --- a/include/openspace/documentation/verifier.inl
 +++ b/include/openspace/documentation/verifier.inl
