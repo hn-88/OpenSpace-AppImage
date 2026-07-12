@@ -365,12 +365,9 @@ index 8f38a697..21d22c37 100755
  
  ConsoleLog::ConsoleLog(ColorOutput colorOutput, LogLevel minimumLogLevel)
 @@ -222,40 +187,7 @@ void ConsoleLog::setColorForLevel(LogLevel level) {
--        case LogLevel::AllLogging:
--            break;
--    }
-+        case LogLevel::AllLogging:
-+            break;
-+    }
+-    SetConsoleTextAttribute(hConsole, colorIndex | (csbiInfo.wAttributes & Background));
+-#else // ^^^^ WIN32 // !WIN32 vvvv
++    SetConsoleTextAttribute(hConsole, colorIndex | (csbiInfo.wAttributes & Background));
 +#elif __APPLE__
 +    // The Xcode debugger is a bit strange with those control commands, so we have to
 +    // disable them if where are being debugged
@@ -404,6 +401,7 @@ index 8f38a697..21d22c37 100755
 +        case LogLevel::AllLogging:
 +            break;
 +    }
++#else
 
  
  void ConsoleLog::resetColor() {
