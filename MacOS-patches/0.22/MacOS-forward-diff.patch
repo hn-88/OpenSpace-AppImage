@@ -977,34 +977,17 @@ index 2ef4a12..f4927f5 100644
 -        }
 -        elems[i] = value;
 -    }
-+for (size_t i = 0; i < 9; i++) {
++    for (size_t i = 0; i < 9; i++) {
 +        std::string_view str = p[i];
 +        double value = 0.0;
-+#ifdef __APPLE__
-+        // std::from_chars(double) is unavailable on macOS deployment
-+        // targets below the SDK's runtime requirement (e.g. targeting
-+        // 13.3 while building against a newer SDK), so fall back to
-+        // strtod on Apple platforms.
-+        std::string tmp(str);
-+        errno = 0;
-+        char* end = nullptr;
-+        value = std::strtod(tmp.c_str(), &end);
-+        const bool failed = (end == tmp.c_str()) || (end != tmp.c_str() + tmp.size());
-+        const bool outOfRange = (errno == ERANGE);
-+        if (failed || outOfRange) {
++        auto r = scn::scan<double>(str, "{}");
++        const bool fullyConsumed = r && r->range().empty();
++        if (!fullyConsumed) {
 +            throw ghoul::RuntimeError(std::format(
 +                "Error parsing '{}' of CSV file with error '{}'",
-+                columns[i], outOfRange ? "result_out_of_range" : "invalid_argument"
++                columns[i], r ? "trailing characters after value" : r.error().msg()
 +            ));
 +        }
-+#else
-+        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
-+        if (ptr != str.data() + str.size() || ec != std::errc()) {
-+            throw ghoul::RuntimeError(std::format(
-+                "Error parsing '{}' of CSV file with error '{}'",
-+                columns[i], std::make_error_code(ec).message()
-+            ));
-+        }
-+#endif
++        value = r->value();
 +        elems[i] = value;
 +    }
