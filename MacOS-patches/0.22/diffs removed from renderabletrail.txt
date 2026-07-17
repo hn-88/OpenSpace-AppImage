@@ -1,0 +1,32 @@
+diff --git a/modules/base/rendering/renderabletrail.cpp b/modules/base/rendering/renderabletrail.cpp
+index 59e57109c0..3c565bee63 100644
+--- a/modules/base/rendering/renderabletrail.cpp
++++ b/modules/base/rendering/renderabletrail.cpp
+
+@@ -44,21 +44,12 @@
+ #include <optional>
+ 
+ namespace {
+-    constexpr std::array<const char*, 18> UniformNames = {
++#ifdef __APPLE__
++    constexpr std::array<const char*, 16> UniformNames = {
++        "opacity", "modelViewTransform", "projectionTransform", "color", "useLineFade",
++        "lineLength", "lineFadeAmount", "vertexSortingMethod", "idOffset", "nVertices",
++        "stride", "pointSize", "renderPhase", "useSplitRenderMode", "floatingOffset",
++        "numberOfUniqueVertices"
++    };
++#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
++    constexpr std::array<const char*, 18> UniformNames = {
+         "opacity", "modelViewTransform", "projectionTransform", "color", "useLineFade",
+         "lineLength", "lineFadeAmount", "vertexSortingMethod", "idOffset", "nVertices",
+         "stride", "pointSize", "renderPhase", "viewport", "lineWidth", "floatingOffset",
+         "useSplitRenderMode", "numberOfUniqueVertices"
+     };
+-
++#endif // __APPLE__
++
+     // The possible values for the _renderingModes property
+     enum RenderingMode {
+
+
+
