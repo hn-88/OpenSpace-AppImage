@@ -417,6 +417,11 @@ index caded421c0..3567f33811 100644
      /// Program object used to render the data stored in RenderInformation
      ghoul::opengl::ProgramObject* _programObject = nullptr;
 -    UniformCache(opacity, modelViewTransform, projectionTransform, color, useLineFade,
+-        lineLength, lineFadeAmount, vertexSortingMethod, idOffset, nVertices, stride,
+-        pointSize, renderPhase, viewport, lineWidth, floatingOffset, useSplitRenderMode,
+-        numberOfUniqueVertices
+-    ) _uniformCache;
+-};
 +#ifdef __APPLE__
 +    UniformCache(opacity, modelViewTransform, projectionTransform, color, useLineFade,
 +        lineLength, lineFadeAmount, vertexSortingMethod, idOffset, nVertices, stride,
@@ -424,11 +429,10 @@ index caded421c0..3567f33811 100644
 +    ) _uniformCache;
 +#else
 +    UniformCache(opacity, modelViewTransform, projectionTransform, color, useLineFade,
-         lineLength, lineFadeAmount, vertexSortingMethod, idOffset, nVertices, stride,
-         pointSize, renderPhase, viewport, lineWidth, floatingOffset, useSplitRenderMode,
-         numberOfUniqueVertices
-     ) _uniformCache;
--};
++        lineLength, lineFadeAmount, vertexSortingMethod, idOffset, nVertices, stride,
++        pointSize, renderPhase, viewport, lineWidth, floatingOffset, useSplitRenderMode,
++        numberOfUniqueVertices
++    ) _uniformCache;
 +#endif
 +};
  
