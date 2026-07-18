@@ -589,7 +589,7 @@ index 10fdb30bb8..b5e01a1bc1 100644
          constexpr std::string_view SubprocessPath = "OpenSpace_Helper.exe";
 +#elif defined(__APPLE__)
 +        constexpr std::string_view SubprocessPath =
-+            "../Frameworks/OpenSpace Helper.app/Contents/MacOS/OpenSpace Helper";
++            "../Frameworks/OpenSpace_Helper.app/Contents/MacOS/OpenSpace_Helper";
 +#else
 -#else // ^^^^ WIN32 // !WIN32 vvvv
          constexpr std::string_view SubprocessPath = "OpenSpace_Helper";
