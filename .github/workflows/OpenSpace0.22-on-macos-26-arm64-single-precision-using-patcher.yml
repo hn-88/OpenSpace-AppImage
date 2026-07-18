@@ -191,6 +191,7 @@ jobs:
                   "$openSpaceHome"
     
     - name: Build
+      continue-on-error: true
       # Build your program with the given configuration
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
@@ -199,6 +200,13 @@ jobs:
         # df -h
         cmake --build . --config ${{env.BUILD_TYPE}} --parallel -- -quiet
         df -h
+
+    - name: Inspect what actually got built
+      run: |
+        openSpaceHome="$HOME/source/OpenSpace"
+        cd "$openSpaceHome"
+        find bin -iname "*Helper*" -maxdepth 4
+        find bin -maxdepth 2
 
 
     - name: Sign macOS App (Ad-hoc)
