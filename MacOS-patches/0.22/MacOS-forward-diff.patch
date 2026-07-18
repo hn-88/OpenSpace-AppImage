@@ -964,6 +964,18 @@ diff --git a/src/util/spicemanager_lua.inl b/src/util/spicemanager_lua.inl
 index 2ef4a12..f4927f5 100644
 --- a/src/util/spicemanager_lua.inl
 +++ b/src/util/spicemanager_lua.inl
+@@ around line 33 @@
+-#include <memory>
+-#include <variant>
+-#include <utility>
++#include <memory>
++#include <variant>
++#include <utility>
++#ifdef __APPLE__
++#include <cstdlib> 
++#include <cerrno>
++#endif
+
 @@ around line 346 @@
 -    for (size_t i = 0; i < 9; i++) {
 -        std::string_view str = p[i];
@@ -977,17 +989,34 @@ index 2ef4a12..f4927f5 100644
 -        }
 -        elems[i] = value;
 -    }
-+    for (size_t i = 0; i < 9; i++) {
++for (size_t i = 0; i < 9; i++) {
 +        std::string_view str = p[i];
 +        double value = 0.0;
-+        auto r = scn::scan<double>(str, "{}");
-+        const bool fullyConsumed = r && r->range().empty();
-+        if (!fullyConsumed) {
++#ifdef __APPLE__
++        // std::from_chars(double) is unavailable on macOS deployment
++        // targets below the SDK's runtime requirement (e.g. targeting
++        // 13.3 while building against a newer SDK), so fall back to
++        // strtod on Apple platforms.
++        std::string tmp(str);
++        errno = 0;
++        char* end = nullptr;
++        value = std::strtod(tmp.c_str(), &end);
++        const bool failed = (end == tmp.c_str()) || (end != tmp.c_str() + tmp.size());
++        const bool outOfRange = (errno == ERANGE);
++        if (failed || outOfRange) {
 +            throw ghoul::RuntimeError(std::format(
 +                "Error parsing '{}' of CSV file with error '{}'",
-+                columns[i], r ? "trailing characters after value" : r.error().msg()
++                columns[i], outOfRange ? "result_out_of_range" : "invalid_argument"
 +            ));
 +        }
-+        value = r->value();
++#else
++        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
++        if (ptr != str.data() + str.size() || ec != std::errc()) {
++            throw ghoul::RuntimeError(std::format(
++                "Error parsing '{}' of CSV file with error '{}'",
++                columns[i], std::make_error_code(ec).message()
++            ));
++        }
++#endif
 +        elems[i] = value;
 +    }
