@@ -47,7 +47,7 @@ index 275ee8b16b..8c49998033 100644
 +
 +create_new_application(OpenSpace
    ${SGCT_OPENVR_FILES}
-   ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/
 @@ -130,7 +121,7 @@ if (TARGET SGCTTest)
    set_target_properties(SGCTTest PROPERTIES FOLDER "External")
  endif ()
@@ -69,7 +69,6 @@ index 7d2d91e244..2c66c7893d 100644
 +// Explicitly including OpenGL for APPLE
 +#ifdef __APPLE__
 +#define GLFW_INCLUDE_NONE
-+#include <OpenGL/gl3.h>
 +#endif // __APPLE__
 +
 +#include <openspace/documentation/documentation.h>
@@ -80,16 +79,48 @@ index 7d2d91e244..2c66c7893d 100644
      LDEBUG("Initializing OpenSpace Engine finished");
  
 -    {
+-        const std::filesystem::path path = absPath("${DATA}/openspace-icon.png");
+-        int x = 0;
+-        int y = 0;
+-        int n = 0;
+-        const std::string p = path.string();
+-        unsigned char* data = stbi_load(p.c_str(), &x, &y, &n, 0);
+-
+-        GLFWimage icon = {
+-            .width = x,
+-            .height = y,
+-            .pixels = data
+-        };
+-
+-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+-            glfwSetWindowIcon(window->windowHandle(), 1, &icon);
+-        }
+-
+-        stbi_image_free(icon.pixels);
+-    }
+-    {
 +#ifndef __APPLE__
 +    // Apparently: "Cocoa: Regular windows do not have icons on macOS"
 +    {
-         const std::filesystem::path path = absPath("${DATA}/openspace-icon.png");
-         int x = 0;
-@@ -356,7 +348,6 @@ void mainInitFunc(GLFWwindow*) {
- 
-         stbi_image_free(icon.pixels);
-     }
--
++        const std::filesystem::path path = absPath("${DATA}/openspace-icon.png");
++        int x = 0;
++        int y = 0;
++        int n = 0;
++        const std::string p = path.string();
++        unsigned char* data = stbi_load(p.c_str(), &x, &y, &n, 0);
++
++        GLFWimage icon = {
++            .width = x,
++            .height = y,
++            .pixels = data
++        };
++
++        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
++            glfwSetWindowIcon(window->windowHandle(), 1, &icon);
++        }
++
++        stbi_image_free(icon.pixels);
++    }
 +#endif // __APPLE__
 +
      currentWindow = Engine::instance().windows().front().get();
@@ -110,12 +141,13 @@ index 7d2d91e244..2c66c7893d 100644
 +#endif // __APPLE__
 +
 +    if (!global::configuration->bypassLauncher) {
- #ifdef OPENSPACE_HAS_LAUNCHER
+-#ifdef OPENSPACE_HAS_LAUNCHER
 -        int qac = 0;
+-        QApplication app(qac, nullptr);
++#ifdef OPENSPACE_HAS_LAUNCHER
 +#ifndef __APPLE__
 +        int qac = 0;
-         QApplication app(qac, nullptr);
--
++        QApplication app(qac, nullptr);
 +#endif // __APPLE__
 +
          std::string pwd = std::filesystem::current_path().string();
