@@ -400,29 +400,6 @@ diff --git a/src/interaction/touchbar.mm b/src/interaction/touchbar.mm
          );
      }
  @end
-diff --git a/modules/webbrowser/CMakeLists.txt b/modules/webbrowser/CMakeLists.txt
---- a/modules/webbrowser/CMakeLists.txt
-+++ b/modules/webbrowser/CMakeLists.txt
-@@ -202,18 +202,9 @@
-     # add_cef_logical_target("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
-     add_dependencies(${target} libcef_dll_wrapper)
-     target_link_libraries(${target} PRIVATE libcef_dll_wrapper ${CEF_STANDARD_LIBS})
-+    # Map target names to their output names
-+    if(target STREQUAL "OpenSpace_Helper")
-+      set(output_name "${CEF_HELPER_TARGET_OUTPUT_NAME}")
-+    elseif(target STREQUAL "OpenSpace_Helper_GPU")
-+      set(output_name "${CEF_HELPER_TARGET_GPU_OUTPUT_NAME}")
-+    elseif(target STREQUAL "OpenSpace_Helper_Renderer")
-+      set(output_name "${CEF_HELPER_TARGET_RENDERER_OUTPUT_NAME}")
-+    endif()
-+    
-     set_target_properties(${target} PROPERTIES
-       MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/mac/helper-Info.plist
-+      OUTPUT_NAME "${output_name}"
--      OUTPUT_NAME "${target}_OUTPUT_NAME"
-     )
- 
-     target_compile_options(${target} PRIVATE -Wno-deprecated-declarations)
 diff --git a/modules/webgui/cmake/nodejs_support.cmake b/modules/webgui/cmake/nodejs_support.cmake
 --- a/modules/webgui/cmake/nodejs_support.cmake
 +++ b/modules/webgui/cmake/nodejs_support.cmake
