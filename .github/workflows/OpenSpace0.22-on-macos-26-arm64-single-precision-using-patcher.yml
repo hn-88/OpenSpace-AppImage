@@ -246,12 +246,41 @@ jobs:
           fi
         done
     
-        echo "Verifying no more /opt/homebrew references remain..."
+
+    - name: Bundle Qt frameworks
+      if: runner.os == 'macOS'
+      run: |
+        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+    
+        if [ -z "$MAIN_APP" ]; then
+          echo "Error: OpenSpace.app not found"
+          exit 1
+        fi
+    
+        QT_PREFIX=$(brew --prefix qt@6 2>/dev/null || brew --prefix qt 2>/dev/null)
+        echo "Qt prefix: $QT_PREFIX"
+    
+        MACDEPLOYQT=$(find "$QT_PREFIX" -name "macdeployqt" -type f 2>/dev/null | head -n 1)
+    
+        if [ -z "$MACDEPLOYQT" ]; then
+          echo "Error: macdeployqt not found under $QT_PREFIX"
+          echo "Searching whole Homebrew prefix as a fallback..."
+          MACDEPLOYQT=$(find "$(brew --prefix)" -name "macdeployqt" -type f 2>/dev/null | head -n 1)
+        fi
+    
+        if [ -z "$MACDEPLOYQT" ]; then
+          echo "Error: macdeployqt not found anywhere under Homebrew prefix"
+          exit 1
+        fi
+    
+        echo "Using macdeployqt at: $MACDEPLOYQT"
+        "$MACDEPLOYQT" "$MAIN_APP" -always-overwrite -verbose=2
+    
+        echo "Verifying no more /opt/homebrew Qt references remain..."
         otool -L "$MAIN_APP/Contents/MacOS/OpenSpace" | grep -i homebrew && \
           { echo "WARNING: Homebrew paths still present"; exit 1; } || \
           echo "Clean — no Homebrew paths in main executable."
-
-
+          
     - name: Sign macOS App (Ad-hoc)
       if: runner.os == 'macOS'
       run: |
