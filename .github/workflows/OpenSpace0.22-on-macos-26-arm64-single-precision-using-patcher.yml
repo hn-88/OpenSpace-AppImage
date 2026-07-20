@@ -208,6 +208,49 @@ jobs:
         find bin -iname "*Helper*" -maxdepth 4
         find bin -maxdepth 2
 
+    - name: Bundle Homebrew dylibs (GDAL, etc.)
+      if: runner.os == 'macOS'
+      run: |
+        brew install dylibbundler
+    
+        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+    
+        if [ -z "$MAIN_APP" ]; then
+          echo "Error: OpenSpace.app not found"
+          exit 1
+        fi
+    
+        echo "Bundling dylibs into: $MAIN_APP"
+        mkdir -p "$MAIN_APP/Contents/Frameworks"
+    
+        dylibbundler -od -b \
+          -x "$MAIN_APP/Contents/MacOS/OpenSpace" \
+          -d "$MAIN_APP/Contents/Frameworks" \
+          -p "@executable_path/../Frameworks/"
+    
+        # Also bundle for the CEF helper executables, in case any Homebrew libs
+        # leaked into their link line too
+        for helper in "OpenSpace_Helper" "OpenSpace_Helper_GPU" "OpenSpace_Helper_Renderer"; do
+          HELPER_EXE="$MAIN_APP/Contents/Frameworks/OpenSpace Helper.app/Contents/MacOS/OpenSpace Helper"
+          if [ "$helper" = "OpenSpace_Helper_GPU" ]; then
+            HELPER_EXE="$MAIN_APP/Contents/Frameworks/OpenSpace Helper (GPU).app/Contents/MacOS/OpenSpace Helper (GPU)"
+          elif [ "$helper" = "OpenSpace_Helper_Renderer" ]; then
+            HELPER_EXE="$MAIN_APP/Contents/Frameworks/OpenSpace Helper (Renderer).app/Contents/MacOS/OpenSpace Helper (Renderer)"
+          fi
+          if [ -f "$HELPER_EXE" ]; then
+            echo "Checking $helper for stray Homebrew deps..."
+            dylibbundler -od -b \
+              -x "$HELPER_EXE" \
+              -d "$MAIN_APP/Contents/Frameworks" \
+              -p "@executable_path/../../../../Frameworks/"
+          fi
+        done
+    
+        echo "Verifying no more /opt/homebrew references remain..."
+        otool -L "$MAIN_APP/Contents/MacOS/OpenSpace" | grep -i homebrew && \
+          { echo "WARNING: Homebrew paths still present"; exit 1; } || \
+          echo "Clean — no Homebrew paths in main executable."
+
 
     - name: Sign macOS App (Ad-hoc)
       if: runner.os == 'macOS'
