@@ -76,7 +76,7 @@ jobs:
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
         cp -v MacOS-patches/smart_patcher.py "$openSpaceHome/smart_patcher.py"
-        cp -v MacOS-patches/MacOS-patches.txt "$openSpaceHome/MacOS-patches.txt"
+        cp -v MacOS-patches/0.22/MacOS-patches.txt "$openSpaceHome/MacOS-patches.txt"
         cd "$openSpaceHome"
         python3 smart_patcher.py MacOS-patches.txt        
         
