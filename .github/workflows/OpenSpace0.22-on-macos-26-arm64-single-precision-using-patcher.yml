@@ -326,6 +326,13 @@ jobs:
         echo "Final Frameworks contents before signing:"
         ls -la "$MAIN_APP/Contents/Frameworks"
           
+    - name: Clean extended attributes before signing
+      if: runner.os == 'macOS'
+      run: |
+        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+        echo "Stripping extended attributes (quarantine, resource forks, stale xattrs)..."
+        xattr -cr "$MAIN_APP"
+        
     - name: Sign macOS App (Ad-hoc)
       if: runner.os == 'macOS'
       run: |
@@ -347,7 +354,7 @@ jobs:
           # Skip if it's part of a .framework or .app bundle (we'll handle those separately)
           if [[ "$file" != *".framework/"* ]] && [[ "$file" != *".app/Contents/"* ]]; then
             echo "  Signing $(basename "$file")..."
-            codesign --force --sign - "$file" 2>/dev/null || true
+            codesign --force --sign - "$file"
           fi
         done
         
