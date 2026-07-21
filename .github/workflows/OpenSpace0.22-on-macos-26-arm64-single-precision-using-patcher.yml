@@ -245,6 +245,22 @@ jobs:
               -p "@executable_path/../../../../Frameworks/"
           fi
         done
+
+    - name: Backup CEF framework and helpers before macdeployqt
+      if: runner.os == 'macOS'
+      run: |
+        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+        BACKUP_DIR="$HOME/cef-backup"
+        mkdir -p "$BACKUP_DIR"
+    
+        echo "Backing up CEF framework and helper apps from: $MAIN_APP"
+        cp -R "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework" "$BACKUP_DIR/"
+        cp -R "$MAIN_APP/Contents/Frameworks/OpenSpace Helper.app" "$BACKUP_DIR/"
+        cp -R "$MAIN_APP/Contents/Frameworks/OpenSpace Helper (GPU).app" "$BACKUP_DIR/"
+        cp -R "$MAIN_APP/Contents/Frameworks/OpenSpace Helper (Renderer).app" "$BACKUP_DIR/"
+    
+        echo "Backup contents:"
+        ls -la "$BACKUP_DIR"
     
 
     - name: Bundle Qt frameworks
@@ -280,6 +296,24 @@ jobs:
         otool -L "$MAIN_APP/Contents/MacOS/OpenSpace" | grep -i homebrew && \
           { echo "WARNING: Homebrew paths still present"; exit 1; } || \
           echo "Clean — no Homebrew paths in main executable."
+
+    - name: Restore CEF framework and helpers after macdeployqt
+      if: runner.os == 'macOS'
+      run: |
+        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+        BACKUP_DIR="$HOME/cef-backup"
+    
+        echo "Restoring CEF framework and helper apps into: $MAIN_APP"
+        rm -rf "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework"
+        cp -R "$BACKUP_DIR/Chromium Embedded Framework.framework" "$MAIN_APP/Contents/Frameworks/"
+    
+        for helper in "OpenSpace Helper" "OpenSpace Helper (GPU)" "OpenSpace Helper (Renderer)"; do
+          rm -rf "$MAIN_APP/Contents/Frameworks/${helper}.app"
+          cp -R "$BACKUP_DIR/${helper}.app" "$MAIN_APP/Contents/Frameworks/"
+        done
+    
+        echo "Verifying restore..."
+        ls "$MAIN_APP/Contents/Frameworks" | grep -i "helper\|chromium"
           
     - name: Sign macOS App (Ad-hoc)
       if: runner.os == 'macOS'
@@ -345,13 +379,13 @@ jobs:
         done
         
         # 6. Sign Qt plugins
-        # echo "Signing Qt plugins..."
-        # if [ -d "$MAIN_APP/Contents/PlugIns" ]; then
-        #   find "$MAIN_APP/Contents/PlugIns" -name "*.dylib" | while read lib; do
-        #     echo "  Signing $(basename "$lib")..."
-        #     codesign --force --sign - "$lib"
-        #   done
-        # fi
+        echo "Signing Qt plugins..."
+        if [ -d "$MAIN_APP/Contents/PlugIns" ]; then
+           find "$MAIN_APP/Contents/PlugIns" -name "*.dylib" | while read lib; do
+             echo "  Signing $(basename "$lib")..."
+             codesign --force --sign - "$lib"
+           done
+        fi
         
         # 7. Sign the helper apps (innermost executables first)
         echo "Signing Helper apps..."
@@ -503,8 +537,6 @@ jobs:
         # Copy text files next to the App (so user sees them upon unzipping)
         cp ACKNOWLEDGMENTS.md deploy_staging/
         cp CITATION.cff deploy_staging/
-        cp CODE_OF_CONDUCT.md deploy_staging/
-        cp COMMIT.md deploy_staging/
         cp CREDITS.md deploy_staging/
         cp LICENSE.md deploy_staging/
         cp README.md deploy_staging/
@@ -534,7 +566,7 @@ jobs:
           -x "*.git*" \
           -x "*.DS_Store"
 
-        echo "Deployment package created: OpenSpace-minimal-daily-mac-testing.zip"
+        echo "Deployment package created: OpenSpace-minimal-daily-mac(-testing).zip"
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -543,7 +575,7 @@ jobs:
         name: OpenSpace-MacOS15-AppleSilicon-minimal
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: env.MINZIP_FILE
+        path: ${{ env.MINZIP_FILE }}
 
     - name: Upload .app to GitHub Release
       run: |
@@ -567,7 +599,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.PAT }}
 
     - name: Fail if Shaders Differ to force email alert
-      if: env.ZIPFILENAME == 'OpenSpace-minimal-daily-mac-testing.zip'
+      if: env.MINZIP_FILE == '/Users/runner/source/OpenSpace/OpenSpace-minimal-daily-mac-testing.zip'
       run: |
         echo "::error::Shaders differ from the previous release!"
         exit 1
