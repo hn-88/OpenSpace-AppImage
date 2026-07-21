@@ -198,7 +198,7 @@ jobs:
         cd "$openSpaceHome/build"
         # echo "Check to see if we have enough disk space ... " only 8 GB used out of 120+ GB
         # df -h
-        cmake --build . --config ${{env.BUILD_TYPE}} --target OpenSpace --parallel -- -quiet
+        cmake --build . --config ${{env.BUILD_TYPE}} --target OpenSpace --parallel -- 
         df -h
 
     - name: Inspect what actually got built
@@ -207,6 +207,16 @@ jobs:
         cd "$openSpaceHome"
         find bin -iname "*Helper*" -maxdepth 4
         find bin -maxdepth 2
+
+    - name: Backup 1 - CEF framework right after build
+      if: runner.os == 'macOS'
+      run: |
+        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+        BACKUP1_DIR="$HOME/frameworks-backup-1-cef"
+        mkdir -p "$BACKUP1_DIR"
+        cp -R "$MAIN_APP/Contents/Frameworks/." "$BACKUP1_DIR/"
+        echo "Backup 1 (post-build, CEF+helpers):"
+        ls -la "$BACKUP1_DIR"
 
     - name: Bundle Homebrew dylibs (GDAL, etc.)
       if: runner.os == 'macOS'
@@ -246,23 +256,25 @@ jobs:
           fi
         done
 
-    - name: Backup CEF framework and helpers before macdeployqt
+    - name: Restore CEF, then take Backup 2 (CEF + GDAL dylibs)
       if: runner.os == 'macOS'
       run: |
         MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
-        BACKUP_DIR="$HOME/cef-backup"
-        mkdir -p "$BACKUP_DIR"
+        BACKUP1_DIR="$HOME/frameworks-backup-1-cef"
+        BACKUP2_DIR="$HOME/frameworks-backup-2-with-gdal"
     
-        echo "Backing up CEF framework and helper apps from: $MAIN_APP"
-        cp -R "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework" "$BACKUP_DIR/"
-        cp -R "$MAIN_APP/Contents/Frameworks/OpenSpace Helper.app" "$BACKUP_DIR/"
-        cp -R "$MAIN_APP/Contents/Frameworks/OpenSpace Helper (GPU).app" "$BACKUP_DIR/"
-        cp -R "$MAIN_APP/Contents/Frameworks/OpenSpace Helper (Renderer).app" "$BACKUP_DIR/"
+        echo "Frameworks after dylibbundler (before CEF restore):"
+        ls -la "$MAIN_APP/Contents/Frameworks"
     
-        echo "Backup contents:"
-        ls -la "$BACKUP_DIR"
+        echo "Restoring CEF/helpers on top (undoes any dylibbundler damage)..."
+        cp -R "$BACKUP1_DIR/." "$MAIN_APP/Contents/Frameworks/"
     
+        echo "Taking Backup 2 - full known-good state (CEF + GDAL dylibs)..."
+        mkdir -p "$BACKUP2_DIR"
+        cp -R "$MAIN_APP/Contents/Frameworks/." "$BACKUP2_DIR/"
+        ls -la "$BACKUP2_DIR"
 
+    
     - name: Bundle Qt frameworks
       if: runner.os == 'macOS'
       run: |
@@ -297,23 +309,20 @@ jobs:
           { echo "WARNING: Homebrew paths still present"; exit 1; } || \
           echo "Clean — no Homebrew paths in main executable."
 
-    - name: Restore CEF framework and helpers after macdeployqt
+    - name: Restore Backup 2 (CEF + GDAL) before signing
       if: runner.os == 'macOS'
       run: |
         MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
-        BACKUP_DIR="$HOME/cef-backup"
+        BACKUP2_DIR="$HOME/frameworks-backup-2-with-gdal"
     
-        echo "Restoring CEF framework and helper apps into: $MAIN_APP"
-        rm -rf "$MAIN_APP/Contents/Frameworks/Chromium Embedded Framework.framework"
-        cp -R "$BACKUP_DIR/Chromium Embedded Framework.framework" "$MAIN_APP/Contents/Frameworks/"
+        echo "Frameworks after macdeployqt (before final restore):"
+        ls -la "$MAIN_APP/Contents/Frameworks"
     
-        for helper in "OpenSpace Helper" "OpenSpace Helper (GPU)" "OpenSpace Helper (Renderer)"; do
-          rm -rf "$MAIN_APP/Contents/Frameworks/${helper}.app"
-          cp -R "$BACKUP_DIR/${helper}.app" "$MAIN_APP/Contents/Frameworks/"
-        done
+        echo "Restoring CEF + GDAL on top (Qt frameworks macdeployqt added stay untouched)..."
+        cp -R "$BACKUP2_DIR/." "$MAIN_APP/Contents/Frameworks/"
     
-        echo "Verifying restore..."
-        ls "$MAIN_APP/Contents/Frameworks" | grep -i "helper\|chromium"
+        echo "Final Frameworks contents before signing:"
+        ls -la "$MAIN_APP/Contents/Frameworks"
           
     - name: Sign macOS App (Ad-hoc)
       if: runner.os == 'macOS'
