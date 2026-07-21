@@ -267,7 +267,8 @@ jobs:
         ls -la "$MAIN_APP/Contents/Frameworks"
     
         echo "Restoring CEF/helpers on top (undoes any dylibbundler damage)..."
-        cp -R "$BACKUP1_DIR/." "$MAIN_APP/Contents/Frameworks/"
+        chmod -R u+w "$MAIN_APP/Contents/Frameworks"
+        cp -Rf "$BACKUP1_DIR/." "$MAIN_APP/Contents/Frameworks/"
     
         echo "Taking Backup 2 - full known-good state (CEF + GDAL dylibs)..."
         mkdir -p "$BACKUP2_DIR"
@@ -319,7 +320,8 @@ jobs:
         ls -la "$MAIN_APP/Contents/Frameworks"
     
         echo "Restoring CEF + GDAL on top (Qt frameworks macdeployqt added stay untouched)..."
-        cp -R "$BACKUP2_DIR/." "$MAIN_APP/Contents/Frameworks/"
+        chmod -R u+w "$MAIN_APP/Contents/Frameworks"
+        cp -Rf "$BACKUP2_DIR/." "$MAIN_APP/Contents/Frameworks/"
     
         echo "Final Frameworks contents before signing:"
         ls -la "$MAIN_APP/Contents/Frameworks"
