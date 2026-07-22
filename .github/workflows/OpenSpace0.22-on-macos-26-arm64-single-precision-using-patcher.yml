@@ -350,12 +350,14 @@ jobs:
         
         # 1. Sign ALL dylibs and executables recursively (deepest first)
         echo "Signing all dylibs and executables..."
-        find "$MAIN_APP/Contents" -type f \( -name "*.dylib" -o -perm +111 \) | sort -r | while read file; do
-          # Skip if it's part of a .framework or .app bundle (we'll handle those separately)
-          if [[ "$file" != *".framework/"* ]] && [[ "$file" != *".app/Contents/"* ]]; then
-            echo "  Signing $(basename "$file")..."
-            codesign --force --sign - "$file"
-          fi
+        for file in $(find "$MAIN_APP/Contents" -type f \( -name "*.dylib" -o -perm +111 \)); do
+          case "$file" in
+            *".framework/"*) continue ;;                 # handled in step 2-5
+            *"_Helper"*".app/"*) continue ;;              # handled in step 7
+            *"/MacOS/OpenSpace") continue ;;              # handled in step 8 (main exe)
+          esac
+          echo "  Signing $(basename "$file")..."
+          codesign --force --sign - "$file"
         done
         
         # 2. Sign the CEF framework libraries and resources
