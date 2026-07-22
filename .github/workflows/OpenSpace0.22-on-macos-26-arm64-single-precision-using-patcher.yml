@@ -325,7 +325,66 @@ jobs:
     
         echo "Final Frameworks contents before signing:"
         ls -la "$MAIN_APP/Contents/Frameworks"
-          
+
+    - name: Deduplicate rpaths
+      if: runner.os == 'macOS'
+      run: |
+        MAIN_APP=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+
+        if [ -z "$MAIN_APP" ]; then
+          echo "Error: OpenSpace.app not found"
+          exit 1
+        fi
+
+        echo "Scanning for Mach-O binaries under: $MAIN_APP"
+
+        # No `set -e` / `pipefail` here on purpose - one bad file must not kill the whole scan.
+        find "$MAIN_APP" -type f \( -name "*.dylib" -o -perm +111 \) -print0 | \
+        while IFS= read -r -d '' binary; do
+
+          file "$binary" 2>/dev/null | grep -q "Mach-O" || continue
+
+          rpaths=$(otool -l "$binary" 2>/dev/null | \
+            awk '/cmd LC_RPATH/{f=1} f && /path /{ $1=""; sub(/ \(offset [0-9]+\)$/,""); sub(/^ /,""); print; f=0 }')
+
+          [ -z "$rpaths" ] && continue
+
+          uniq_paths=$(printf '%s\n' "$rpaths" | sort -u)
+
+          while IFS= read -r rpath; do
+            [ -z "$rpath" ] && continue
+            count=$(printf '%s\n' "$rpaths" | grep -c -F -x "$rpath")
+            if [ "$count" -gt 1 ]; then
+              echo ""
+              echo "Duplicate rpath in: $binary"
+              echo "  Path: $rpath"
+              echo "  Occurrences: $count -> removing $((count - 1)) extra"
+              remove_n=$((count - 1))
+              for ((i=0; i<remove_n; i++)); do
+                install_name_tool -delete_rpath "$rpath" "$binary" 2>&1 | grep -v "^$" | sed 's/^/    /'
+              done
+              new_count=$(otool -l "$binary" 2>/dev/null | grep -c -F -- "path $rpath ")
+              echo "  After cleanup: $new_count occurrence(s) remaining"
+            fi
+          done <<< "$uniq_paths"
+        done
+
+        echo ""
+        echo "Verifying no duplicates remain..."
+        remaining=$(find "$MAIN_APP" -type f \( -name "*.dylib" -o -perm +111 \) -exec sh -c '
+          file "$1" 2>/dev/null | grep -q "Mach-O" || exit 0
+          n=$(otool -l "$1" 2>/dev/null | grep -c "path @executable_path/../Frameworks")
+          [ "$n" -gt 1 ] && echo "$1: $n entries"
+        ' _ {} \;)
+
+        if [ -n "$remaining" ]; then
+          echo "Error: duplicate rpaths still remain after dedup:"
+          echo "$remaining"
+          exit 1
+        fi
+
+        echo "✓ No duplicate rpaths remain"
+    
     - name: Clean extended attributes before signing
       if: runner.os == 'macOS'
       run: |
