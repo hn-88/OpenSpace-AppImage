@@ -394,6 +394,31 @@ jobs:
         fi
 
         echo "✓ No duplicate rpaths remain"
+
+
+    - name: Wrap main executable to launch in Terminal
+      run: |
+        APP_PATH=$(find $HOME/source/OpenSpace/bin/Release -name "OpenSpace.app" -maxdepth 1)
+        MACOS_DIR="$APP_PATH/Contents/MacOS"
+    
+        # EXE_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$APP_PATH/Contents/Info.plist")
+        EXE_NAME=OpenSpace
+    
+        if [ -z "$EXE_NAME" ] || [ ! -f "$MACOS_DIR/$EXE_NAME" ]; then
+          echo "Could not resolve main executable" >&2
+          exit 1
+        fi
+    
+        # Move the real binary aside (only if not already done, so re-runs are safe)
+        if [ ! -f "$MACOS_DIR/$EXE_NAME-bin" ]; then
+          mv "$MACOS_DIR/$EXE_NAME" "$MACOS_DIR/$EXE_NAME-bin"
+        fi
+    
+        echo '#!/bin/bash' > "$MACOS_DIR/$EXE_NAME"
+        echo 'cd "${0%/*}"' >> "$MACOS_DIR/$EXE_NAME"
+        echo "open -a Terminal.app \"./$EXE_NAME-bin\"" >> "$MACOS_DIR/$EXE_NAME"
+    
+        chmod +x "$MACOS_DIR/$EXE_NAME"
     
     - name: Clean extended attributes before signing
       if: runner.os == 'macOS'
