@@ -4,8 +4,8 @@ index 02f29a8f..8ed4fead 100644
 +++ b/include/sgct/engine.h
 @@ -532,6 +532,19 @@ class SGCT_EXPORT Engine {
       */
-     void initialize();
- 
+-    void initialize();
++    void initialize(); 
 +    /**
 +     * Creates and initializes all of the windows that are specified for the current Node.
 +     * This function will call the Callbacks::preWindow callback for each window created
