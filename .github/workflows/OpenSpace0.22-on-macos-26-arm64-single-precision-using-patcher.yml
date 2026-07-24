@@ -50,12 +50,10 @@ jobs:
     - name: revert sgct OpenGL 4.6 to 4.1
       run: |
         openSpaceHome="$HOME/source/OpenSpace"
-        cp -v MacOS-patches/0.22/OpenGLrevert/sgct-opengl4.6commit.diff "$openSpaceHome/apps/OpenSpace/ext/sgct/sgct-opengl4.6commit.diff"
+        cp -v MacOS-patches/0.22/OpenGLrevert/sgct-revert-to-41.diff "$openSpaceHome/apps/OpenSpace/ext/sgct/sgct-revert-to-41.diff"
+        cp -v MacOS-patches/smart_patcher.py "$openSpaceHome/apps/OpenSpace/ext/sgct/smart_patcher.py"
         cd "$openSpaceHome/apps/OpenSpace/ext/sgct"
-        echo "Dry run using git apply -R to reverse the diff"
-        git apply -R --check --ignore-space-change --verbose sgct-opengl4.6commit.diff
-        echo "Now apply for real"
-        git apply -R --3way --ignore-space-change --whitespace=fix sgct-opengl4.6commit.diff
+        python3 smart_patcher.py sgct-revert-to-41.diff
 
     - name: patches for MacOS
       run: |
