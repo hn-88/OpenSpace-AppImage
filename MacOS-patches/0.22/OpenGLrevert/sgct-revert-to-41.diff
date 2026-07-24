@@ -1,0 +1,3841 @@
+diff --git a/include/sgct/engine.h b/include/sgct/engine.h
+index 02f29a8f..8ed4fead 100644
+--- a/include/sgct/engine.h
++++ b/include/sgct/engine.h
+@@ -532,6 +532,19 @@ class SGCT_EXPORT Engine {
+      */
+     void initialize();
+ 
++    /**
++     * Creates and initializes all of the windows that are specified for the current Node.
++     * This function will call the Callbacks::preWindow callback for each window created
++     * before the OpenGL context has been created and initialized.
++     *
++     * \param majorVersion The major version for OpenGL that is requested
++     * \param minorVersion The minor version for OpenGL that is requested
++     *
++     * \pre \p majorVersion must be bigger than 0
++     * \pre \p minorVersion must be bigger than 0
++     */
++    void initWindows(int majorVersion, int minorVersion);
++
+     /**
+      * Locks the rendering thread for synchronization. Locks the clients until data is
+      * successfully received.
+diff --git a/include/sgct/internalshaders.h b/include/sgct/internalshaders.h
+index 48e1056b..24efa63a 100644
+--- a/include/sgct/internalshaders.h
++++ b/include/sgct/internalshaders.h
+@@ -14,42 +14,35 @@
+ namespace sgct::shaders {
+ 
+ constexpr std::string_view BaseVert = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   layout (location = 0) in vec2 in_position;
+   layout (location = 1) in vec2 in_texCoords;
+   layout (location = 2) in vec4 in_color;
++  out vec2 tr_uv;
++  out vec4 tr_color;
+-
+-  out Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } out_data;
+-
+ 
+   void main() {
+     gl_Position = vec4(in_position, 0.0, 1.0);
++    tr_uv = in_texCoords;
++    tr_color = in_color;
+-    out_data.texCoords = in_texCoords;
+-    out_data.color = in_color;
+   }
+ )";
+ 
+ constexpr std::string_view BaseFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D tex;
++
+   uniform int flipX = 0;
+   uniform int flipY = 0;
+ 
+-
+   void main() {
++    vec2 uv = tr_uv;
+-    vec2 uv = in_data.texCoords;
+     if (flipX != 0) {
+       uv.x = 1.0 - uv.x;
+     }
+@@ -57,384 +50,289 @@ constexpr std::string_view BaseFrag = R"(
+       uv.y = 1.0 - uv.y;
+     }
+ 
++    out_color = tr_color * texture(tex, uv);
+-    out_color = in_data.color * texture(tex, uv);
+   }
+ )";
+ 
+ constexpr std::string_view OverlayFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D tex;
+ 
+-
+   void main() {
++    out_color = texture(tex, tr_uv);
+-    out_color = texture(tex, in_data.texCoords);
+   }
+ )";
+ 
+ constexpr std::string_view AnaglyphRedCyanFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    vec4 left = texture(leftTex, tr_uv);
+-    vec4 left = texture(leftTex, in_data.texCoords);
+     float leftLum = 0.3 * left.r + 0.59 * left.g + 0.11 * left.b;
++    vec4 right = texture(rightTex, tr_uv);
+-    vec4 right = texture(rightTex, in_data.texCoords);
+     float rightLum = 0.3 * right.r + 0.59 * right.g + 0.11 * right.b;
+ 
++    out_color = tr_color * vec4(leftLum, rightLum, rightLum, max(left.a, right.a));
+-    out_color = in_data.color * vec4(leftLum, rightLum, rightLum, max(left.a, right.a));
+   }
+ )";
+ 
+ constexpr std::string_view AnaglyphRedCyanWimmerFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    vec4 left = texture(leftTex, tr_uv);
++    vec4 right = texture(rightTex, tr_uv);
+-    vec4 left = texture(leftTex, in_data.texCoords);
+-    vec4 right = texture(rightTex, in_data.texCoords);
+     vec4 fact = vec4(0.7 * left.g + 0.3 * left.b, right.r, right.b, max(left.a, right.a));
++    out_color = tr_color * fact;
+-    out_color = in_data.color * fact;
+   }
+ )";
+ 
+ constexpr std::string_view AnaglyphAmberBlueFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    vec4 left = texture(leftTex, tr_uv);
++    vec4 right = texture(rightTex, tr_uv);
+-    vec4 left = texture(leftTex, in_data.texCoords);
+-    vec4 right = texture(rightTex, in_data.texCoords);
+     const vec3 coef = vec3(0.15, 0.15, 0.70);
+     float rightMix = dot(right.rbg, coef);
++    out_color = tr_color * vec4(left.r, left.g, rightMix, max(left.a, right.a));
+-    out_color = in_data.color * vec4(left.r, left.g, rightMix, max(left.a, right.a));
+   }
+ )";
+ 
+ constexpr std::string_view CheckerBoardFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    float v = (gl_FragCoord.x + gl_FragCoord.y) * 0.5;
++    out_color = tr_color * texture((v - floor(v)) == 0.0 ? rightTex : leftTex, tr_uv);
+-    float v = mix(gl_FragCoord.x, gl_FragCoord.y, 0.5);
+-    if ((v - floor(v)) == 0.0) {
+-      out_color = in_data.color * texture(rightTex, in_data.texCoords);
+-    }
+-    else {
+-      out_color = in_data.color * texture(leftTex, in_data.texCoords);
+-    }
+   }
+ )";
+ 
+ constexpr std::string_view CheckerBoardInvertedFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    float v = (gl_FragCoord.x + gl_FragCoord.y) * 0.5;
++    out_color = tr_color * texture((v - floor(v)) == 0.0 ? leftTex : rightTex, tr_uv);
+-    float v = mix(gl_FragCoord.x, gl_FragCoord.y, 0.5);
+-    if ((v - floor(v)) == 0.0) {
+-      out_color = in_data.color * texture(leftTex, in_data.texCoords);
+-    }
+-    else {
+-      out_color = in_data.color * texture(rightTex, in_data.texCoords);
+-    }
+   }
+ )";
+ 
+ constexpr std::string_view VerticalInterlacedFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
+     float v = gl_FragCoord.y * 0.5;
++    out_color = tr_color * texture((v - floor(v)) > 0.5 ? rightTex : leftTex, tr_uv);
+-    if ((v - floor(v)) > 0.5) {
+-      out_color = in_data.color * texture(rightTex, in_data.texCoords);
+-    }
+-    else {
+-      out_color = in_data.color * texture(leftTex, in_data.texCoords);
+-    }
+   }
+ )";
+ 
+ constexpr std::string_view VerticalInterlacedInvertedFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
+     float v = gl_FragCoord.y * 0.5;
++    out_color = tr_color * texture((v - floor(v)) > 0.5 ? leftTex : rightTex, tr_uv);
+-    if ((v - floor(v)) > 0.5) {
+-      out_color = in_data.color * texture(leftTex, in_data.texCoords);
+-    }
+-    else {
+-      out_color = in_data.color * texture(rightTex, in_data.texCoords);
+-    }
+   }
+ )";
+ 
+ constexpr std::string_view SBSFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    vec2 uv = tr_uv * vec2(2.0, 1.0);
++    if (tr_uv.s < 0.5) {
++      out_color = tr_color * texture(leftTex, uv);
+-    vec2 uv = in_data.texCoords * vec2(2.0, 1.0);
+-    if (in_data.texCoords.s < 0.5) {
+-      out_color = in_data.color * texture(leftTex, uv);
+     }
+     else {
+       uv -= vec2(1.0, 0.0);
++      out_color = tr_color * texture(rightTex, uv);
+-      out_color = in_data.color * texture(rightTex, uv);
+     }
+   }
+ )";
+ 
+ constexpr std::string_view SBSInvertedFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    vec2 uv = tr_uv * vec2(2.0, 1.0);
++    if (tr_uv.s >= 0.5) {
+-    vec2 uv = in_data.texCoords * vec2(2.0, 1.0);
+-    if (in_data.texCoords.s >= 0.5) {
+       uv.s -= 1.0;
+-      out_color = in_data.color * texture(leftTex, uv);
+-    }
+-    else {
+-      out_color = in_data.color * texture(rightTex, uv);
+     }
++    out_color = tr_color * texture(tr_uv.s >= 0.5 ? leftTex : rightTex, uv);
+   }
+ )";
+ 
+ constexpr std::string_view TBFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    vec2 uv = tr_uv * vec2(2.0, 1.0);
++    if (tr_uv.t >= 0.5) {
+-    vec2 uv = in_data.texCoords * vec2(2.0, 1.0);
+-    if (in_data.texCoords.t >= 0.5) {
+       uv.t -= 1.0;
+-      out_color = in_data.color * texture(leftTex, uv);
+-    }
+-    else {
+-      out_color = in_color.color * texture(rightTex, uv);
+     }
++    out_color = tr_color * texture(tr_uv.s >= 0.5 ? leftTex : rightTex, uv);
+   }
+ )";
+ 
+ constexpr std::string_view TBInvertedFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    vec2 uv = tr_uv * vec2(1.0, 2.0);
+-    vec2 uv = in_data.texCoords * vec2(1.0, 2.0);
+     if (tr_uv.t >= 0.5) {
+       uv.t -= 1.0;
+-      out_color = in_data.color * texture(rightTex, uv);
+-    }
+-    else {
+-      out_color = in_data.color * texture(leftTex, uv);
+     }
++    out_color = tr_color * texture(tr_uv.t >= 0.5 ? rightTex : leftTex, uv);
+   }
+ )";
+ 
+ constexpr std::string_view DummyStereoFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D leftTex;
+   uniform sampler2D rightTex;
+ 
+-
+   void main() {
++    out_color = tr_color * mix(texture(leftTex, tr_uv), texture(rightTex, tr_uv), 0.5);
+-    vec4 left = texture(leftTex, in_data.texCoords);
+-    vec4 right = texture(rightTex, in_data.texCoords);
+-    out_color = in_data.color * mix(left, right, 0.5);
+   }
+ )";
+ 
+ constexpr std::string_view FXAAVert = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   layout (location = 0) in vec3 in_position;
+   layout (location = 1) in vec2 in_texCoords;
++  out vec2 tr_uv;
++  out vec2 tr_texcoordOffset[4];
+-
+-  out Data {
+-    vec2 texCoords;
+-    vec2 texCoordsOffset[4];
+-  } out_data;
+ 
+   uniform float rt_w;
+   uniform float rt_h;
++  uniform float FXAA_SUBPIX_OFFSET;
+-  uniform float FxaaSubpixOffset;
+-
+ 
+   void main() {
+     gl_Position = vec4(in_position, 1.0);
++    tr_uv = in_texCoords;
++
++    tr_texcoordOffset[0] = tr_uv + FXAA_SUBPIX_OFFSET * vec2(-1.0 / rt_w,  -1.0 / rt_h);
++    tr_texcoordOffset[1] = tr_uv + FXAA_SUBPIX_OFFSET * vec2( 1.0 / rt_w,  -1.0 / rt_h);
++    tr_texcoordOffset[2] = tr_uv + FXAA_SUBPIX_OFFSET * vec2(-1.0 / rt_w,   1.0 / rt_h);
++    tr_texcoordOffset[3] = tr_uv + FXAA_SUBPIX_OFFSET * vec2( 1.0 / rt_w,   1.0 / rt_h);
+-    out_data.texCoords = in_texCoords;
+-
+-    out_data.texCoordsOffset[0] =
+-      out_data.texCoords + FxaaSubpixOffset * vec2(-1.0 / rt_w,  -1.0 / rt_h);
+-    out_data.texCoordsOffset[1] =
+-      out_data.texCoords + FxaaSubpixOffset * vec2( 1.0 / rt_w,  -1.0 / rt_h);
+-    out_data.texCoordsOffset[2] =
+-      out_data.texCoords + FxaaSubpixOffset * vec2(-1.0 / rt_w,   1.0 / rt_h);
+-    out_data.texCoordsOffset[3] =
+-      out_data.texCoords + FxaaSubpixOffset * vec2( 1.0 / rt_w,   1.0 / rt_h);
+   }
+ )";
+ 
+ constexpr std::string_view FXAAFrag = R"(
++  #version 330 core
+-  #version 460 core
+ 
++  // FXAA_EDGE_THRESHOLD: The minimum amount of local contrast required to apply algorithm
+-  // FxaaEdgeThreshold: The minimum amount of local contrast required to apply algorithm
+   //   1/3 - too little
+   //   1/4 - low quality
+   //   1/8 - high quality
+   //   1/16 - overkill
++  const float FXAA_EDGE_THRESHOLD_MIN = 1.0 / 16.0;
++  const float FXAA_EDGE_THRESHOLD = 1.0 / 8.0;
+-  const float FxaaEdgeThreshold = 1.0 / 8.0;
+ 
++  // FXAA_EDGE_THRESHOLD_MIN: Trims the algorithm from processing dark.
+-  // FxaaEdgeThresholdMin: Trims the algorithm from processing dark.
+   //   1/32 - visible limit
+   //   1/16 - high quality
+   //   1/12 - upper limit (start of visible unfiltered edges)
++  const float FXAA_SPAN_MAX = 8.0;
+-  const float FxaaEdgeThresholdMin = 1.0 / 16.0;
+ 
++  // FXAA_SUBPIX_TRIM: Controls removal of sub-pixel aliasing
+-  const float FxaaSpanMax = 8.0;
+-
+-  // FxaaSubPixTrim: Controls removal of sub-pixel aliasing
+   //   1/2 - low removal
+   //   1/3 - medium removal
+   //   1/4 - default removal
+   //   1/8 - high removal
+   //     0 - complete removal
++  uniform float FXAA_SUBPIX_TRIM; // 1.0 / 8.0;
+-  uniform float FxaaSubPixTrim; // 1.0 / 8.0;
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec2 texcoordsOffset[4];
+-  } in_data;
+ 
++  in vec2 tr_texcoordOffset[4];
++  in vec2 tr_uv;
+   out vec4 out_color;
+ 
+   uniform float rt_w;
+@@ -442,55 +340,55 @@ constexpr std::string_view FXAAFrag = R"(
+   uniform sampler2D tex;
+ 
+   void main() {
++    vec3 rgbNW = textureLod(tex, tr_texcoordOffset[0], 0.0).xyz;
++    vec3 rgbNE = textureLod(tex, tr_texcoordOffset[1], 0.0).xyz;
++    vec3 rgbSW = textureLod(tex, tr_texcoordOffset[2], 0.0).xyz;
++    vec3 rgbSE = textureLod(tex, tr_texcoordOffset[3], 0.0).xyz;
++    vec3 rgbM  = textureLod(tex, tr_uv, 0.0).xyz;
++
++    const vec3 luma = vec3(0.299, 0.587, 0.114);
++    float lumaNW = dot(rgbNW, luma);
++    float lumaNE = dot(rgbNE, luma);
++    float lumaSW = dot(rgbSW, luma);
++    float lumaSE = dot(rgbSE, luma);
++    float lumaM  = dot( rgbM, luma);
+-    vec3 rgbNW = textureLod(tex, in_data.texcoordsOffset[0], 0.0).rgb;
+-    vec3 rgbNE = textureLod(tex, in_data.texcoordsOffset[1], 0.0).rgb;
+-    vec3 rgbSW = textureLod(tex, in_data.texcoordsOffset[2], 0.0).rgb;
+-    vec3 rgbSE = textureLod(tex, in_data.texcoordsOffset[3], 0.0).rgb;
+-    vec3 rgbM  = textureLod(tex, in_data.texCoords, 0.0).rgb;
+-
+-    const vec3 Luma = vec3(0.299, 0.587, 0.114);
+-    float lumaNW = dot(rgbNW, Luma);
+-    float lumaNE = dot(rgbNE, Luma);
+-    float lumaSW = dot(rgbSW, Luma);
+-    float lumaSE = dot(rgbSE, Luma);
+-    float lumaM  = dot( rgbM, Luma);
+ 
+     float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+     float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+     float range = lumaMax - lumaMin;
+     // local contrast check, for not processing homogeneous areas
++    if (range < max(FXAA_EDGE_THRESHOLD_MIN, lumaMax * FXAA_EDGE_THRESHOLD)) {
+-    if (range < max(FxaaEdgeThresholdMin, lumaMax * FxaaEdgeThreshold)) {
+       out_color = vec4(rgbM, 1.0);
+       return;
+     }
+ 
+     vec2 dir = vec2(
+       -((lumaNW + lumaNE) - (lumaSW + lumaSE)),
++      ((lumaNW + lumaSW) - (lumaNE + lumaSE))
+-      (lumaNW + lumaSW) - (lumaNE + lumaSE)
+     );
+ 
++    const float FXAA_REDUCE_MIN = 1.0 / 128.0;
+-    const float FxaaReduceMin = 1.0 / 128.0;
+     float dirReduce = max(
++      (lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_SUBPIX_TRIM),
++      FXAA_REDUCE_MIN
+-      (lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FxaaSubPixTrim),
+-      FxaaReduceMin
+     );
+ 
+     float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+ 
+     dir = min(
++      vec2(FXAA_SPAN_MAX,  FXAA_SPAN_MAX),
++      max(vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX), dir * rcpDirMin)
+-      vec2(FxaaSpanMax,  FxaaSpanMax),
+-      max(vec2(-FxaaSpanMax, -FxaaSpanMax), dir * rcpDirMin)
+     ) / vec2(rt_w, rt_h);
+ 
+     vec3 rgbA = 0.5 * (
++      textureLod(tex, tr_uv + dir * (1.0 / 3.0 - 0.5), 0.0).xyz +
++      textureLod(tex, tr_uv + dir * (2.0 / 3.0 - 0.5), 0.0).xyz
+-      textureLod(tex, in_data.texCoords + dir * (1.0 / 3.0 - 0.5), 0.0).rgb +
+-      textureLod(tex, in_data.texCoords + dir * (2.0 / 3.0 - 0.5), 0.0).rgb
+     );
++    vec3 rgbB = rgbA * 0.5 + (1.0/4.0) * (
++      textureLod(tex, tr_uv + dir * (0.0 / 3.0 - 0.5), 0.0).xyz +
++      textureLod(tex, tr_uv + dir * (3.0 / 3.0 - 0.5), 0.0).xyz
+-    vec3 rgbB = rgbA * 0.5 + (1.0 / 4.0) * (
+-      textureLod(tex, in_data.texCoords + dir * (0.0 / 3.0 - 0.5), 0.0).rgb +
+-      textureLod(tex, in_data.texCoords + dir * (3.0 / 3.0 - 0.5), 0.0).rgb
+     );
++    float lumaB = dot(rgbB, luma);
+-    float lumaB = dot(rgbB, Luma);
+ 
+     if ((lumaB < lumaMin) || (lumaB > lumaMax))  {
+       out_color = vec4(rgbA, 1.0);
+@@ -506,31 +404,32 @@ constexpr std::string_view FXAAFrag = R"(
+ namespace sgct::shaders_fisheye {
+ 
+ constexpr std::string_view RotationFourFaceCubeFun = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   vec3 rotate(vec3 dir) {
+     const float Angle = 0.7071067812;
++    float x = Angle*dir.x + Angle*dir.z;
+-    float x = Angle * dir.x + Angle * dir.z;
+     float y = dir.y;
++    float z = -Angle*dir.x + Angle*dir.z;
++
+-    float z = -Angle * dir.x + Angle * dir.z;
+     return vec3(x, y, z);
+   }
+ )";
+ 
+ constexpr std::string_view RotationFiveSixFaceCubeFun = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   vec3 rotate(vec3 dir) {
+     const float Angle = 0.7071067812;
++    float x = Angle*dir.x - Angle*dir.y;
++    float y = Angle*dir.x + Angle*dir.y;
+-    float x = Angle * dir.x - Angle * dir.y;
+-    float y = Angle * dir.x + Angle * dir.y;
+     float z = dir.z;
+     return vec3(x, y, z);
+   }
+ )";
+ 
+ constexpr std::string_view RotationFun = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   uniform mat4 rotMatrix;
+ 
+@@ -540,16 +439,16 @@ constexpr std::string_view RotationFun = R"(
+ )";
+ 
+ constexpr std::string_view SampleFun = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   uniform float halfFov;
+ 
+   vec3 rotate(vec3 dir);
+ 
++  vec4 getCubeSample(vec2 texel, samplerCube map, vec4 bg) {
+-  vec4 sampleCubeTexture(vec2 texel, samplerCube map, vec4 background) {
+     float s = 2.0 * (texel.s - 0.5);
+     float t = 2.0 * (texel.t - 0.5);
++    float r2 = s*s + t*t;
+-    float r2 = s * s + t * t;
+     if (r2 <= 1.0) {
+       float phi = sqrt(r2) * halfFov;
+       float theta = atan(s, t);
+@@ -557,38 +456,36 @@ constexpr std::string_view SampleFun = R"(
+       return texture(map, rotate(dir));
+     }
+     else {
++      return bg;
+-      return background;
+     }
+   }
+ )";
+ 
+ constexpr std::string_view SampleLatlonFun = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   vec3 rotate(vec3 dir);
+ 
++  vec4 getCubeSample(vec2 texel, samplerCube map, vec4 bg) {
++    float phi = 3.14159265359 * (1.0 - texel.t);
++    float theta = 6.28318530718 * (texel.s - 0.5);
+-  const float M_PI = 3.14159265359;
+-
+-  vec4 sampleCubeTexture(vec2 texel, samplerCube map, vec4 background) {
+-    float phi = M_PI * (1.0 - texel.t);
+-    float theta = 2.0 * M_PI * (texel.s - 0.5);
+     vec3 dir = vec3(sin(phi) * sin(theta), sin(phi) * cos(theta), cos(phi));
+     return texture(map, rotate(dir));
+   }
+ )";
+ 
+ constexpr std::string_view SampleOffsetFun = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   uniform float halfFov;
+   uniform vec3 offset;
+ 
+   vec3 rotate(vec3 dir);
+ 
++  vec4 getCubeSample(vec2 texel, samplerCube map, vec4 bg) {
+-  vec4 sampleCubeTexture(vec2 texel, samplerCube map, vec4 background) {
+     float s = 2.0 * (texel.s - 0.5);
+     float t = 2.0 * (texel.t - 0.5);
++    float r2 = s*s + t*t;
+-    float r2 = s * s + t * t;
+     if (r2 <= 1.0) {
+       float phi = sqrt(r2) * halfFov;
+       float theta = atan(s, t);
+@@ -599,37 +496,37 @@ constexpr std::string_view SampleOffsetFun = R"(
+       return texture(map, rotate(dir));
+     }
+     else {
++      return bg;
+-      return background;
+     }
+   }
+ )";
+ 
+ constexpr std::string_view InterpolateLinearFun = R"(
++  #version 330 core
+-  #version 460 core
+ 
++  vec4 getCubeSample(vec2 texel, samplerCube map, vec4 bg);
+-  vec4 sampleCubeTexture(vec2 texel, samplerCube map, vec4 background);
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg) {
++    return getCubeSample(tc, map, bg);
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background) {
+-    return sampleCubeTexture(texCoords, map, background);
+   }
+ )";
+ 
+ constexpr std::string_view InterpolateCubicFun = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   uniform float size;
+ 
++  vec4 getCubeSample(vec2 texel, samplerCube map, vec4 bg);
+-  vec4 sampleCubeTexture(vec2 texel, samplerCube map, vec4 background);
+ 
+   vec4 cubic(float x) {
+     float x2 = x * x;
+     float x3 = x2 * x;
++    vec4 w = vec4(-x + 2*x2 - x3, 2 - 5*x2 + 3*x3, x + 4*x2 - 3*x3, -x2 + x3);
+-    vec4 w = vec4(-x + 2 * x2 - x3, 2 - 5 * x2 + 3 * x3, x + 4 * x2 - 3 * x3, -x2 + x3);
+     return w / 2.0;
+   }
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg) {
++    vec2 transTex = tc * vec2(size, size);
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background) {
+-    vec2 transTex = texCoords * vec2(size, size);
+     vec2 frac = fract(transTex);
+     transTex -= frac;
+ 
+@@ -638,13 +535,18 @@ constexpr std::string_view InterpolateCubicFun = R"(
+ 
+     const float h = 1.0;
+     vec4 c = transTex.xxyy + vec4(-h, +h, -h, +h);
++    vec4 s = vec4(
++      xcubic.x + xcubic.y,
++      xcubic.z + xcubic.w,
++      ycubic.x + ycubic.y,
++      ycubic.z + ycubic.w
++    );
++    vec4 offset = c + vec4(xcubic.y, xcubic.w, ycubic.y, ycubic.w) / s;
+-    vec4 s = vec4(xcubic.xz + xcubic.yw, ycubic.xz + ycubic.yw);
+-    vec4 offset = c + vec4(xcubic.yw, ycubic.yw) / s;
+ 
++    vec4 sample0 = getCubeSample(vec2(offset.x, offset.z) / size, map, bg);
++    vec4 sample1 = getCubeSample(vec2(offset.y, offset.z) / size, map, bg);
++    vec4 sample2 = getCubeSample(vec2(offset.x, offset.w) / size, map, bg);
++    vec4 sample3 = getCubeSample(vec2(offset.y, offset.w) / size, map, bg);
+-    vec4 sample0 = sampleCubeTexture(offset.xz / size, map, background);
+-    vec4 sample1 = sampleCubeTexture(offset.yz / size, map, background);
+-    vec4 sample2 = sampleCubeTexture(offset.xw / size, map, background);
+-    vec4 sample3 = sampleCubeTexture(offset.yw / size, map, background);
+ 
+     float sx = s.x / (s.x + s.y);
+     float sy = s.z / (s.z + s.w);
+@@ -654,50 +556,38 @@ constexpr std::string_view InterpolateCubicFun = R"(
+ )";
+ 
+ constexpr std::string_view BaseVert = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   layout (location = 0) in vec3 in_position;
+   layout (location = 1) in vec2 in_texCoords;
++  out vec2 tr_uv;
+-
+-  out Data {
+-    vec2 texCoords;
+-  } out_data;
+-
+ 
+   void main() {
+     gl_Position = vec4(in_position, 1.0);
++    tr_uv = in_texCoords;
+-    out_data.texCoords = in_texCoords;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   out vec4 out_diffuse;
+ 
+   uniform samplerCube cubemap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 texel, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texel, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragNormal = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_normal;
+ 
+@@ -705,23 +595,18 @@ constexpr std::string_view FisheyeFragNormal = R"(
+   uniform samplerCube normalmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_normal = sample(tr_uv, normalmap, vec4(0.0)).xyz;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_normal = cubeSample(in_data.texCoords, normalmap, vec4(0.0)).xyz;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragPosition = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_position;
+ 
+@@ -729,23 +614,18 @@ constexpr std::string_view FisheyeFragPosition = R"(
+   uniform samplerCube positionmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_position = sample(tr_uv, positionmap, vec4(0.0)).xyz;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_position = cubeSample(in_data.texCoords, positionmap, vec4(0.0)).xyz;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragNormalPosition = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_normal;
+   layout(location = 2) out vec3 out_position;
+@@ -755,47 +635,37 @@ constexpr std::string_view FisheyeFragNormalPosition = R"(
+   uniform samplerCube positionmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_normal = sample(tr_uv, normalmap, vec4(0.0)).xyz;
++    out_position = sample(tr_uv, positionmap, vec4(0.0)).xyz;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_normal = cubeSample(in_data.texCoords, normalmap, vec4(0.0)).xyz;
+-    out_position = cubeSample(in_data.texCoords, positionmap, vec4(0.0)).xyz;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragDepth = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   out vec4 out_diffuse;
+ 
+   uniform samplerCube cubemap;
+   uniform samplerCube depthmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    gl_FragDepth = sample(tr_uv, depthmap, vec4(1.0)).x;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    gl_FragDepth = cubeSample(in_data.texCoords, depthmap, vec4(1.0)).x;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragDepthNormal = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_normal;
+ 
+@@ -804,24 +674,19 @@ constexpr std::string_view FisheyeFragDepthNormal = R"(
+   uniform samplerCube normalmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_normal = sample(tr_uv, normalmap, vec4(0.0)).xyz;
++    gl_FragDepth = sample(tr_uv, depthmap, vec4(1.0)).x;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_normal = cubeSample(in_data.texCoords, normalmap, vec4(0.0)).xyz;
+-    gl_FragDepth = cubeSample(in_data.texCoords, depthmap, vec4(1.0)).x;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragDepthPosition = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_position;
+ 
+@@ -830,24 +695,19 @@ constexpr std::string_view FisheyeFragDepthPosition = R"(
+   uniform samplerCube positionmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_position = sample(tr_uv, positionmap, vec4(0.0)).xyz;
++    gl_FragDepth = sample(tr_uv, depthmap, vec4(1.0)).x;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_position = cubeSample(in_data.texCoords, positionmap, vec4(0.0)).xyz;
+-    gl_FragDepth = cubeSample(in_data.texCoords, depthmap, vec4(1.0)).x;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragDepthNormalPosition = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_normal;
+   layout(location = 2) out vec3 out_position;
+@@ -858,46 +718,36 @@ constexpr std::string_view FisheyeFragDepthNormalPosition = R"(
+   uniform samplerCube positionmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_normal = sample(tr_uv, normalmap, vec4(0.0)).xyz;
++    out_position = sample(tr_uv, positionmap, vec4(0.0)).xyz;
++    gl_FragDepth = sample(tr_uv, depthmap, vec4(1.0)).x;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_normal = cubeSample(in_data.texCoords, normalmap, vec4(0.0)).xyz;
+-    out_position = cubeSample(in_data.texCoords, positionmap, vec4(0.0)).xyz;
+-    gl_FragDepth = cubeSample(in_data.texCoords, depthmap, vec4(1.0)).x;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragOffAxis = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   out vec4 out_diffuse;
+ 
+   uniform samplerCube cubemap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragOffAxisNormal = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_normal;
+ 
+@@ -905,23 +755,18 @@ constexpr std::string_view FisheyeFragOffAxisNormal = R"(
+   uniform samplerCube normalmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_normal = sample(tr_uv, normalmap, vec4(0.0)).xyz;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_normal = cubeSample(in_data.texCoords, normalmap, vec4(0.0)).xyz;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragOffAxisPosition = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_position;
+ 
+@@ -929,23 +774,18 @@ constexpr std::string_view FisheyeFragOffAxisPosition = R"(
+   uniform samplerCube positionmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_position = sample(tr_uv, positionmap, vec4(0.0)).xyz;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_position = cubeSample(in_data.texCoords, positionmap, vec4(0.0)).xyz;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragOffAxisNormalPosition = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_normal;
+   layout(location = 2) out vec3 out_position;
+@@ -955,47 +795,37 @@ constexpr std::string_view FisheyeFragOffAxisNormalPosition = R"(
+   uniform samplerCube positionmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_normal = sample(tr_uv, normalmap, vec4(0.0)).xyz;
++    out_position = sample(tr_uv, positionmap, vec4(0.0)).xyz;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_normal = cubeSample(in_data.texCoords, normalmap, vec4(0.0)).xyz;
+-    out_position = cubeSample(in_data.texCoords, positionmap, vec4(0.0)).xyz;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragOffAxisDepth = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   out vec4 out_diffuse;
+ 
+   uniform samplerCube cubemap;
+   uniform samplerCube depthmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    gl_FragDepth = sample(tr_uv, depthmap, vec4(1.0)).x;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    gl_FragDepth = cubeSample(in_data.texCoords, depthmap, vec4(1.0)).x;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragOffAxisDepthNormal = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_normal;
+ 
+@@ -1004,24 +834,19 @@ constexpr std::string_view FisheyeFragOffAxisDepthNormal = R"(
+   uniform samplerCube normalmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_normal = sample(tr_uv, normalmap, vec4(0.0)).xyz;
++    gl_FragDepth = sample(tr_uv, depthmap, vec4(1.0)).x;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_normal = cubeSample(in_data.texCoords, normalmap, vec4(0.0)).xyz;
+-    gl_FragDepth = cubeSample(in_data.texCoords, depthmap, vec4(1.0)).x;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragOffAxisDepthPosition = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_position;
+ 
+@@ -1030,24 +855,19 @@ constexpr std::string_view FisheyeFragOffAxisDepthPosition = R"(
+   uniform samplerCube positionmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_position = sample(tr_uv, positionmap, vec4(0.0)).xyz;
++    gl_FragDepth = sample(tr_uv, depthmap, vec4(1.0)).x;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_position = cubeSample(in_data.texCoords, positionmap, vec4(0.0)).xyz;
+-    gl_FragDepth = cubeSample(in_data.texCoords, depthmap, vec4(1.0)).x;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeFragOffAxisDepthNormalPosition = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   layout(location = 0) out vec4 out_diffuse;
+   layout(location = 1) out vec3 out_normal;
+   layout(location = 2) out vec3 out_position;
+@@ -1058,46 +878,40 @@ constexpr std::string_view FisheyeFragOffAxisDepthNormalPosition = R"(
+   uniform samplerCube positionmap;
+   uniform vec4 bgColor;
+ 
++  vec4 sample(vec2 tc, samplerCube map, vec4 bg);
+-
+-  vec4 cubeSample(vec2 texCoords, samplerCube map, vec4 background);
+-
+ 
+   void main() {
++    out_diffuse = sample(tr_uv, cubemap, bgColor);
++    out_normal = sample(tr_uv, normalmap, vec4(0.0)).xyz;
++    out_position = sample(tr_uv, positionmap, vec4(0.0)).xyz;
++    gl_FragDepth = sample(tr_uv, depthmap, vec4(1.0)).x;
+-    out_diffuse = cubeSample(in_data.texCoords, cubemap, bgColor);
+-    out_normal = cubeSample(in_data.texCoords, normalmap, vec4(0.0)).xyz;
+-    out_position = cubeSample(in_data.texCoords, positionmap, vec4(0.0)).xyz;
+-    gl_FragDepth = cubeSample(in_data.texCoords, depthmap, vec4(1.0)).x;
+   }
+ )";
+ 
+ constexpr std::string_view FisheyeDepthCorrectionFrag = R"(
++  #version 330 core
+-  #version 460 core
+ 
++  in vec2 tr_uv;
++  out vec4 Color;
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+-
+-  out vec4 out_color;
+ 
+   uniform sampler2D cTex;
+   uniform sampler2D dTex;
+   uniform float near;
+   uniform float far;
+ 
+-
+   void main() {
+     float a = far / (far - near);
+     float b = far * near / (near - far);
++    float z = b / (texture(dTex, tr_uv).x - a);
+-    float z = b / (texture(dTex, in_data.texCoords).r - a);
+ 
+     // get angle from -45 to 45 degrees (-pi/4 to +pi/4)
++    vec2 angle = 1.57079632679 * tr_uv - 0.5;
+-    vec2 angle = 1.57079632679 * in_data.texCoords - 0.5;
+ 
+     float xNorm = tan(angle.x);
+     float yNorm = tan(angle.y);
+     float r = z * sqrt(xNorm * xNorm + yNorm * yNorm + 1.0);
+ 
++    Color = texture(cTex, tr_uv);
+-    out_color = texture(cTex, in_data.texCoords);
+     gl_FragDepth = a + b / r;
+   }
+ )";
+diff --git a/include/sgct/opengl.h b/include/sgct/opengl.h
+index 71b48efb..2aaa6237 100644
+--- a/include/sgct/opengl.h
++++ b/include/sgct/opengl.h
+@@ -29,10 +29,6 @@
+ 
+ #include <glad/glad.h>
+ 
+-#ifndef GL_NONE_BIT
+-#define GL_NONE_BIT 0
+-#endif // GL_NONE_BIT
+-
+ #ifdef SCGT_GLAD_APIENTRY_DEFINED
+ #undef APIENTRY
+ #undef SCGT_GLAD_APIENTRY_DEFINED
+diff --git a/include/sgct/projection/cubemap.h b/include/sgct/projection/cubemap.h
+index 9369661d..7b38eb43 100644
+--- a/include/sgct/projection/cubemap.h
++++ b/include/sgct/projection/cubemap.h
+@@ -42,7 +42,7 @@ class SGCT_EXPORT CubemapProjection final : public NonLinearProjection {
+ public:
+     CubemapProjection(const config::CubemapProjection& config,
+         const Window& parent, User& user);
++    virtual ~CubemapProjection() override;
+-    ~CubemapProjection() override;
+ 
+     /**
+      * Update projection when aspect ratio changes for the viewport.
+@@ -61,7 +61,8 @@ class SGCT_EXPORT CubemapProjection final : public NonLinearProjection {
+     void setSpoutRigOrientation(vec3 orientation);
+ 
+ private:
++    void initTextures(unsigned int internalFormat, unsigned int format,
++        unsigned int type) override;
+-    void initTextures(unsigned int internalFormat) override;
+     void initVBO() override;
+     void initViewports() override;
+     void initShaders() override;
+diff --git a/include/sgct/projection/nonlinearprojection.h b/include/sgct/projection/nonlinearprojection.h
+index f5212250..723a5896 100644
+--- a/include/sgct/projection/nonlinearprojection.h
++++ b/include/sgct/projection/nonlinearprojection.h
+@@ -36,7 +36,8 @@ class SGCT_EXPORT NonLinearProjection {
+      * Initialize the non-linear projection. The arguments should match the texture
+      * settings for the parent window's FBO target.
+      */
++    virtual void initialize(unsigned int internalFormat, unsigned int format,
++        unsigned int type, int nSamples);
+-    virtual void initialize(unsigned int internalFormat, int nSamples);
+ 
+     virtual void render(const BaseViewport& viewport, FrustumMode frustumMode) const = 0;
+     virtual void renderCubemap(FrustumMode frustumMode) const = 0;
+@@ -76,15 +77,18 @@ class SGCT_EXPORT NonLinearProjection {
+     ivec2 cubemapResolution() const;
+ 
+ protected:
++    virtual void initTextures(unsigned int internalFormat, unsigned int format,
++        unsigned int type);
+-    virtual void initTextures(unsigned int internalFormat);
+     virtual void initFBO(unsigned int internalFormat, int nSamples);
+     virtual void initVBO() = 0;
+     virtual void initViewports() = 0;
+     virtual void initShaders() = 0;
+ 
+     void setupViewport(const BaseViewport& vp) const;
++    void generateMap(unsigned int& texture, unsigned int internalFormat,
++        unsigned int format, unsigned int type);
++    void generateCubeMap(unsigned int& texture, unsigned int internalFormat,
++        unsigned int format, unsigned int type);
+-    void generateMap(unsigned int& texture, unsigned int internalFormat);
+-    void generateCubeMap(unsigned int& texture, unsigned int internalFormat);
+ 
+     void attachTextures(int face) const;
+     void blitCubeFace(int face) const;
+diff --git a/include/sgct/projection/sphericalmirror.h b/include/sgct/projection/sphericalmirror.h
+index 73ceda6c..8200b025 100644
+--- a/include/sgct/projection/sphericalmirror.h
++++ b/include/sgct/projection/sphericalmirror.h
+@@ -29,7 +29,7 @@ class SGCT_EXPORT SphericalMirrorProjection final : public NonLinearProjection {
+ public:
+     SphericalMirrorProjection(const config::SphericalMirrorProjection& config,
+         const Window& parent, User& user);
++    virtual ~SphericalMirrorProjection() final;
+-    ~SphericalMirrorProjection() final;
+ 
+     void update(const vec2& size) const override;
+ 
+@@ -52,7 +52,8 @@ class SGCT_EXPORT SphericalMirrorProjection final : public NonLinearProjection {
+     void setTilt(float angle);
+ 
+ private:
++    void initTextures(unsigned int internalFormat, unsigned int format,
++        unsigned int type) override;
+-    void initTextures(unsigned int internalFormat) override;
+     void initVBO() override;
+     void initViewports() override;
+     void initShaders() override;
+diff --git a/include/sgct/viewport.h b/include/sgct/viewport.h
+index e42f438c..56161ae1 100644
+--- a/include/sgct/viewport.h
++++ b/include/sgct/viewport.h
+@@ -32,7 +32,7 @@ class SGCT_EXPORT Viewport final : public BaseViewport {
+     ~Viewport() override;
+ 
+     void initialize(vec2 size, bool hasStereo, unsigned int internalFormat,
++        unsigned int format, unsigned int type, uint8_t samples);
+-        uint8_t samples);
+ 
+     void loadData();
+ 
+diff --git a/src/correctionmesh.cpp b/src/correctionmesh.cpp
+index 6f13563d..80711bbe 100644
+--- a/src/correctionmesh.cpp
++++ b/src/correctionmesh.cpp
+@@ -99,43 +99,40 @@ correction::Buffer setupSimpleMesh(const vec2& pos, const vec2& size) {
+ CorrectionMesh::CorrectionMeshGeometry::CorrectionMeshGeometry(
+                                                          const correction::Buffer& buffer)
+ {
+-    using Vertex = correction::Buffer::Vertex;
+-
+     ZoneScoped;
+     TracyGpuZone("createMesh");
+ 
++    glGenVertexArrays(1, &vao);
++    glBindVertexArray(vao);
++
++    glGenBuffers(1, &vbo);
++    glBindBuffer(GL_ARRAY_BUFFER, vbo);
++    constexpr int s = sizeof(correction::Buffer::Vertex);
++    glBufferData(
++        GL_ARRAY_BUFFER,
++        buffer.vertices.size() * s,
+-    glCreateBuffers(1, &vbo);
+-    glNamedBufferStorage(
+-        vbo,
+-        buffer.vertices.size() * sizeof(Vertex),
+         buffer.vertices.data(),
++        GL_STATIC_DRAW
+-        GL_NONE_BIT
+     );
+ 
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, s, nullptr);
++
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, s, reinterpret_cast<void*>(8));
++
++    glEnableVertexAttribArray(2);
++    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, s, reinterpret_cast<void*>(16));
++
++    glGenBuffers(1, &ibo);
++    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
++    glBufferData(
++        GL_ELEMENT_ARRAY_BUFFER,
+-    glCreateBuffers(1, &ibo);
+-    glNamedBufferStorage(
+-        ibo,
+         buffer.indices.size() * sizeof(unsigned int),
+         buffer.indices.data(),
++        GL_STATIC_DRAW
+-        GL_NONE_BIT
+     );
++    glBindVertexArray(0);
+-
+-
+-    glCreateVertexArrays(1, &vao);
+-    glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Vertex));
+-    glVertexArrayElementBuffer(vao, ibo);
+-
+-    glEnableVertexArrayAttrib(vao, 0);
+-    glVertexArrayAttribFormat(vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(vao, 0, 0);
+-
+-    glEnableVertexArrayAttrib(vao, 1);
+-    glVertexArrayAttribFormat(vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, s));
+-    glVertexArrayAttribBinding(vao, 1, 0);
+-
+-    glEnableVertexArrayAttrib(vao, 2);
+-    glVertexArrayAttribFormat(vao, 2, 4, GL_FLOAT, GL_FALSE, offsetof(Vertex, r));
+-    glVertexArrayAttribBinding(vao, 2, 0);
+ 
+     nVertices = static_cast<int>(buffer.vertices.size());
+     nIndices = static_cast<int>(buffer.indices.size());
+diff --git a/src/engine.cpp b/src/engine.cpp
+index 9c074b1e..f4cd48e5 100644
+--- a/src/engine.cpp
++++ b/src/engine.cpp
+@@ -356,77 +356,37 @@ Engine::Engine(config::Cluster cluster, Callbacks callbacks, const Configuration
+ void Engine::initialize() {
+     ZoneScoped;
+ 
++    int major = 0;
++    int minor = 0;
+-    ZoneScoped;
+-
+     {
++        ZoneScopedN("OpenGL Version");
+-        int major = 0;
+-        int minor = 0;
+-        int release = 0;
+-        glfwGetVersion(&major, &minor, &release);
+-        Log::Info(std::format("Using GLFW version {}.{}.{}", major, minor, release));
+-    }
+ 
++        // Detect the available OpenGL version
++#ifdef __APPLE__
++        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
++        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
++        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
++        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
++#endif // __APPLE__
++        glfwWindowHint(GLFW_VISIBLE, GL_FALSE);
++        GLFWwindow* offscreen = glfwCreateWindow(128, 128, "", nullptr, nullptr);
++        if (!offscreen) {
++            throw Err(3007, "Error creating OpenGL context when initializing the engine");
++        }
++        glfwMakeContextCurrent(offscreen);
+-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+-
+-    const Node& thisNode = ClusterManager::instance().thisNode();
+-    const std::vector<std::unique_ptr<Window>>& windows = thisNode.windows();
+-
+-    bool needsCompatProfile = std::any_of(
+-        windows.cbegin(),
+-        windows.cend(),
+-        std::mem_fn(&Window::needsCompatibilityProfile)
+-    );
+-
+-    glfwWindowHint(
+-        GLFW_OPENGL_PROFILE,
+-        needsCompatProfile ? GLFW_OPENGL_COMPAT_PROFILE : GLFW_OPENGL_CORE_PROFILE
+-    );
+-
+-    if (_settings.createDebugContext) {
+-        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+-    }
+-
+-    if (_preWindowFn) {
+-        ZoneScopedN("[SGCT] Pre-window creation");
+-        _preWindowFn();
+-    }
+-
+-    for (size_t i = 0; i < windows.size(); i++) {
+-        ZoneScopedN("Creating Window");
+-
+-        GLFWwindow* s = (i == 0) ? nullptr : windows[0]->windowHandle();
+-        const bool isLastWindow = i == windows.size() - 1;
+-        windows[i]->openWindow(s, isLastWindow);
+         gladLoadGL();
+-#ifdef WIN32
+-        gladLoadWGL(wglGetCurrentDC());
+-#endif // WIN32
+-        TracyGpuContext;
+ 
++        // Get the OpenGL version
++        glGetIntegerv(GL_MAJOR_VERSION, &major);
++        glGetIntegerv(GL_MINOR_VERSION, &minor);
+-        if (i == 0) {
+-            int major = 0;
+-            glGetIntegerv(GL_MAJOR_VERSION, &major);
+-            int minor = 0;
+-            glGetIntegerv(GL_MINOR_VERSION, &minor);
+ 
++        // And get rid of the window again
++        glfwDestroyWindow(offscreen);
++        glfwWindowHint(GLFW_VISIBLE, GL_TRUE);
+-            if (major != 4 || minor != 6) {
+-                throw Err(
+-                    3007,
+-                    "Error creating OpenGL context with version 4.6 when initializing "
+-                    "the engine"
+-                );
+-            }
+-        }
+     }
++    Log::Info(std::format("Detected OpenGL version: {}.{}", major, minor));
+ 
++    initWindows(major, minor);
+-    // clear directly otherwise junk will be displayed on some OSs (OS X Yosemite)
+-    glClearColor(0.f, 0.f, 0.f, 0.f);
+-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+-
+-    if (RunFrameLockCheckThread && ClusterManager::instance().numberOfNodes() > 1) {
+-        _thread = std::make_unique<std::thread>(updateFrameLockLoop, nullptr);
+-    }
+ 
+     // Window resolution may have been set by the config. However, it only sets a pending
+     // resolution, so it needs to apply it using the same routine as in the end of a frame
+@@ -667,6 +627,68 @@ Engine::~Engine() {
+     Log::Debug("Finished cleaning");
+ }
+ 
++void Engine::initWindows(int majorVersion, int minorVersion) {
++    ZoneScoped;
++
++    assert(majorVersion > 0);
++    assert(minorVersion > 0);
++
++    {
++        int major = 0;
++        int minor = 0;
++        int release = 0;
++        glfwGetVersion(&major, &minor, &release);
++        Log::Info(std::format("Using GLFW version {}.{}.{}", major, minor, release));
++    }
++
++    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, majorVersion);
++    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, minorVersion);
++
++    const Node& thisNode = ClusterManager::instance().thisNode();
++    const std::vector<std::unique_ptr<Window>>& windows = thisNode.windows();
++
++    bool needsCompatProfile = std::any_of(
++        windows.cbegin(),
++        windows.cend(),
++        std::mem_fn(&Window::needsCompatibilityProfile)
++    );
++    
++    glfwWindowHint(
++        GLFW_OPENGL_PROFILE,
++        needsCompatProfile ? GLFW_OPENGL_COMPAT_PROFILE : GLFW_OPENGL_CORE_PROFILE
++    );
++
++    if (_settings.createDebugContext) {
++        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
++    }
++
++    if (_preWindowFn) {
++        ZoneScopedN("[SGCT] Pre-window creation");
++        _preWindowFn();
++    }
++
++    for (size_t i = 0; i < windows.size(); i++) {
++        ZoneScopedN("Creating Window");
++
++        GLFWwindow* s = (i == 0) ? nullptr : windows[0]->windowHandle();
++        const bool isLastWindow = i == windows.size() - 1;
++        windows[i]->openWindow(s, isLastWindow);
++        gladLoadGL();
++#ifdef WIN32
++        gladLoadWGL(wglGetCurrentDC());
++#endif // WIN32
++        TracyGpuContext;
++    }
++
++    // clear directly otherwise junk will be displayed on some OSs (OS X Yosemite)
++    glClearColor(0.f, 0.f, 0.f, 0.f);
++    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
++
++    if (RunFrameLockCheckThread && ClusterManager::instance().numberOfNodes() > 1) {
++        _thread = std::make_unique<std::thread>(updateFrameLockLoop, nullptr);
++    }
++}
++
+ void Engine::terminate() {
+     _shouldTerminate = true;
+ }
+@@ -779,9 +801,9 @@ void Engine::exec() {
+     Window::makeSharedContextCurrent();
+ 
+     unsigned int timeQueryBegin = 0;
++    glGenQueries(1, &timeQueryBegin);
+-    glCreateQueries(GL_TIMESTAMP, 1, &timeQueryBegin);
+     unsigned int timeQueryEnd = 0;
++    glGenQueries(1, &timeQueryEnd);
+-    glCreateQueries(GL_TIMESTAMP, 1, &timeQueryEnd);
+ 
+     Node& thisNode = ClusterManager::instance().thisNode();
+     const std::vector<std::unique_ptr<Window>>& wins = thisNode.windows();
+diff --git a/src/font.cpp b/src/font.cpp
+index 1617495f..99f71f44 100644
+--- a/src/font.cpp
++++ b/src/font.cpp
+@@ -131,21 +131,32 @@ namespace {
+ 
+     unsigned int generateTexture(int w, int h, const std::vector<unsigned char>& buffer) {
+         unsigned int tex = 0;
++        glGenTextures(1, &tex);
++        glBindTexture(GL_TEXTURE_2D, tex);
+-        glCreateTextures(GL_TEXTURE_2D, 1, &tex);
+ 
+         glPixelStorei(GL_PACK_ALIGNMENT, 1);
+         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+ 
++        glTexImage2D(
++            GL_TEXTURE_2D,
++            0,
++            GL_COMPRESSED_RG,
++            w,
++            h,
++            0,
++            GL_RG,
++            GL_UNSIGNED_BYTE,
++            buffer.data()
++        );
++
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-        glTextureParameteri(tex, GL_TEXTURE_BASE_LEVEL, 0);
+-        glTextureParameteri(tex, GL_TEXTURE_MAX_LEVEL, 0);
+-        glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-        glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+ 
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+-        glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+-        glTextureParameteri(tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+ 
+-        glTextureStorage2D(tex, 1, GL_COMPRESSED_RG, w, h);
+-        glTextureSubImage2D(tex, 0, 0, 0, w, h, GL_RG, GL_UNSIGNED_BYTE, buffer.data());
+         return tex;
+     }
+ 
+@@ -210,32 +221,28 @@ Font::Font(FT_Library lib, FT_Face face, unsigned int height)
+     , _face(face)
+     , _height(static_cast<float>(height))
+ {
++    glGenVertexArrays(1, &_vao);
++    glGenBuffers(1, &_vbo);
++
++    constexpr std::array<float, 16> c = std::array<float, 16> {
++        // x y s t
++        0.f, 1.f, 0.f, 0.f,
++        1.f, 1.f, 1.f, 0.f,
++        0.f, 0.f, 0.f, 1.f,
++        1.f, 0.f, 1.f, 1.f
+-    struct Vertex {
+-        float x;
+-        float y;
+-        float s;
+-        float t;
+     };
+-    constexpr std::array<Vertex, 4> c = {
+-        Vertex{ 0.f, 1.f, 0.f, 0.f },
+-        Vertex{ 1.f, 1.f, 1.f, 0.f },
+-        Vertex{ 0.f, 0.f, 0.f, 1.f },
+-        Vertex{ 1.f, 0.f, 1.f, 1.f }
+-    };
+-
+-    glCreateBuffers(1, &_vbo);
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), c.data(), GL_NONE_BIT);
+ 
++    glBindVertexArray(_vao);
++    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
++    glBufferData(GL_ARRAY_BUFFER, c.size() * sizeof(float), c.data(), GL_STATIC_DRAW);
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
+ 
++    constexpr int s = 4 * sizeof(float);
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, s, nullptr);
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, s, reinterpret_cast<void*>(8));
+-    glEnableVertexArrayAttrib(_vao, 0);
+-    glVertexArrayAttribFormat(_vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_vao, 0, 0);
+ 
++    glBindVertexArray(0);
+-    glEnableVertexArrayAttrib(_vao, 1);
+-    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, s));
+-    glVertexArrayAttribBinding(_vao, 1, 0);
+ }
+ 
+ Font::~Font() {
+diff --git a/src/fontmanager.cpp b/src/fontmanager.cpp
+index d76f052e..7652a71c 100644
+--- a/src/fontmanager.cpp
++++ b/src/fontmanager.cpp
+@@ -42,40 +42,30 @@ namespace {
+     std::string SystemFontPath;
+ 
+     constexpr std::string_view FontVertShader = R"(
++#version 330 core
++layout (location = 0) in vec2 in_texCoord;
+-#version 460 core
+-
+-layout (location = 0) in vec2 in_texCoords;
+ layout (location = 1) in vec2 in_position;
++out vec2 tr_uv;
+-
+-out Data {
+-  vec2 texCoords;
+-} out_data;
+ 
+ uniform mat4 mvp;
+ 
+-
+ void main() {
++    gl_Position = mvp * vec4(in_position, 0.0, 1.0);
++    tr_uv = in_texCoord;
+-  gl_Position = mvp * vec4(in_position, 0.0, 1.0);
+-  out_data.texCoords = in_texCoords;
+ })";
+ 
+     constexpr std::string_view FontFragShader = R"(
++#version 330 core
++in vec2 tr_uv;
+-#version 460 core
+-
+-in Data {
+-  vec2 texCoords;
+-} in_data;
+-
+ out vec4 out_color;
+ 
+ uniform vec4 col;
+ uniform sampler2D tex;
+ 
+-
+ const vec4 StrokeCol = vec4(0.0, 0.0, 0.0, 0.9);
+ 
+ void main() {
++    vec2 luminanceAlpha = texture(tex, tr_uv).rg;
+-    vec2 luminanceAlpha = texture(tex, in_data.texCoords).rg;
+     vec4 blend = mix(StrokeCol, col, luminanceAlpha.r);
+     out_color = blend * vec4(1.0, 1.0, 1.0, luminanceAlpha.g);
+ })";
+@@ -151,9 +141,9 @@ FontManager::~FontManager() {
+ void FontManager::bindShader(const mat4& mvp, const vec4& color, int texture) const {
+     _shader.bind();
+ 
++    glUniform4fv(_colorLocation, 1, &color.x);
++    glUniform1i(_textureLocation, texture);
++    glUniformMatrix4fv(_mvpLocation, 1, GL_FALSE, mvp.values.data());
+-    glProgramUniform4fv(_shader.id(), _colorLocation, 1, &color.x);
+-    glProgramUniform1i(_shader.id(), _textureLocation, texture);
+-    glProgramUniformMatrix4fv(_shader.id(), _mvpLocation, 1, GL_FALSE, mvp.values.data());
+ }
+ 
+ bool FontManager::addFont(std::string name, std::string file, bool isAbsolutePath) {
+@@ -225,10 +215,12 @@ std::unique_ptr<Font> FontManager::createFont(const std::string& name, int heigh
+         _shader.addVertexShader(FontVertShader);
+         _shader.addFragmentShader(FontFragShader);
+         _shader.createAndLinkProgram();
++        _shader.bind();
+ 
+         _mvpLocation = glGetUniformLocation(_shader.id(), "mvp");
+         _colorLocation = glGetUniformLocation(_shader.id(), "col");
+         _textureLocation = glGetUniformLocation(_shader.id(), "tex");
++        ShaderProgram::unbind();
+ 
+         isShaderCreated = true;
+     }
+diff --git a/src/freetype.cpp b/src/freetype.cpp
+index 1a88a39b..cbd5f87b 100644
+--- a/src/freetype.cpp
++++ b/src/freetype.cpp
+@@ -82,6 +82,7 @@ void print(const Window& window, const BaseViewport& viewport, Font& font, Align
+     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+ 
+     glBindVertexArray(font.vao());
++    glActiveTexture(GL_TEXTURE0);
+ 
+     for (size_t i = 0; i < lines.size(); i++) {
+         glm::vec3 offset(x, y - h * i, 0.f);
+@@ -96,7 +97,9 @@ void print(const Window& window, const BaseViewport& viewport, Font& font, Align
+         for (const char c : lines[i]) {
+             const sgct::text::Font::FontFaceData& ffd = font.fontFaceData(c);
+ 
++            glBindTexture(GL_TEXTURE_2D, ffd.texId);
++            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-            glBindTextureUnit(0, ffd.texId);
+ 
+             const glm::mat4 trans = glm::translate(
+                 orthoMatrix,
+diff --git a/src/offscreenbuffer.cpp b/src/offscreenbuffer.cpp
+index b25af85d..2612f6fd 100644
+--- a/src/offscreenbuffer.cpp
++++ b/src/offscreenbuffer.cpp
+@@ -71,8 +71,8 @@ void OffScreenBuffer::createFBO(int width, int height, int samples) {
+     // later as it doesn't impact the rendering.  All FBOs will be complete before we
+     // render anything either way
+ 
++    glGenFramebuffers(1, &_frameBuffer);
++    glGenRenderbuffers(1, &_depthBuffer);
+-    glCreateFramebuffers(1, &_frameBuffer);
+-    glCreateRenderbuffers(1, &_depthBuffer);
+ 
+     _size = ivec2{ width, height };
+     _isMultiSampled = samples > 1;
+@@ -89,19 +89,19 @@ void OffScreenBuffer::createFBO(int width, int height, int samples) {
+         Log::Debug(std::format("Max samples supported: {}", maxSamples));
+ 
+         // generate the multisample buffer
++        glGenFramebuffers(1, &_multiSampledFrameBuffer);
+-        glCreateFramebuffers(1, &_multiSampledFrameBuffer);
+ 
+         // generate render buffer for intermediate diffuse color storage
++        glGenRenderbuffers(1, &_colorBuffer);
+-        glCreateRenderbuffers(1, &_colorBuffer);
+ 
+         // generate render buffer for intermediate normal storage
+         if (Engine::instance().settings().useNormalTexture) {
++            glGenRenderbuffers(1, &_normalBuffer);
+-            glCreateRenderbuffers(1, &_normalBuffer);
+         }
+ 
+         // generate render buffer for intermediate position storage
+         if (Engine::instance().settings().usePositionTexture) {
++            glGenRenderbuffers(1, &_positionBuffer);
+-            glCreateRenderbuffers(1, &_positionBuffer);
+         }
+ 
+         // Bind FBO
+diff --git a/src/projection/cubemap.cpp b/src/projection/cubemap.cpp
+index a632d86b..c7e5eeab 100644
+--- a/src/projection/cubemap.cpp
++++ b/src/projection/cubemap.cpp
+@@ -30,13 +30,9 @@
+ 
+ namespace {
+     constexpr std::string_view FragmentShader = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   out vec4 out_diffuse;
+ 
+   uniform sampler2D right;
+@@ -46,10 +42,9 @@ namespace {
+   uniform sampler2D left;
+   uniform sampler2D zRight;
+ 
+-
+   void main() {
++    float column = tr_uv.x * 3.0; // 3 columns
++    float row = tr_uv.y * 2.0;    // 2 rows
+-    float column = in_data.texCoords.x * 3.0; // 3 columns
+-    float row = in_data.texCoords.y * 2.0;    // 2 rows
+     
+     int col = int(floor(column));
+     int rowId = int(floor(row));
+@@ -57,22 +52,22 @@ namespace {
+     vec2 localCoord = vec2(fract(column), fract(row));
+     
+     if (rowId == 0 && col == 0) {
++        out_diffuse = texture(zRight, localCoord);
+-      out_diffuse = texture(zRight, localCoord);
+     } 
+     else if (rowId == 0 && col == 1) {
++        out_diffuse = texture(top, localCoord);
+-      out_diffuse = texture(top, localCoord);
+     } 
+     else if (rowId == 0 && col == 2) {
++        out_diffuse = texture(left, localCoord);
+-      out_diffuse = texture(left, localCoord);
+     } 
+     else if (rowId == 1 && col == 0) {
++        out_diffuse = texture(zLeft, localCoord);
+-      out_diffuse = texture(zLeft, localCoord);
+     } 
+     else if (rowId == 1 && col == 1) {
++        out_diffuse = texture(bottom, localCoord);
++    } 
+-      out_diffuse = texture(bottom, localCoord);
+-    }
+     else if (rowId == 1 && col == 2) {
++        out_diffuse = texture(right, localCoord);
+-      out_diffuse = texture(right, localCoord);
+     } 
+   }
+ )";
+@@ -152,8 +147,11 @@ void CubemapProjection::render(const BaseViewport& viewport,
+     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+     glDisable(GL_SCISSOR_TEST);
+ 
++    _shader.bind();
++
+     for (int i = 0; i < 6; i++) {
++        glActiveTexture(GL_TEXTURE0 + i);
++        glBindTexture(GL_TEXTURE_2D, _cubeFaces[i].enabled ? _cubeFaces[i].texture : 0);
+-        glBindTextureUnit(i, _cubeFaces[i].enabled ? _cubeFaces[i].texture : 0);
+     }
+ 
+     glDisable(GL_CULL_FACE);
+@@ -161,15 +159,17 @@ void CubemapProjection::render(const BaseViewport& viewport,
+     glEnable(GL_DEPTH_TEST);
+     glDepthFunc(GL_ALWAYS);
+ 
+-    _shader.bind();
+     glBindVertexArray(_vao);
+     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+     glBindVertexArray(0);
++
+     ShaderProgram::unbind();
+ 
+     glDisable(GL_DEPTH_TEST);
+     glDepthFunc(GL_LESS);
+ 
++    ShaderProgram::unbind();
++
+     for (int i = 0; i < 6; i++) {
+         if (!_cubeFaces[i].enabled) {
+             continue;
+@@ -196,12 +196,12 @@ void CubemapProjection::render(const BaseViewport& viewport,
+ #ifdef SGCT_HAS_NDI
+         if (_ndiEnabled) {
+             // Download the texture data from the GPU
++            glBindTexture(GL_TEXTURE_2D, _cubeFaces[i].texture);
++            glGetTexImage(
++                GL_TEXTURE_2D,
+-            glGetTextureImage(
+-                _cubeFaces[i].texture,
+                 0,
+                 GL_RGBA,
+                 GL_UNSIGNED_BYTE,
+-                _cubemapResolution.x * _cubemapResolution.y * 4,
+                 _cubeFaces[i].ndi.currentVideoBuffer->data()
+             );
+ 
+@@ -237,8 +237,10 @@ void CubemapProjection::setSpoutRigOrientation(vec3 orientation) {
+     _rigOrientation = std::move(orientation);
+ }
+ 
++void CubemapProjection::initTextures(unsigned int internalFormat, unsigned int format,
++                                         unsigned int type)
++{
++    NonLinearProjection::initTextures(internalFormat, format, type);
+-void CubemapProjection::initTextures(unsigned int internalFormat) {
+-    NonLinearProjection::initTextures(internalFormat);
+ 
+     Log::Debug("CubemapProjection initTextures");
+ 
+@@ -248,21 +250,26 @@ void CubemapProjection::initTextures(unsigned int internalFormat, unsigned int f
+             continue;
+         }
+ 
++        glGenTextures(1, &_cubeFaces[i].texture);
++        glBindTexture(GL_TEXTURE_2D, _cubeFaces[i].texture);
++
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++        glTexImage2D(
++            GL_TEXTURE_2D,
++            0,
+-        glCreateTextures(GL_TEXTURE_2D, 1, &_cubeFaces[i].texture);
+-
+-        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_BASE_LEVEL, 0);
+-        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_MAX_LEVEL, 0);
+-        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+-        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+-        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+-        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-        glTextureStorage2D(
+-            _cubeFaces[i].texture,
+-            1,
+             internalFormat,
+             _cubemapResolution.x,
++            _cubemapResolution.y,
++            0,
++            format,
++            type,
++            nullptr
+-            _cubemapResolution.y
+         );
+ 
+ #ifdef SGCT_HAS_SPOUT
+@@ -346,25 +353,34 @@ void CubemapProjection::initVBO() {
+         float t;
+     };
+ 
++    glGenVertexArrays(1, &_vao);
++    glBindVertexArray(_vao);
+-    glCreateBuffers(1, &_vbo);
+-    constexpr std::array<Vertex, 4> v = {
+-        Vertex{ -1.f, -1.f, -1.f, 0.f, 0.f },
+-        Vertex{ -1.f,  1.f, -1.f, 0.f, 1.f },
+-        Vertex{  1.f, -1.f, -1.f, 1.f, 0.f },
+-        Vertex{  1.f,  1.f, -1.f, 1.f, 1.f }
+-    };
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), v.data(), GL_NONE_BIT);
+ 
++    glGenBuffers(1, &_vbo);
++    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
+ 
++    constexpr std::array<float, 20> v = {
++        -1.f, -1.f, -1.f, 0.f, 0.f,
++        -1.f,  1.f, -1.f, 0.f, 1.f,
++         1.f, -1.f, -1.f, 1.f, 0.f,
++         1.f,  1.f, -1.f, 1.f, 1.f
++    };
++    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), v.data(), GL_STATIC_DRAW);
++
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
++
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(
++        1,
++        2,
++        GL_FLOAT,
++        GL_FALSE,
++        sizeof(Vertex),
++        reinterpret_cast<void*>(offsetof(Vertex, s))
++    );
+-    glEnableVertexArrayAttrib(_vao, 0);
+-    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_vao, 0, 0);
+ 
++    glBindVertexArray(0);
+-    glEnableVertexArrayAttrib(_vao, 1);
+-    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, s));
+-    glVertexArrayAttribBinding(_vao, 1, 0);
+ }
+ 
+ void CubemapProjection::initViewports() {
+@@ -514,13 +530,16 @@ void CubemapProjection::initShaders() {
+     _shader.addVertexShader(shaders::BaseVert);
+     _shader.addFragmentShader(FragmentShader);
+     _shader.createAndLinkProgram();
++    _shader.bind();
++
++    glUniform1i(glGetUniformLocation(_shader.id(), "right"), 0);
++    glUniform1i(glGetUniformLocation(_shader.id(), "zLeft"), 1);
++    glUniform1i(glGetUniformLocation(_shader.id(), "bottom"), 2);
++    glUniform1i(glGetUniformLocation(_shader.id(), "top"), 3);
++    glUniform1i(glGetUniformLocation(_shader.id(), "left"), 4);
++    glUniform1i(glGetUniformLocation(_shader.id(), "zRight"), 5);
+ 
++    ShaderProgram::unbind();
+-    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "right"), 0);
+-    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "zLeft"), 1);
+-    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "bottom"), 2);
+-    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "top"), 3);
+-    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "left"), 4);
+-    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "zRight"), 5);
+ }
+ 
+ void CubemapProjection::initFBO(unsigned int internalFormat, int nSamples) {
+@@ -528,7 +547,7 @@ void CubemapProjection::initFBO(unsigned int internalFormat, int nSamples) {
+ 
+     _spoutFBO = std::make_unique<OffScreenBuffer>(internalFormat);
+     _spoutFBO->createFBO(_cubemapResolution.x, _cubemapResolution.y, 1);
++    glGenFramebuffers(1, &_blitFbo);
+-    glCreateFramebuffers(1, &_blitFbo);
+ }
+ 
+ void CubemapProjection::renderCubemap(FrustumMode frustumMode) const {
+diff --git a/src/projection/cylindrical.cpp b/src/projection/cylindrical.cpp
+index d226bb3f..4ee36971 100644
+--- a/src/projection/cylindrical.cpp
++++ b/src/projection/cylindrical.cpp
+@@ -24,12 +24,9 @@
+ 
+ namespace {
+     constexpr std::string_view FragmentShader = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   out vec4 out_diffuse;
+ 
+   uniform samplerCube cubemap;
+@@ -38,16 +35,23 @@ namespace {
+ 
+   const float PI = 3.141592654;
+ 
+-
+   void main() {
++    vec2 pixelNormalized = tr_uv;
+-    vec2 pixelNormalized = in_data.texCoords;
+     float angle = 2.0 * PI * pixelNormalized.x;
+     vec2 direction = vec2(cos(-angle + rotation), sin(-angle + rotation));
+ 
++    vec3 sample = (vec3(direction, pixelNormalized.y + heightOffset));
++    out_diffuse = texture(cubemap, sample);
+-    vec3 tex = vec3(direction, pixelNormalized.y + heightOffset);
+-    out_diffuse = texture(cubemap, tex);
+   }
+ )";
++
++    struct Vertex {
++        float x;
++        float y;
++        float z;
++        float s;
++        float t;
++    };
+ } // namespace
+ 
+ namespace sgct {
+@@ -84,23 +88,28 @@ void CylindricalProjection::render(const BaseViewport& viewport,
+     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+     glDisable(GL_SCISSOR_TEST);
+ 
++    _shader.program.bind();
++
+     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+ 
++    // if for some reason the active texture has been reset
++    glActiveTexture(GL_TEXTURE0);
++    glBindTexture(GL_TEXTURE_CUBE_MAP, _textures.cubeMapColor);
+-    glBindTextureUnit(0, _textures.cubeMapColor);
+ 
+     glDisable(GL_CULL_FACE);
+     glDisable(GL_BLEND);
+     glEnable(GL_DEPTH_TEST);
+     glDepthFunc(GL_ALWAYS);
+ 
++    glUniform1i(_shader.cubemap, 0);
++    glUniform1f(_shader.rotation, glm::radians(_rotation));
++    glUniform1f(_shader.heightOffset, _heightOffset);
++
+-    glProgramUniform1i(_shader.program.id(), _shader.cubemap, 0);
+-    glProgramUniform1f(_shader.program.id(), _shader.rotation, glm::radians(_rotation));
+-    glProgramUniform1f(_shader.program.id(), _shader.heightOffset, _heightOffset);
+ 
+-    _shader.program.bind();
+     glBindVertexArray(_vao);
+     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+     glBindVertexArray(0);
++
+     ShaderProgram::unbind();
+ 
+     glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+@@ -122,33 +131,34 @@ void CylindricalProjection::renderCubemap(FrustumMode frustumMode) const {
+ void CylindricalProjection::update(const vec2&) const {}
+ 
+ void CylindricalProjection::initVBO() {
++    glGenVertexArrays(1, &_vao);
++    glBindVertexArray(_vao);
++
++    glGenBuffers(1, &_vbo);
++    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+-    struct Vertex {
+-        float x;
+-        float y;
+-        float z;
+-        float s;
+-        float t;
+-    };
+ 
++    constexpr std::array<float, 20> v = {
++        -1.f, -1.f, -1.f, 0.f, 0.f,
++        -1.f,  1.f, -1.f, 0.f, 1.f,
++         1.f, -1.f, -1.f, 1.f, 0.f,
++         1.f,  1.f, -1.f, 1.f, 1.f
+-    glCreateBuffers(1, &_vbo);
+-    constexpr std::array<Vertex, 4> v = {
+-        Vertex{ -1.f, -1.f, -1.f, 0.f, 0.f },
+-        Vertex{ -1.f,  1.f, -1.f, 0.f, 1.f },
+-        Vertex{  1.f, -1.f, -1.f, 1.f, 0.f },
+-        Vertex{  1.f,  1.f, -1.f, 1.f, 1.f }
+     };
++    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), v.data(), GL_STATIC_DRAW);
++
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
++
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(
++        1,
++        2,
++        GL_FLOAT,
++        GL_FALSE,
++        sizeof(Vertex),
++        reinterpret_cast<void*>(offsetof(Vertex, s))
++    );
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), v.data(), GL_NONE_BIT);
+ 
++    glBindVertexArray(0);
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
+-
+-    glEnableVertexArrayAttrib(_vao, 0);
+-    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_vao, 0, 0);
+-
+-    glEnableVertexArrayAttrib(_vao, 1);
+-    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, s));
+-    glVertexArrayAttribBinding(_vao, 1, 0);
+ }
+ 
+ void CylindricalProjection::initViewports() {
+@@ -278,11 +288,14 @@ void CylindricalProjection::initShaders() {
+     _shader.program.addVertexShader(shaders_fisheye::BaseVert);
+     _shader.program.addFragmentShader(FragmentShader);
+     _shader.program.createAndLinkProgram();
++    _shader.program.bind();
+ 
+     _shader.cubemap = glGetUniformLocation(_shader.program.id(), "cubemap");
++    glUniform1i(_shader.cubemap, 0);
+-    glProgramUniform1i(_shader.program.id(), _shader.cubemap, 0);
+     _shader.rotation = glGetUniformLocation(_shader.program.id(), "rotation");
+     _shader.heightOffset = glGetUniformLocation(_shader.program.id(), "heightOffset");
++
++    ShaderProgram::unbind();
+ }
+ 
+ void CylindricalProjection::setRotation(float rotation) {
+diff --git a/src/projection/equirectangular.cpp b/src/projection/equirectangular.cpp
+index 2a1fff6c..a79a3ce0 100644
+--- a/src/projection/equirectangular.cpp
++++ b/src/projection/equirectangular.cpp
+@@ -20,22 +20,18 @@
+ 
+ namespace {
+     constexpr std::string_view FragmentShader = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-  } in_data;
+ 
++  in vec2 tr_uv;
+   out vec4 out_diffuse;
+ 
+   uniform samplerCube cubemap;
+ 
+   const float PI = 3.141592654;
+ 
+-
+   void main() {
++    float phi = PI * (1.0 - tr_uv.t);
++    float theta = 2.0 * PI * (tr_uv.s - 0.5);
+-    float phi = PI * (1.0 - in_data.texCoords.t);
+-    float theta = 2.0 * PI * (in_data.texCoords.s - 0.5);
+     float x = sin(phi) * sin(theta);
+     float y = sin(phi) * cos(theta);
+     float z = cos(phi);
+@@ -76,17 +72,19 @@ void EquirectangularProjection::render(const BaseViewport& viewport,
+     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+     glDisable(GL_SCISSOR_TEST);
+ 
++    _shader.bind();
++
+     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+ 
++    // if for some reson the active texture has been reset
++    glActiveTexture(GL_TEXTURE0);
++    glBindTexture(GL_TEXTURE_CUBE_MAP, _textures.cubeMapColor);
+-    glBindTextureUnit(0, _textures.cubeMapColor);
+ 
+     glDisable(GL_CULL_FACE);
+     glDisable(GL_BLEND);
+     glEnable(GL_DEPTH_TEST);
+     glDepthFunc(GL_ALWAYS);
+ 
+-    _shader.bind();
+-
+     glBindVertexArray(_vao);
+     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+     glBindVertexArray(0);
+@@ -120,24 +118,34 @@ void EquirectangularProjection::initVBO() {
+         float t;
+     };
+ 
++    glGenVertexArrays(1, &_vao);
++    glBindVertexArray(_vao);
++
++    glGenBuffers(1, &_vbo);
++    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
++
++    constexpr std::array<float, 20> v = {
++        -1.f, -1.f, -1.f, 0.f, 0.f,
++        -1.f,  1.f, -1.f, 0.f, 1.f,
++         1.f, -1.f, -1.f, 1.f, 0.f,
++         1.f,  1.f, -1.f, 1.f, 1.f
+-    glCreateBuffers(1, &_vbo);
+-    constexpr std::array<Vertex, 4> v = {
+-        Vertex{ -1.f, -1.f, -1.f, 0.f, 0.f },
+-        Vertex{ -1.f,  1.f, -1.f, 0.f, 1.f },
+-        Vertex{  1.f, -1.f, -1.f, 1.f, 0.f },
+-        Vertex{  1.f,  1.f, -1.f, 1.f, 1.f }
+     };
++    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), v.data(), GL_STATIC_DRAW);
++
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
++
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(
++        1,
++        2,
++        GL_FLOAT,
++        GL_FALSE,
++        sizeof(Vertex),
++        reinterpret_cast<void*>(offsetof(Vertex, s))
++    );
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), v.data(), GL_NONE_BIT);
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
+ 
++    glBindVertexArray(0);
+-    glEnableVertexArrayAttrib(_vao, 0);
+-    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_vao, 0, 0);
+-
+-    glEnableVertexArrayAttrib(_vao, 1);
+-    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, s));
+-    glVertexArrayAttribBinding(_vao, 1, 0);
+ }
+ 
+ void EquirectangularProjection::initViewports() {
+@@ -285,7 +293,11 @@ void EquirectangularProjection::initShaders() {
+     _shader.addVertexShader(shaders_fisheye::BaseVert);
+     _shader.addFragmentShader(FragmentShader);
+     _shader.createAndLinkProgram();
++    _shader.bind();
++
++    glUniform1i(glGetUniformLocation(_shader.id(), "cubemap"), 0);
++
++    ShaderProgram::unbind();
+-    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "cubemap"), 0);
+ }
+ 
+ } // namespace sgct
+diff --git a/src/projection/fisheye.cpp b/src/projection/fisheye.cpp
+index 69407a38..4cf17996 100644
+--- a/src/projection/fisheye.cpp
++++ b/src/projection/fisheye.cpp
+@@ -100,13 +100,17 @@ void FisheyeProjection::update(const vec2& size) const {
+         }
+     }
+ 
++    glBindVertexArray(_vao);
++    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
++
++    const std::array<const Vertex, 4> v = {
+-    const std::array<Vertex, 4> v = {
+         Vertex{ -x, -y, -1.f, _cropLeft, _cropBottom },
+         Vertex{ -x,  y, -1.f, _cropLeft, 1.f - _cropTop },
+         Vertex{  x, -y, -1.f, 1.f - _cropRight, _cropBottom },
+         Vertex{  x,  y, -1.f, 1.f - _cropRight, 1.f - _cropTop }
+     };
++    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(Vertex), v.data(), GL_STATIC_DRAW);
++    glBindVertexArray(0);
+-    glNamedBufferSubData(_vbo, 0, 4 * sizeof(Vertex), v.data());
+ }
+ 
+ void FisheyeProjection::render(const BaseViewport& viewport,
+@@ -120,24 +124,29 @@ void FisheyeProjection::render(const BaseViewport& viewport,
+     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+     glDisable(GL_SCISSOR_TEST);
+ 
++    _shader.bind();
+ 
+     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+ 
+     // if for some reson the active texture has been reset
++    glActiveTexture(GL_TEXTURE0);
++    glBindTexture(GL_TEXTURE_CUBE_MAP, _textures.cubeMapColor);
+-    glBindTextureUnit(0, _textures.cubeMapColor);
+ 
+     if (Engine::instance().settings().useDepthTexture) {
++        glActiveTexture(GL_TEXTURE1);
++        glBindTexture(GL_TEXTURE_CUBE_MAP, _textures.cubeMapDepth);
+-        glBindTextureUnit(1, _textures.cubeMapDepth);
+         glUniform1i(_shaderLoc.depthCubemap, 1);
+     }
+ 
+     if (Engine::instance().settings().useNormalTexture) {
++        glActiveTexture(GL_TEXTURE2);
++        glBindTexture(GL_TEXTURE_CUBE_MAP, _textures.cubeMapNormals);
+-        glBindTextureUnit(2, _textures.cubeMapNormals);
+         glUniform1i(_shaderLoc.normalCubemap, 2);
+     }
+ 
+     if (Engine::instance().settings().usePositionTexture) {
++        glActiveTexture(GL_TEXTURE3);
++        glBindTexture(GL_TEXTURE_CUBE_MAP, _textures.cubeMapPositions);
+-        glBindTextureUnit(3, _textures.cubeMapPositions);
+         glUniform1i(_shaderLoc.positionCubemap, 3);
+     }
+ 
+@@ -146,15 +155,13 @@ void FisheyeProjection::render(const BaseViewport& viewport,
+     glEnable(GL_DEPTH_TEST);
+     glDepthFunc(GL_ALWAYS);
+ 
++    glUniform1i(_shaderLoc.cubemap, 0);
++    glUniform1f(_shaderLoc.halfFov, glm::radians(_fov / 2.f));
+-    glProgramUniform1i(_shader.id(), _shaderLoc.cubemap, 0);
+-    glProgramUniform1f(_shader.id(), _shaderLoc.halfFov, glm::radians(_fov / 2.f));
+ 
+     if (_isOffAxis) {
++        glUniform3fv(_shaderLoc.offset, 1, &_totalOffset.x);
+-        glProgramUniform3fv(_shader.id(), _shaderLoc.offset, 1, &_totalOffset.x);
+     }
+ 
+-    _shader.bind();
+-
+     glBindVertexArray(_vao);
+     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+     glBindVertexArray(0);
+@@ -216,23 +223,18 @@ void FisheyeProjection::renderCubemap(FrustumMode frustumMode) const {
+             glEnable(GL_DEPTH_TEST);
+             glDepthFunc(GL_ALWAYS);
+ 
++            glActiveTexture(GL_TEXTURE0);
++            glBindTexture(GL_TEXTURE_2D, _textures.colorSwap);
+-            glBindTextureUnit(0, _textures.colorSwap);
+-            glBindTextureUnit(1, _textures.depthSwap);
+ 
++            glActiveTexture(GL_TEXTURE1);
++            glBindTexture(GL_TEXTURE_2D, _textures.depthSwap);
+-            glProgramUniform1i(_depthCorrectionShader.id(), _shaderLoc.swapColor, 0);
+-            glProgramUniform1i(_depthCorrectionShader.id(), _shaderLoc.swapDepth, 1);
+-            glProgramUniform1f(
+-                _depthCorrectionShader.id(),
+-                _shaderLoc.swapNear,
+-                Engine::instance().nearClipPlane()
+-            );
+-            glProgramUniform1f(
+-                _depthCorrectionShader.id(),
+-                _shaderLoc.swapFar,
+-                Engine::instance().farClipPlane()
+-            );
+ 
+             _depthCorrectionShader.bind();
++            glUniform1i(_shaderLoc.swapColor, 0);
++            glUniform1i(_shaderLoc.swapDepth, 1);
++            glUniform1f(_shaderLoc.swapNear, Engine::instance().nearClipPlane());
++            glUniform1f(_shaderLoc.swapFar, Engine::instance().farClipPlane());
++
+             vp.window().renderScreenQuad();
+             ShaderProgram::unbind();
+ 
+@@ -294,19 +296,26 @@ void FisheyeProjection::setKeepAspectRatio(bool state) {
+ }
+ 
+ void FisheyeProjection::initVBO() {
++    glGenVertexArrays(1, &_vao);
++    glBindVertexArray(_vao);
+-    glCreateBuffers(1, &_vbo);
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), nullptr, GL_DYNAMIC_STORAGE_BIT);
+ 
++    glGenBuffers(1, &_vbo);
++    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
+ 
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+-    glEnableVertexArrayAttrib(_vao, 0);
+-    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_vao, 0, 0);
+ 
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(
++        1,
++        2,
++        GL_FLOAT,
++        GL_FALSE,
++        sizeof(Vertex),
++        reinterpret_cast<void*>(offsetof(Vertex, s))
++    );
++
++    glBindVertexArray(0);
+-    glEnableVertexArrayAttrib(_vao, 1);
+-    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, s));
+-    glVertexArrayAttribBinding(_vao, 1, 0);
+ }
+ 
+ void FisheyeProjection::initViewports() {
+@@ -671,43 +680,45 @@ void FisheyeProjection::initShaders() {
+ 
+ 
+     _shader.createAndLinkProgram();
++    _shader.bind();
+ 
++
++    glUniform4fv(glGetUniformLocation(_shader.id(), "bgColor"), 1, &_clearColor.x);
+-    const unsigned int id = _shader.id();
+-    glProgramUniform4fv(id, glGetUniformLocation(id, "bgColor"), 1, &_clearColor.x);
+     if (isCubic) {
++        glUniform1f(
++            glGetUniformLocation(_shader.id(), "size"),
+-        glProgramUniform1f(
+-            id,
+-            glGetUniformLocation(id, "size"),
+             static_cast<float>(_cubemapResolution.x)
+         );
+     }
+ 
++    _shaderLoc.cubemap = glGetUniformLocation(_shader.id(), "cubemap");
++    glUniform1i(_shaderLoc.cubemap, 0);
+-    _shaderLoc.cubemap = glGetUniformLocation(id, "cubemap");
+-    glProgramUniform1i(id, _shaderLoc.cubemap, 0);
+ 
+     if (Engine::instance().settings().useDepthTexture) {
++        _shaderLoc.depthCubemap = glGetUniformLocation(_shader.id(), "depthmap");
++        glUniform1i(_shaderLoc.depthCubemap, 1);
+-        _shaderLoc.depthCubemap = glGetUniformLocation(id, "depthmap");
+-        glProgramUniform1i(id, _shaderLoc.depthCubemap, 1);
+     }
+ 
+     if (Engine::instance().settings().useNormalTexture) {
++        _shaderLoc.normalCubemap = glGetUniformLocation(_shader.id(), "normalmap");
++        glUniform1i(_shaderLoc.normalCubemap, 2);
+-        _shaderLoc.normalCubemap = glGetUniformLocation(id, "normalmap");
+-        glProgramUniform1i(id, _shaderLoc.normalCubemap, 2);
+     }
+ 
+     if (Engine::instance().settings().usePositionTexture) {
++        _shaderLoc.positionCubemap = glGetUniformLocation(_shader.id(), "positionmap");
++        glUniform1i(_shaderLoc.positionCubemap, 3);
+-        _shaderLoc.positionCubemap = glGetUniformLocation(id, "positionmap");
+-        glProgramUniform1i(id, _shaderLoc.positionCubemap, 3);
+     }
+ 
++    _shaderLoc.halfFov = glGetUniformLocation(_shader.id(), "halfFov");
++    glUniform1f(_shaderLoc.halfFov, glm::half_pi<float>());
+-    _shaderLoc.halfFov = glGetUniformLocation(id, "halfFov");
+-    glProgramUniform1f(id, _shaderLoc.halfFov, glm::half_pi<float>());
+ 
+     if (_isOffAxis) {
++        _shaderLoc.offset = glGetUniformLocation(_shader.id(), "offset");
++        glUniform3f(_shaderLoc.offset, _totalOffset.x, _totalOffset.y, _totalOffset.z);
+-        _shaderLoc.offset = glGetUniformLocation(id, "offset");
+-        glProgramUniform3fv(id, _shaderLoc.offset, 1, &_totalOffset.x);
+     }
+ 
++    ShaderProgram::unbind();
++
+     if (Engine::instance().settings().useDepthTexture) {
+         _depthCorrectionShader = ShaderProgram("FisheyeDepthCorrectionShader");
+         _depthCorrectionShader.addVertexShader(shaders_fisheye::BaseVert);
+@@ -715,13 +726,16 @@ void FisheyeProjection::initShaders() {
+             shaders_fisheye::FisheyeDepthCorrectionFrag
+         );
+         _depthCorrectionShader.createAndLinkProgram();
++        _depthCorrectionShader.bind();
+ 
+         _shaderLoc.swapColor = glGetUniformLocation(_depthCorrectionShader.id(), "cTex");
++        glUniform1i(_shaderLoc.swapColor, 0);
+-        glProgramUniform1i(_depthCorrectionShader.id(), _shaderLoc.swapColor, 0);
+         _shaderLoc.swapDepth = glGetUniformLocation(_depthCorrectionShader.id(), "dTex");
++        glUniform1i(_shaderLoc.swapDepth, 1);
+-        glProgramUniform1i(_depthCorrectionShader.id(), _shaderLoc.swapDepth, 1);
+         _shaderLoc.swapNear = glGetUniformLocation(_depthCorrectionShader.id(), "near");
+         _shaderLoc.swapFar = glGetUniformLocation(_depthCorrectionShader.id(), "far");
++
++        ShaderProgram::unbind();
+     }
+ }
+ 
+diff --git a/src/projection/nonlinearprojection.cpp b/src/projection/nonlinearprojection.cpp
+index 2b09d790..9a421373 100644
+--- a/src/projection/nonlinearprojection.cpp
++++ b/src/projection/nonlinearprojection.cpp
+@@ -47,9 +47,11 @@ NonLinearProjection::~NonLinearProjection() {
+     glDeleteTextures(1, &_textures.cubeFaceBack);
+ }
+ 
++void NonLinearProjection::initialize(unsigned int internalFormat, unsigned int format,
++                                     unsigned int type, int nSamples)
++{
+-void NonLinearProjection::initialize(unsigned int internalFormat, int nSamples) {
+     initViewports();
++    initTextures(internalFormat, format, type);
+-    initTextures(internalFormat);
+     initFBO(internalFormat, nSamples);
+     initVBO();
+     initShaders();
+@@ -109,15 +111,22 @@ ivec2 NonLinearProjection::cubemapResolution() const {
+     return _cubemapResolution;
+ }
+ 
++void NonLinearProjection::initTextures(unsigned int internalFormat, unsigned int format,
++                                       unsigned int type)
++{
++    generateCubeMap(_textures.cubeMapColor, internalFormat, format, type);
+-void NonLinearProjection::initTextures(unsigned int internalFormat) {
+-    generateCubeMap(_textures.cubeMapColor, internalFormat);
+     Log::Debug(std::format(
+         "{}x{} color cube map texture (id: {}) generated",
+         _cubemapResolution.x, _cubemapResolution.y, _textures.cubeMapColor
+     ));
+ 
+     if (Engine::instance().settings().useDepthTexture) {
++        generateCubeMap(
++            _textures.cubeMapDepth,
++            GL_DEPTH_COMPONENT32,
++            GL_DEPTH_COMPONENT,
++            GL_FLOAT
++        );
+-        generateCubeMap(_textures.cubeMapDepth, GL_DEPTH_COMPONENT32);
+         Log::Debug(std::format(
+             "{}x{} depth cube map texture (id: {}) generated",
+             _cubemapResolution.x, _cubemapResolution.y, _textures.cubeMapDepth
+@@ -125,13 +134,18 @@ void NonLinearProjection::initTextures(unsigned int internalFormat, unsigned int
+ 
+         if (_useDepthTransformation) {
+             // generate swap textures
++            generateMap(
++                _textures.depthSwap,
++                GL_DEPTH_COMPONENT32,
++                GL_DEPTH_COMPONENT,
++                GL_FLOAT
++            );
+-            generateMap(_textures.depthSwap, GL_DEPTH_COMPONENT32);
+             Log::Debug(std::format(
+                 "{}x{} depth swap map texture (id: {}) generated",
+                 _cubemapResolution.x, _cubemapResolution.y, _textures.depthSwap
+             ));
+ 
++            generateMap(_textures.colorSwap, internalFormat, format, type);
+-            generateMap(_textures.colorSwap, internalFormat);
+             Log::Debug(std::format(
+                 "{}x{} color swap map texture (id: {}) generated",
+                 _cubemapResolution.x, _cubemapResolution.y, _textures.colorSwap
+@@ -140,7 +154,7 @@ void NonLinearProjection::initTextures(unsigned int internalFormat, unsigned int
+     }
+ 
+     if (Engine::instance().settings().useNormalTexture) {
++        generateCubeMap(_textures.cubeMapNormals, GL_RGB32F, GL_RGB, GL_FLOAT);
+-        generateCubeMap(_textures.cubeMapNormals, GL_RGB32F);
+         Log::Debug(std::format(
+             "{}x{} normal cube map texture (id: {}) generated",
+             _cubemapResolution.x, _cubemapResolution.y, _textures.cubeMapNormals
+@@ -148,7 +162,7 @@ void NonLinearProjection::initTextures(unsigned int internalFormat, unsigned int
+     }
+ 
+     if (Engine::instance().settings().usePositionTexture) {
++        generateCubeMap(_textures.cubeMapPositions, GL_RGB32F, GL_RGB, GL_FLOAT);
+-        generateCubeMap(_textures.cubeMapPositions, GL_RGB32F);
+         Log::Debug(std::format(
+             "{}x{} position cube map texture ({}) generated",
+             _cubemapResolution.x, _cubemapResolution.y, _textures.cubeMapPositions
+@@ -173,7 +187,8 @@ void NonLinearProjection::setupViewport(const BaseViewport& vp) const {
+     glScissor(vpCoords.x, vpCoords.y, vpCoords.z, vpCoords.w);
+ }
+ 
++void NonLinearProjection::generateMap(unsigned int& texture, unsigned int internalFormat,
++                                      unsigned int format, unsigned int type)
+-void NonLinearProjection::generateMap(unsigned int& texture, unsigned int internalFormat)
+ {
+     glDeleteTextures(1, &texture);
+ 
+@@ -191,24 +206,35 @@ void NonLinearProjection::generateMap(unsigned int& texture, unsigned int intern
+     }
+ 
+ 
++    // set up texture target
++    glGenTextures(1, &texture);
++    glBindTexture(GL_TEXTURE_2D, texture);
++
++    // Disable mipmaps
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
++
++    glTexImage2D(
++        GL_TEXTURE_2D,
++        0,
+-    glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+-    glTextureParameteri(texture, GL_TEXTURE_BASE_LEVEL, 0);
+-    glTextureParameteri(texture, GL_TEXTURE_MAX_LEVEL, 0);
+-    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+-    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+-    glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-    glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-    glTextureStorage2D(
+-        texture,
+-        1,
+         internalFormat,
+         _cubemapResolution.x,
++        _cubemapResolution.y,
++        0,
++        format,
++        type,
++        nullptr
+-        _cubemapResolution.y
+     );
++
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+ }
+ 
+ void NonLinearProjection::generateCubeMap(unsigned int& texture,
++                                          unsigned int internalFormat,
++                                          unsigned int format, unsigned int type)
+-                                          unsigned int internalFormat)
+ {
+     glDeleteTextures(1, &texture);
+ 
+@@ -226,23 +252,86 @@ void NonLinearProjection::generateCubeMap(unsigned int& texture,
+     }
+ 
+ 
++    // set up texture target
++    glGenTextures(1, &texture);
++    glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
+-    glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture);
+ 
++    // Disable mipmaps
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+-    glTextureParameteri(texture, GL_TEXTURE_BASE_LEVEL, 0);
+-    glTextureParameteri(texture, GL_TEXTURE_MAX_LEVEL, 0);
+-    glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+-    glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+-    glTextureParameteri(texture, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+-    glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-    glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+ 
++    glTexImage2D(
++        GL_TEXTURE_CUBE_MAP_POSITIVE_X,
++        0,
++        internalFormat,
++        _cubemapResolution.x,
++        _cubemapResolution.y,
++        0,
++        format,
++        type,
++        nullptr
++    );
++    glTexImage2D(
++        GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
++        0,
++        internalFormat,
++        _cubemapResolution.x,
++        _cubemapResolution.y,
++        0,
++        format,
++        type,
++        nullptr
++    );
++    glTexImage2D(
++        GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
++        0,
++        internalFormat,
++        _cubemapResolution.x,
++        _cubemapResolution.y,
++        0,
++        format,
++        type,
++        nullptr
++    );
++    glTexImage2D(
++        GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
++        0,
+-    glTextureStorage2D(
+-        texture,
+-        1,
+         internalFormat,
+         _cubemapResolution.x,
++        _cubemapResolution.y,
++        0,
++        format,
++        type,
++        nullptr
+-        _cubemapResolution.y
+     );
++    glTexImage2D(
++        GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
++        0,
++        internalFormat,
++        _cubemapResolution.x,
++        _cubemapResolution.y,
++        0,
++        format,
++        type,
++        nullptr
++    );
++    glTexImage2D(
++        GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
++        0,
++        internalFormat,
++        _cubemapResolution.x,
++        _cubemapResolution.y,
++        0,
++        format,
++        type,
++        nullptr
++    );
++
++    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
++    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+ 
+     glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+ }
+diff --git a/src/projection/sphericalmirror.cpp b/src/projection/sphericalmirror.cpp
+index 84f101c3..8507b899 100644
+--- a/src/projection/sphericalmirror.cpp
++++ b/src/projection/sphericalmirror.cpp
+@@ -25,41 +25,33 @@
+ 
+ namespace {
+     constexpr std::string_view SphericalProjectionVert = R"(
++  #version 330 core
+-  #version 460 core
+ 
+   layout (location = 0) in vec2 in_position;
+   layout (location = 1) in vec2 in_texCoords;
+   layout (location = 2) in vec4 in_vertColor;
++  out vec2 tr_uv;
++  out vec4 tr_color;
+-
+-  out Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } out_data;
+ 
+   uniform mat4 mvp;
+ 
+-
+   void main() {
+     gl_Position = mvp * vec4(in_position, 0.0, 1.0);
++    tr_uv = in_texCoords;
++    tr_color = in_vertColor;
+-    out_data.texCoords = in_texCoords;
+-    out_data.color = in_vertColor;
+   }
+ )";
+ 
+     constexpr std::string_view SphericalProjectionFrag = R"(
++  #version 330 core
+-  #version 460 core
+-
+-  in Data {
+-    vec2 texCoords;
+-    vec4 color;
+-  } in_data;
+ 
++  in vec2 tr_uv;
++  in vec4 tr_color;
+   out vec4 out_color;
+ 
+   uniform sampler2D tex;
+ 
++  void main() { out_color = tr_color * texture(tex, tr_uv); }
+-
+-  void main() { out_color = in_data.color * texture(tex, in_data.texCoords); }
+ )";
+ } // namespace
+ 
+@@ -105,26 +97,28 @@ void SphericalMirrorProjection::render(const BaseViewport& viewport,
+     glClearColor(_clearColor.x, _clearColor.y, _clearColor.z, _clearColor.w);
+     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+ 
++    _shader.bind();
++
++    glActiveTexture(GL_TEXTURE0);
++
+     glDisable(GL_CULL_FACE);
+     glDisable(GL_BLEND);
+     glEnable(GL_DEPTH_TEST);
+     glDepthFunc(GL_ALWAYS);
+ 
++    glUniform1i(_texLoc, 0);
++    glUniformMatrix4fv(_matrixLoc, 1, GL_FALSE, glm::value_ptr(mvp));
+-    glProgramUniform1i(_shader.id(), _texLoc, 0);
+-    glProgramUniformMatrix4fv(_shader.id(), _matrixLoc, 1, GL_FALSE, glm::value_ptr(mvp));
+ 
++    glBindTexture(GL_TEXTURE_2D, _textures.cubeFaceFront);
+-    _shader.bind();
+-
+-    glBindTextureUnit(0, _textures.cubeFaceFront);
+     _meshBottom.renderWarpMesh();
+ 
++    glBindTexture(GL_TEXTURE_2D, _textures.cubeFaceLeft);
+-    glBindTextureUnit(0, _textures.cubeFaceLeft);
+     _meshLeft.renderWarpMesh();
+ 
++    glBindTexture(GL_TEXTURE_2D, _textures.cubeFaceRight);
+-    glBindTextureUnit(0, _textures.cubeFaceRight);
+     _meshRight.renderWarpMesh();
+ 
++    glBindTexture(GL_TEXTURE_2D, _textures.cubeFaceTop);
+-    glBindTextureUnit(0, _textures.cubeFaceTop);
+     _meshTop.renderWarpMesh();
+ 
+     ShaderProgram::unbind();
+@@ -189,14 +183,16 @@ void SphericalMirrorProjection::setTilt(float angle) {
+     _tilt = angle;
+ }
+ 
++void SphericalMirrorProjection::initTextures(unsigned int internalFormat,
++                                             unsigned int format, unsigned int type)
++{
++    auto generate = [this, internalFormat, format, type]
+-void SphericalMirrorProjection::initTextures(unsigned int internalFormat) {
+-    auto generate = [this, internalFormat]
+                     (const BaseViewport& bv, unsigned int& texture)
+     {
+         if (!bv.isEnabled()) {
+             return;
+         }
++        generateMap(texture, internalFormat, format, type);
+-        generateMap(texture, internalFormat);
+         Log::Debug(std::format(
+             "{}x{} cube face texture (id: {}) generated",
+             _cubemapResolution.x, _cubemapResolution.y, texture
+@@ -315,11 +311,14 @@ void SphericalMirrorProjection::initShaders() {
+     _shader.addVertexShader(SphericalProjectionVert);
+     _shader.addFragmentShader(SphericalProjectionFrag);
+     _shader.createAndLinkProgram();
++    _shader.bind();
+ 
+     _texLoc = glGetUniformLocation(_shader.id(), "tex");
++    glUniform1i(_texLoc, 0);
+-    glProgramUniform1i(_shader.id(), _texLoc, 0);
+ 
+     _matrixLoc = glGetUniformLocation(_shader.id(), "mvp");
++
++    ShaderProgram::unbind();
+ }
+ 
+ } // namespace sgct
+diff --git a/src/screencapture.cpp b/src/screencapture.cpp
+index 3422cd46..e9f04e80 100644
+--- a/src/screencapture.cpp
++++ b/src/screencapture.cpp
+@@ -82,11 +82,14 @@ void ScreenCapture::resize(ivec2 resolution) {
+         info.isRunning = false;
+     }
+ 
++    glGenBuffers(1, &_pbo);
+     Log::Debug(std::format(
+         "Generating {}x{}x{} PBO: {}", _resolution.x, _resolution.y, nChannels, _pbo
+     ));
++
++    glBindBuffer(GL_PIXEL_PACK_BUFFER, _pbo);
++    glBufferData(GL_PIXEL_PACK_BUFFER, _dataSize, nullptr, GL_STATIC_READ);
++    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+-    glCreateBuffers(1, &_pbo);
+-    glNamedBufferStorage(_pbo, _dataSize, nullptr, GL_NONE_BIT);
+ }
+ 
+ void ScreenCapture::saveScreenCapture(unsigned int textureId, CaptureSource capSrc) {
+diff --git a/src/statisticsrenderer.cpp b/src/statisticsrenderer.cpp
+index f9683d0c..488cfcfc 100644
+--- a/src/statisticsrenderer.cpp
++++ b/src/statisticsrenderer.cpp
+@@ -41,24 +41,16 @@ namespace {
+     constexpr sgct::vec4 ColorLoopTimeMax = sgct::vec4{ 0.15f, 0.15f, 0.8f, 0.8f };
+ 
+     constexpr std::string_view StatsVertShader = R"(
++#version 330 core
+-#version 460 core
+-
+ layout (location = 0) in vec2 in_vertPosition;
+-
+ uniform mat4 mvp;
+-
+-
+ void main() { gl_Position = mvp * vec4(in_vertPosition, 0.0, 1.0); }
+ )";
+ 
+     constexpr std::string_view StatsFragShader = R"(
++#version 330 core
++uniform vec4 col;
+-#version 460 core
+-
+ out vec4 out_color;
+-
+-uniform vec4 col;
+-
+-
+ void main() { out_color = col; }
+ )";
+ 
+@@ -74,111 +66,89 @@ StatisticsRenderer::StatisticsRenderer(const Engine::Statistics& statistics)
+ {
+     ZoneScoped;
+ 
++    // Static background quad
++    std::vector<Vertex> vs;
++    vs.emplace_back(0.f, 0.f);
++    vs.emplace_back(static_cast<float>(Engine::Statistics::HistoryLength), 0.f);
++    vs.emplace_back(0.f, 1.f / 30.f);
++    vs.emplace_back(static_cast<float>(Engine::Statistics::HistoryLength), 1.f / 30.f);
++
++    // Static 1 ms lines
++    _lines.staticDraw.nLines = 0;
++    for (float f = 0.001f; f < (1.f / 30.f); f += 0.001f) {
++        vs.emplace_back(0.f, f);
++        vs.emplace_back(static_cast<float>(Engine::Statistics::HistoryLength), f);
++        _lines.staticDraw.nLines++;
++    }
++
++    // Static 0, 30 & 60 FPS lines
++    vs.emplace_back(0.f, 0.f);
++    vs.emplace_back(static_cast<float>(Engine::Statistics::HistoryLength), 0.f);
++
++    vs.emplace_back(0.f, 1.f / 30.f);
++    vs.emplace_back(static_cast<float>(Engine::Statistics::HistoryLength), 1.f / 30.f);
++
++    vs.emplace_back(0.f, 1.f / 60.f);
++    vs.emplace_back(static_cast<float>(Engine::Statistics::HistoryLength), 1.f / 60.f);
++
+     // Setup shaders
+     _shader = ShaderProgram("General Statistics Shader");
+     _shader.addVertexShader(StatsVertShader);
+     _shader.addFragmentShader(StatsFragShader);
+     _shader.createAndLinkProgram();
++    _shader.bind();
+     _mvpLoc = glGetUniformLocation(_shader.id(), "mvp");
+     _colorLoc = glGetUniformLocation(_shader.id(), "col");
++    ShaderProgram::unbind();
++
++    // OpenGL objects for lines
++    glGenVertexArrays(1, &_lines.staticDraw.vao);
++    glGenBuffers(1, &_lines.staticDraw.vbo);
++    glBindVertexArray(_lines.staticDraw.vao);
++    glBindBuffer(GL_ARRAY_BUFFER, _lines.staticDraw.vbo);
++    glBufferData(GL_ARRAY_BUFFER, vs.size() * sizeof(Vertex), vs.data(), GL_STATIC_DRAW);
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
++
++    glGenVertexArrays(1, &_lines.dynamicDraw.vao);
++    glGenBuffers(1, &_lines.dynamicDraw.vbo);
++    glBindVertexArray(_lines.dynamicDraw.vao);
++    glBindBuffer(GL_ARRAY_BUFFER, _lines.dynamicDraw.vbo);
++    glBufferData(GL_ARRAY_BUFFER, sizeof(Engine::Statistics), nullptr, GL_DYNAMIC_DRAW);
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
++    glBindVertexArray(0);
++
++    // OpenGL objects for histogram
++    glGenVertexArrays(1, &_histogram.staticDraw.vao);
++    glGenBuffers(1, &_histogram.staticDraw.vbo);
++    glBindVertexArray(_histogram.staticDraw.vao);
++    glBindBuffer(GL_ARRAY_BUFFER, _histogram.staticDraw.vbo);
++    constexpr std::array<float, 8> HistogramAxisVertices = {
++        0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f
++    };
++    glBufferData(
++        GL_ARRAY_BUFFER,
++        sizeof(HistogramAxisVertices),
++        HistogramAxisVertices.data(),
++        GL_STATIC_DRAW
++    );
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
++
++    glGenVertexArrays(1, &_histogram.dynamicDraw.vao);
++    glGenBuffers(1, &_histogram.dynamicDraw.vbo);
++    glBindVertexArray(_histogram.dynamicDraw.vao);
++    glBindBuffer(GL_ARRAY_BUFFER, _histogram.dynamicDraw.vbo);
++    glBufferData(
++        GL_ARRAY_BUFFER,
++        sizeof(Histogram::Vertices),
++        nullptr,
++        GL_DYNAMIC_DRAW
++    );
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
++    glBindVertexArray(0);
+-
+-    {
+-        unsigned int vao = _lines.staticDraw.vao;
+-        unsigned int vbo = _lines.staticDraw.vbo;
+-
+-        constexpr float Length = static_cast<float>(Engine::Statistics::HistoryLength);
+-        // Static background quad
+-        std::vector<Vertex> vs;
+-        vs.emplace_back(0.f, 0.f);
+-        vs.emplace_back(Length, 0.f);
+-        vs.emplace_back(0.f, 1.f / 30.f);
+-        vs.emplace_back(Length, 1.f / 30.f);
+-
+-        // Static 1 ms lines
+-        _lines.staticDraw.nLines = 0;
+-        for (float f = 0.001f; f < (1.f / 30.f); f += 0.001f) {
+-            vs.emplace_back(0.f, f);
+-            vs.emplace_back(Length, f);
+-            _lines.staticDraw.nLines++;
+-        }
+-
+-        // Static 0, 30 & 60 FPS lines
+-        vs.emplace_back(0.f, 0.f);
+-        vs.emplace_back(Length, 0.f);
+-
+-        vs.emplace_back(0.f, 1.f / 30.f);
+-        vs.emplace_back(Length, 1.f / 30.f);
+-
+-        vs.emplace_back(0.f, 1.f / 60.f);
+-        vs.emplace_back(Length, 1.f / 60.f);
+-
+-        glCreateBuffers(1, &_lines.staticDraw.vbo);
+-        glNamedBufferStorage(vbo, vs.size() * sizeof(Vertex), vs.data(), GL_NONE_BIT);
+-
+-        glCreateVertexArrays(1, &vao);
+-        glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Vertex));
+-
+-        glEnableVertexArrayAttrib(vao, 0);
+-        glVertexArrayAttribFormat(vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
+-        glVertexArrayAttribBinding(vao, 0, 0);
+-    }
+-
+-    {
+-        unsigned int vao = _lines.dynamicDraw.vao;
+-        unsigned int vbo = _lines.dynamicDraw.vbo;
+-
+-        glCreateBuffers(1, &vbo);
+-        glNamedBufferStorage(
+-            vbo,
+-            sizeof(Engine::Statistics),
+-            nullptr,
+-            GL_DYNAMIC_STORAGE_BIT
+-        );
+-
+-        glCreateVertexArrays(1, &vao);
+-        glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Engine::Statistics));
+-
+-        glEnableVertexArrayAttrib(vao, 0);
+-        glVertexArrayAttribFormat(vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
+-        glVertexArrayAttribBinding(vao, 0, 0);
+-    }
+-
+-    {
+-        unsigned int vao = _histogram.staticDraw.vao;
+-        unsigned int vbo = _histogram.staticDraw.vbo;
+-
+-        glCreateBuffers(1, &vbo);
+-        struct Vertex {
+-            float x;
+-            float y;
+-        };
+-        constexpr std::array<Vertex, 4> Vertices = {
+-            Vertex{ 0.f, 0.f }, Vertex{ 1.f, 0.f }, Vertex{ 0.f, 0.f }, Vertex{ 0.f, 1.f }
+-        };
+-        glNamedBufferStorage(vbo, 4 * sizeof(Vertex), Vertices.data(), GL_NONE_BIT);
+-
+-        glCreateVertexArrays(1, &vao);
+-        glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Vertex));
+-
+-        glEnableVertexArrayAttrib(vao, 0);
+-        glVertexArrayAttribFormat(vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
+-        glVertexArrayAttribBinding(vao, 0, 0);
+-    }
+-
+-    {
+-        unsigned int vao = _histogram.dynamicDraw.vao;
+-        unsigned int vbo = _histogram.dynamicDraw.vbo;
+-
+-        glCreateBuffers(1, &vbo);
+-        glBufferData(vbo, sizeof(Histogram::Vertices), nullptr, GL_DYNAMIC_DRAW);
+-
+-        glCreateVertexArrays(1, &vao);
+-        glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Histogram::Vertices));
+-
+-        glEnableVertexArrayAttrib(vao, 0);
+-        glVertexArrayAttribFormat(vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
+-        glVertexArrayAttribBinding(vao, 0, 0);
+-    }
+ }
+ 
+ StatisticsRenderer::~StatisticsRenderer() {
+@@ -223,12 +193,14 @@ void StatisticsRenderer::update() {
+         _lines.buffer.loopTimeMax[i].y = static_cast<float>(_statistics.loopTimeMax[i]);
+     }
+ 
++    glBindBuffer(GL_ARRAY_BUFFER, _lines.dynamicDraw.vbo);
++    glBufferData(
++        GL_ARRAY_BUFFER,
+-    glNamedBufferSubData(
+-        _lines.dynamicDraw.vbo,
+-        0,
+         sizeof(Lines::Vertices),
++        &_lines.buffer.frametimes,
++        GL_DYNAMIC_DRAW
+-        &_lines.buffer.frametimes
+     );
++    glBindBuffer(GL_ARRAY_BUFFER, 0);
+ 
+ 
+     // Histogram update
+@@ -289,11 +261,12 @@ void StatisticsRenderer::update() {
+     convertValues(h.buffer.loopTimeMax, h.values.loopTimeMax, h.maxBinValue.loopTimeMax);
+ 
+ 
++    glBindBuffer(GL_ARRAY_BUFFER, _histogram.dynamicDraw.vbo);
++    glBufferData(
++        GL_ARRAY_BUFFER,
+-    glNamedBufferSubData(
+-        _histogram.dynamicDraw.vbo,
+-        0,
+         sizeof(Histogram::Vertices),
++        _histogram.buffer.frametimes.data(),
++        GL_DYNAMIC_DRAW
+-        _histogram.buffer.frametimes.data()
+     );
+     glBindBuffer(GL_ARRAY_BUFFER, 0);
+ }
+@@ -350,43 +323,43 @@ void StatisticsRenderer::render(const Window& window, const Viewport& viewport)
+         glm::mat4 m = glm::translate(orthoMat, glm::vec3(0.f, 250.f * _scale, 0.f));
+         m = glm::translate(m, glm::vec3(_offset.x * res.x, _offset.y * res.y, 0.f));
+         m = glm::scale(m, glm::vec3(size.x, size.y, 1.f));
++        glUniformMatrix4fv(_mvpLoc, 1, GL_FALSE, glm::value_ptr(m));
+-        glProgramUniformMatrix4fv(_shader.id(), _mvpLoc, 1, GL_FALSE, glm::value_ptr(m));
+ 
+         glBindVertexArray(_lines.staticDraw.vao);
+ 
+         // draw background (1024x1024 canvas)
++        glUniform4fv(_colorLoc, 1, &ColorStaticBackground.x);
+-        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorStaticBackground.x);
+         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+ 
+         // 1 ms lines
++        glUniform4fv(_colorLoc, 1, &ColorStaticGrid.x);
+-        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorStaticGrid.x);
+         glDrawArrays(GL_LINES, 4, _lines.staticDraw.nLines * 2);
+ 
+         // zero line, 60hz & 30hz
++        glUniform4fv(_colorLoc, 1, &ColorStaticFrequency.x);
+-        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorStaticFrequency.x);
+         glDrawArrays(GL_LINES, 4 + _lines.staticDraw.nLines * 2, 6);
+ 
+         glBindVertexArray(_lines.dynamicDraw.vao);
+ 
+         // frametime
+         constexpr int StatsLength = Engine::Statistics::HistoryLength;
++        glUniform4fv(_colorLoc, 1, &ColorFrameTime.x);
+-        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorFrameTime.x);
+         glDrawArrays(GL_LINE_STRIP, 0 * StatsLength, StatsLength);
+ 
+         // drawtime
++        glUniform4fv(_colorLoc, 1, &ColorDrawTime.x);
+-        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorDrawTime.x);
+         glDrawArrays(GL_LINE_STRIP, 1 * StatsLength, StatsLength);
+ 
+         // synctime
++        glUniform4fv(_colorLoc, 1, &ColorSyncTime.x);
+-        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorSyncTime.x);
+         glDrawArrays(GL_LINE_STRIP, 2 * StatsLength, StatsLength);
+ 
+         // looptimemin
++        glUniform4fv(_colorLoc, 1, &ColorLoopTimeMin.x);
+-        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorLoopTimeMin.x);
+         glDrawArrays(GL_LINE_STRIP, 3 * StatsLength, StatsLength);
+ 
+         // looptimemax
++        glUniform4fv(_colorLoc, 1, &ColorLoopTimeMax.x);
+-        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorLoopTimeMax.x);
+         glDrawArrays(GL_LINE_STRIP, 4 * StatsLength, StatsLength);
+ 
+         glBindVertexArray(0);
+diff --git a/src/texturemanager.cpp b/src/texturemanager.cpp
+index aee3d5fc..27021ec7 100644
+--- a/src/texturemanager.cpp
++++ b/src/texturemanager.cpp
+@@ -21,7 +21,8 @@ namespace {
+                              float anisotropicFilterSize)
+     {
+         unsigned int tex = 0;
++        glGenTextures(1, &tex);
++        glBindTexture(GL_TEXTURE_2D, tex);
+-        glCreateTextures(GL_TEXTURE_2D, 1, &tex);
+ 
+         const auto [type, internalFormat] = [](int c) -> std::pair<GLenum, GLenum> {
+             switch (c) {
+@@ -41,44 +42,65 @@ namespace {
+         glPixelStorei(GL_PACK_ALIGNMENT, 1);
+         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+ 
++        constexpr GLenum Format = GL_UNSIGNED_BYTE;
++        glTexImage2D(
++            GL_TEXTURE_2D,
++            0,
++            internalFormat,
++            img.size().x,
++            img.size().y,
++            0,
++            type,
++            Format,
++            img.data()
++        );
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipmap - 1);
+-        glTextureParameteri(tex, GL_TEXTURE_BASE_LEVEL, 0);
+-        glTextureParameteri(tex, GL_TEXTURE_MAX_LEVEL, mipmap - 1);
+ 
++        if (mipmap > 1) {
++            glGenerateMipmap(GL_TEXTURE_2D);
+-        const GLenum interp = interpolate ? GL_LINEAR : GL_NEAREST;
+ 
++            glTexParameteri(
++                GL_TEXTURE_2D,
+-        if (mipmap > 1) {
+-            glTextureParameteri(
+-                tex,
+                 GL_TEXTURE_MIN_FILTER,
+                 interpolate ? GL_LINEAR_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_LINEAR
+             );
++            glTexParameteri(
++                GL_TEXTURE_2D,
++                GL_TEXTURE_MAG_FILTER,
++                interpolate ? GL_LINEAR : GL_NEAREST
++            );
++
++            // GL_TEXTURE_MAX_ANISOTROPY is no longer an extension, but a core feature in OpenGL 4.0
++            #ifdef GL_TEXTURE_MAX_ANISOTROPY
++                glTexParameterf(
++                    GL_TEXTURE_2D,
++                    GL_TEXTURE_MAX_ANISOTROPY,
++                    anisotropicFilterSize
++                );
++            #else
++                glTexParameterf(
++                    GL_TEXTURE_2D,
++                    GL_TEXTURE_MAX_ANISOTROPY_EXT,
++                    anisotropicFilterSize
++                );
++            #endif
+-            glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, interp);
+-            glTextureParameterf(tex, GL_TEXTURE_MAX_ANISOTROPY, anisotropicFilterSize);
+         }
+         else {
++            glTexParameteri(
++                GL_TEXTURE_2D,
++                GL_TEXTURE_MIN_FILTER,
++                interpolate ? GL_LINEAR : GL_NEAREST
++            );
++            glTexParameteri(
++                GL_TEXTURE_2D,
++                GL_TEXTURE_MAG_FILTER,
++                interpolate ? GL_LINEAR : GL_NEAREST
++            );
+-            glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, interp);
+-            glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, interp);
+         }
+ 
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+-        glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+-        glTextureParameteri(tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+-
+-        glTextureStorage2D(tex, mipmap, internalFormat, img.size().x, img.size().y);
+-        glTextureSubImage2D(
+-            tex,
+-            0,
+-            0,
+-            0,
+-            img.size().x,
+-            img.size().y,
+-            type,
+-            GL_UNSIGNED_BYTE,
+-            img.data()
+-        );
+-
+-        if (mipmap > 1) {
+-            glGenerateTextureMipmap(tex);
+-        }
+ 
+         return tex;
+     }
+diff --git a/src/viewport.cpp b/src/viewport.cpp
+index c9f2356e..390aaadf 100644
+--- a/src/viewport.cpp
++++ b/src/viewport.cpp
+@@ -136,11 +136,11 @@ Viewport::Viewport(const config::Viewport& viewport, const Window& parent)
+ Viewport::~Viewport() = default;
+ 
+ void Viewport::initialize(vec2 size, bool hasStereo, unsigned int internalFormat,
++                          unsigned int format, unsigned int type, uint8_t samples)
+-                          uint8_t samples)
+ {
+     if (_nonLinearProjection) {
+         _nonLinearProjection->setStereo(hasStereo);
++        _nonLinearProjection->initialize(internalFormat, format, type, samples);
+-        _nonLinearProjection->initialize(internalFormat, samples);
+         _nonLinearProjection->update(std::move(size));
+     }
+ }
+diff --git a/src/window.cpp b/src/window.cpp
+index c68c9678..c7918e99 100644
+--- a/src/window.cpp
++++ b/src/window.cpp
+@@ -824,6 +824,8 @@ void Window::initialize() {
+             viewportSize,
+             _stereoMode != StereoMode::NoStereo,
+             _internalColorFormat,
++            GL_BGRA,
++            _colorDataType,
+             _nAASamples
+         );
+     }
+@@ -1038,29 +1040,32 @@ void Window::renderFBOTexture() {
+     if (_stereoMode > Window::StereoMode::Active &&
+         _stereoMode < Window::StereoMode::SideBySide)
+     {
++        _stereo.bind();
++
++        glActiveTexture(GL_TEXTURE0);
++        glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.leftEye);
++
++        glActiveTexture(GL_TEXTURE1);
++        glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.rightEye);
+-        glBindTextureUnit(0, _frameBufferTextures.leftEye);
+-        glBindTextureUnit(1, _frameBufferTextures.rightEye);
+ 
+-        _stereo.bind();
+         std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
+     }
+     else {
++        glActiveTexture(GL_TEXTURE0);
++        glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.leftEye);
+-        glBindTextureUnit(0, _frameBufferTextures.leftEye);
+ 
++        _fboQuad.bind();
+         maskShaderSet = true;
+ 
++        glUniform1i(
+-        glProgramUniform1i(
+-            _fboQuad.id(),
+             glGetUniformLocation(_fboQuad.id(), "flipX"),
+             _mirrorX ? 1 : 0
+         );
++        glUniform1i(
+-        glProgramUniform1i(
+-            _fboQuad.id(),
+             glGetUniformLocation(_fboQuad.id(), "flipY"),
+             _mirrorY ? 1 : 0
+         );
+ 
+-        _fboQuad.bind();
+         std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
+ 
+         // render right eye in active stereo mode
+@@ -1074,7 +1079,7 @@ void Window::renderFBOTexture() {
+                 FrustumMode::StereoRight
+             );
+ 
++            glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.rightEye);
+-            glBindTextureUnit(0, _frameBufferTextures.rightEye);
+             std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
+         }
+     }
+@@ -1476,31 +1481,44 @@ void Window::generateTexture(unsigned int& id, Window::TextureType type) {
+     TracyGpuZone("Generate Textures");
+ 
+     glDeleteTextures(1, &id);
++    glGenTextures(1, &id);
++    glBindTexture(GL_TEXTURE_2D, id);
+-    glCreateTextures(GL_TEXTURE_2D, 1, &id);
+-
+-    glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-    glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-    glTextureParameteri(id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+-    glTextureParameteri(id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+ 
+     // Determine the internal texture format, the texture format, and the pixel type
++    const std::tuple<GLenum, GLenum, GLenum> formats =
++        [this](Window::TextureType t) -> std::tuple<GLenum, GLenum, GLenum>
++    {
+-    const GLenum formats = [this](Window::TextureType t) -> GLenum {
+         switch (t) {
+             case TextureType::Color:
++                return { _internalColorFormat, GL_BGRA, _colorDataType };
+-                return _internalColorFormat;
+             case TextureType::Depth:
++                return { GL_DEPTH_COMPONENT32, GL_DEPTH_COMPONENT, GL_FLOAT };
+-                return GL_DEPTH_COMPONENT32;
+             case TextureType::Normal:
+             case TextureType::Position:
++                return { GL_RGB32F, GL_RGB, GL_FLOAT };
+-                return GL_RGB32F;
+             default:
+                 throw std::logic_error("Unhandled case label");
+         }
+     }(type);
+ 
+     const ivec2 res = _framebufferRes;
++    glTexImage2D(
++        GL_TEXTURE_2D,
++        0,
++        std::get<0>(formats),
++        res.x,
++        res.y,
++        0,
++        std::get<1>(formats),
++        std::get<2>(formats),
++        nullptr
++    );
+-    glTextureStorage2D(id, 1, formats, res.x, res.y);
+     Log::Debug(std::format("{}x{} texture generated for window {}", res.x, res.y, id));
++
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+ }
+ 
+ void Window::resizeFBOs() {
+@@ -1715,20 +1733,14 @@ void Window::renderViewports(FrustumMode frustum, Eye eye) const {
+             glClearColor(0.f, 0.f, 0.f, 0.f);
+             glClear(GL_COLOR_BUFFER_BIT);
+ 
++            glActiveTexture(GL_TEXTURE0);
+-            glBindTextureUnit(0, _frameBufferTextures.intermediate);
+ 
++            glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.intermediate);
+-            glProgramUniform1f(
+-                _fxaa->shader.id(),
+-                _fxaa->sizeX,
+-                static_cast<float>(framebufferSize.x)
+-            );
+-            glProgramUniform1f(
+-                _fxaa->shader.id(),
+-                _fxaa->sizeY,
+-                static_cast<float>(framebufferSize.y)
+-            );
+ 
+             _fxaa->shader.bind();
++            glUniform1f(_fxaa->sizeX, static_cast<float>(framebufferSize.x));
++            glUniform1f(_fxaa->sizeY, static_cast<float>(framebufferSize.y));
++
+             renderScreenQuad();
+             ShaderProgram::unbind();
+         }
+@@ -1755,7 +1767,8 @@ void Window::render2D(FrustumMode frustum) const {
+ 
+         // if viewport has overlay
+         if (vp->hasOverlayTexture()) {
++            glActiveTexture(GL_TEXTURE0);
++            glBindTexture(GL_TEXTURE_2D, vp->overlayTextureIndex());
+-            glBindTextureUnit(0, vp->overlayTextureIndex());
+             _overlay.bind();
+             renderScreenQuad();
+         }
+@@ -1797,7 +1810,9 @@ void Window::blitWindowViewport(const Window& prevWindow, const Viewport& viewpo
+     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+     glDisable(GL_SCISSOR_TEST);
+ 
++    _overlay.bind();
+ 
++    glActiveTexture(GL_TEXTURE0);
+     const unsigned int tex = [&prevWindow](FrustumMode v) {
+         switch (v) {
+             case FrustumMode::Mono:
+@@ -1810,9 +1825,8 @@ void Window::blitWindowViewport(const Window& prevWindow, const Viewport& viewpo
+                 throw std::logic_error("Missing case label");
+         }
+     }(mode);
++    glBindTexture(GL_TEXTURE_2D, tex);
+-    glBindTextureUnit(0, tex);
+ 
+-    _overlay.bind();
+     renderScreenQuad();
+     ShaderProgram::unbind();
+ }
+@@ -1821,43 +1835,45 @@ void Window::createVBOs() {
+     ZoneScoped;
+     TracyGpuZone("Create VBOs");
+ 
++    constexpr std::array<const float, 36> QuadVerts = {
++    //     x     y     z      u    v      r    g    b    a
++        -1.f, -1.f, -1.f,   0.f, 0.f,   1.f, 1.f, 1.f, 1.f,
++         1.f, -1.f, -1.f,   1.f, 0.f,   1.f, 1.f, 1.f, 1.f,
++        -1.f,  1.f, -1.f,   0.f, 1.f,   1.f, 1.f, 1.f, 1.f,
++         1.f,  1.f, -1.f,   1.f, 1.f,   1.f, 1.f, 1.f, 1.f
+-    struct Vertex {
+-        float x;
+-        float y;
+-        float z;
+-
+-        float u;
+-        float v;
+-
+-        float r;
+-        float g;
+-        float b;
+-        float a;
+     };
+ 
++    glGenVertexArrays(1, &_vao);
++    glGenBuffers(1, &_vbo);
+-    glCreateBuffers(1, &_vbo);
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
+ 
++    glBindVertexArray(_vao);
++    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
++
++    glBufferData(GL_ARRAY_BUFFER, 36 * sizeof(float), QuadVerts.data(), GL_STATIC_DRAW);
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), nullptr);
++
++    glEnableVertexAttribArray(1);
++    glVertexAttribPointer(
++        1,
++        2,
++        GL_FLOAT,
++        GL_FALSE,
++        9 * sizeof(float),
++        reinterpret_cast<void*>(3 * sizeof(float))
++    );
+-    glEnableVertexArrayAttrib(_vao, 0);
+-    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_vao, 0, 0);
+ 
++    glEnableVertexAttribArray(2);
++    glVertexAttribPointer(
++        2,
++        4,
++        GL_FLOAT,
++        GL_FALSE,
++        9 * sizeof(float),
++        reinterpret_cast<void*>(5 * sizeof(float))
++    );
+-    glEnableVertexArrayAttrib(_vao, 1);
+-    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, u));
+-    glVertexArrayAttribBinding(_vao, 1, 0);
+ 
++    glBindVertexArray(0);
+-    glEnableVertexArrayAttrib(_vao, 2);
+-    glVertexArrayAttribFormat(_vao, 2, 4, GL_FLOAT, GL_FALSE, offsetof(Vertex, r));
+-    glVertexArrayAttribBinding(_vao, 2, 0);
+-
+-    constexpr std::array<Vertex, 4> QuadVerts = {
+-        Vertex{ -1.f, -1.f, -1.f,   0.f, 0.f,   1.f, 1.f, 1.f, 1.f },
+-        Vertex{  1.f, -1.f, -1.f,   1.f, 0.f,   1.f, 1.f, 1.f, 1.f },
+-        Vertex{ -1.f,  1.f, -1.f,   0.f, 1.f,   1.f, 1.f, 1.f, 1.f },
+-        Vertex{  1.f,  1.f, -1.f,   1.f, 1.f,   1.f, 1.f, 1.f, 1.f }
+-    };
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), QuadVerts.data(), GL_NONE_BIT);
+ }
+ 
+ void Window::loadShaders() {
+@@ -1870,7 +1886,8 @@ void Window::loadShaders() {
+         _fboQuad.addVertexShader(shaders::BaseVert);
+         _fboQuad.addFragmentShader(shaders::BaseFrag);
+         _fboQuad.createAndLinkProgram();
++        _fboQuad.bind();
++        glUniform1i(glGetUniformLocation(_fboQuad.id(), "tex"), 0);
+-        glProgramUniform1i(_fboQuad.id(), glGetUniformLocation(_fboQuad.id(), "tex"), 0);
+     }
+ 
+     {
+@@ -1879,7 +1896,8 @@ void Window::loadShaders() {
+         _overlay.addVertexShader(shaders::BaseVert);
+         _overlay.addFragmentShader(shaders::OverlayFrag);
+         _overlay.createAndLinkProgram();
++        _overlay.bind();
++        glUniform1i(glGetUniformLocation(_overlay.id(), "tex"), 0);
+-        glProgramUniform1i(_overlay.id(), glGetUniformLocation(_overlay.id(), "tex"), 0);
+     }
+ 
+     if (_useFXAA) {
+@@ -1895,14 +1913,14 @@ void Window::loadShaders() {
+         const int id = _fxaa->shader.id();
+         _fxaa->sizeX = glGetUniformLocation(id, "rt_w");
+         const ivec2 framebufferSize = framebufferResolution();
++        glUniform1f(_fxaa->sizeX, static_cast<float>(framebufferSize.x));
+-        glProgramUniform1f(id, _fxaa->sizeX, static_cast<float>(framebufferSize.x));
+ 
+         _fxaa->sizeY = glGetUniformLocation(id, "rt_h");
++        glUniform1f(_fxaa->sizeY, static_cast<float>(framebufferSize.y));
+-        glProgramUniform1f(id, _fxaa->sizeY, static_cast<float>(framebufferSize.y));
+ 
++        glUniform1f(glGetUniformLocation(id, "FXAA_SUBPIX_TRIM"), 1.f / 4.f);
++        glUniform1f(glGetUniformLocation(id, "FXAA_SUBPIX_OFFSET"), 1.f / 2.f);
++        glUniform1i(glGetUniformLocation(id, "tex"), 0);
+-        glProgramUniform1f(id, glGetUniformLocation(id, "FxaaSubPixTrim"), 1.f / 4.f);
+-        glProgramUniform1f(id, glGetUniformLocation(id, "FxaaSubpixOffset"), 1.f / 2.f);
+-        glProgramUniform1i(id, glGetUniformLocation(id, "tex"), 0);
+     }
+ 
+ 
+@@ -1932,9 +1950,9 @@ void Window::loadShaders() {
+         _stereo.addVertexShader(stereoVertShader);
+         _stereo.addFragmentShader(stereoFragShader);
+         _stereo.createAndLinkProgram();
++        _stereo.bind();
++        glUniform1i(glGetUniformLocation(_stereo.id(), "leftTex"), 0);
++        glUniform1i(glGetUniformLocation(_stereo.id(), "rightTex"), 1);
+-        unsigned int id = _stereo.id();
+-        glProgramUniform1i(id, glGetUniformLocation(id, "leftTex"), 0);
+-        glProgramUniform1i(id, glGetUniformLocation(id, "rightTex"), 1);
+     }
+ 
+     ShaderProgram::unbind();
