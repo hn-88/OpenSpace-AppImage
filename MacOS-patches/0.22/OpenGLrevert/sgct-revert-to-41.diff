@@ -29,22 +29,23 @@ index 48e1056b..24efa63a 100644
 @@ -14,42 +14,35 @@
  namespace sgct::shaders {
  
- constexpr std::string_view BaseVert = R"(
-+  #version 330 core
+-constexpr std::string_view BaseVert = R"(
 -  #version 460 core
++constexpr std::string_view BaseVert = R"(
++  #version 330 core
+
  
    layout (location = 0) in vec2 in_position;
    layout (location = 1) in vec2 in_texCoords;
    layout (location = 2) in vec4 in_color;
+@@ contiguous @@
 +  out vec2 tr_uv;
 +  out vec4 tr_color;
--
 -  out Data {
 -    vec2 texCoords;
 -    vec4 color;
 -  } out_data;
--
- 
+@@ contiguous @@ 
    void main() {
      gl_Position = vec4(in_position, 0.0, 1.0);
 +    tr_uv = in_texCoords;
@@ -54,25 +55,24 @@ index 48e1056b..24efa63a 100644
    }
  )";
  
- constexpr std::string_view BaseFrag = R"(
-+  #version 330 core
+-constexpr std::string_view BaseFrag = R"(
 -  #version 460 core
 -
 -  in Data {
 -    vec2 texCoords;
 -    vec4 color;
 -  } in_data;
- 
++constexpr std::string_view BaseFrag = R"(
++  #version 330 core
 +  in vec2 tr_uv;
 +  in vec4 tr_color;
    out vec4 out_color;
  
    uniform sampler2D tex;
-+
    uniform int flipX = 0;
    uniform int flipY = 0;
  
--
+@@ contiguous @@
    void main() {
 +    vec2 uv = tr_uv;
 -    vec2 uv = in_data.texCoords;
@@ -87,23 +87,23 @@ index 48e1056b..24efa63a 100644
 -    out_color = in_data.color * texture(tex, uv);
    }
  )";
- 
- constexpr std::string_view OverlayFrag = R"(
-+  #version 330 core
+@@ contiguous @@ 
+-constexpr std::string_view OverlayFrag = R"(
 -  #version 460 core
 -
 -  in Data {
 -    vec2 texCoords;
 -    vec4 color;
 -  } in_data;
- 
++constexpr std::string_view OverlayFrag = R"(
++  #version 330 core 
 +  in vec2 tr_uv;
 +  in vec4 tr_color;
    out vec4 out_color;
  
    uniform sampler2D tex;
  
--
+@@ contiguous @@
    void main() {
 +    out_color = texture(tex, tr_uv);
 -    out_color = texture(tex, in_data.texCoords);
