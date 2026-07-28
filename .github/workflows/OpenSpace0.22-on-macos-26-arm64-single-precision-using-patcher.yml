@@ -53,7 +53,7 @@ jobs:
         cp -v MacOS-patches/0.22/OpenGLrevert/sgct-revert-to-41.diff "$openSpaceHome/apps/OpenSpace/ext/sgct/sgct-revert-to-41.diff"
         cp -v MacOS-patches/smart_patcher.py "$openSpaceHome/apps/OpenSpace/ext/sgct/smart_patcher.py"
         cd "$openSpaceHome/apps/OpenSpace/ext/sgct"
-        python3 smart_patcher.py sgct-revert-to-41.diff
+        # python3 smart_patcher.py sgct-revert-to-41.diff
 
     - name: patches for MacOS
       run: |
