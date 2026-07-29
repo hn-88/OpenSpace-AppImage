@@ -2077,7 +2077,7 @@ index f5212250..723a5896 100644
      virtual void initVBO() = 0;
      virtual void initViewports() = 0;
      virtual void initShaders() = 0;
- 
+@@ contiguous @@ 
      void setupViewport(const BaseViewport& vp) const;
 +    void generateMap(unsigned int& texture, unsigned int internalFormat,
 +        unsigned int format, unsigned int type);
