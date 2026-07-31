@@ -2749,207 +2749,179 @@ diff --git a/src/freetype.cpp b/src/freetype.cpp
 index 1a88a39b..cbd5f87b 100644
 --- a/src/freetype.cpp
 +++ b/src/freetype.cpp
-@@ -82,6 +82,7 @@ void print(const Window& window, const BaseViewport& viewport, Font& font, Align
-     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
- 
-     glBindVertexArray(font.vao());
+@@ glBindVertexArray(font.vao()); @@
+-    glBindVertexArray(font.vao());
++    glBindVertexArray(font.vao());
 +    glActiveTexture(GL_TEXTURE0);
- 
-     for (size_t i = 0; i < lines.size(); i++) {
-         glm::vec3 offset(x, y - h * i, 0.f);
-@@ -96,7 +97,9 @@ void print(const Window& window, const BaseViewport& viewport, Font& font, Align
-         for (const char c : lines[i]) {
-             const sgct::text::Font::FontFaceData& ffd = font.fontFaceData(c);
- 
+
+@@ glBindTextureUnit(0, ffd.texId); @@
+-            glBindTextureUnit(0, ffd.texId);
 +            glBindTexture(GL_TEXTURE_2D, ffd.texId);
 +            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 +            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
--            glBindTextureUnit(0, ffd.texId);
- 
-             const glm::mat4 trans = glm::translate(
-                 orthoMatrix,
+
+
 diff --git a/src/offscreenbuffer.cpp b/src/offscreenbuffer.cpp
 index b25af85d..2612f6fd 100644
 --- a/src/offscreenbuffer.cpp
 +++ b/src/offscreenbuffer.cpp
-@@ -71,8 +71,8 @@ void OffScreenBuffer::createFBO(int width, int height, int samples) {
-     // later as it doesn't impact the rendering.  All FBOs will be complete before we
-     // render anything either way
- 
-+    glGenFramebuffers(1, &_frameBuffer);
-+    glGenRenderbuffers(1, &_depthBuffer);
+@@ glCreateFramebuffers(1, &_frameBuffer); @@
 -    glCreateFramebuffers(1, &_frameBuffer);
 -    glCreateRenderbuffers(1, &_depthBuffer);
- 
-     _size = ivec2{ width, height };
-     _isMultiSampled = samples > 1;
-@@ -89,19 +89,19 @@ void OffScreenBuffer::createFBO(int width, int height, int samples) {
-         Log::Debug(std::format("Max samples supported: {}", maxSamples));
- 
-         // generate the multisample buffer
-+        glGenFramebuffers(1, &_multiSampledFrameBuffer);
++    glGenFramebuffers(1, &_frameBuffer);
++    glGenRenderbuffers(1, &_depthBuffer);
+
+@@ // Generate the multisample buffer @@
+-        // Generate the multisample buffer
 -        glCreateFramebuffers(1, &_multiSampledFrameBuffer);
- 
-         // generate render buffer for intermediate diffuse color storage
-+        glGenRenderbuffers(1, &_colorBuffer);
++        // generate the multisample buffer
++        glGenFramebuffers(1, &_multiSampledFrameBuffer);
+
+@@ // Generate render buffer for intermediate diffuse color sto... @@
+-        // Generate render buffer for intermediate diffuse color storage
 -        glCreateRenderbuffers(1, &_colorBuffer);
- 
-         // generate render buffer for intermediate normal storage
-         if (Engine::instance().settings().useNormalTexture) {
-+            glGenRenderbuffers(1, &_normalBuffer);
++        // generate render buffer for intermediate diffuse color storage
++        glGenRenderbuffers(1, &_colorBuffer);
+
+@@ // Generate render buffer for intermediate normal storage @@
+-        // Generate render buffer for intermediate normal storage
++        // generate render buffer for intermediate normal storage
+
+@@ glCreateRenderbuffers(1, &_normalBuffer); @@
 -            glCreateRenderbuffers(1, &_normalBuffer);
-         }
- 
-         // generate render buffer for intermediate position storage
-         if (Engine::instance().settings().usePositionTexture) {
-+            glGenRenderbuffers(1, &_positionBuffer);
++            glGenRenderbuffers(1, &_normalBuffer);
+
+@@ // Generate render buffer for intermediate position storage @@
+-        // Generate render buffer for intermediate position storage
++        // generate render buffer for intermediate position storage
+
+@@ glCreateRenderbuffers(1, &_positionBuffer); @@
 -            glCreateRenderbuffers(1, &_positionBuffer);
-         }
- 
-         // Bind FBO
++            glGenRenderbuffers(1, &_positionBuffer);
+
+
 diff --git a/src/projection/cubemap.cpp b/src/projection/cubemap.cpp
 index a632d86b..c7e5eeab 100644
 --- a/src/projection/cubemap.cpp
 +++ b/src/projection/cubemap.cpp
-@@ -30,13 +30,9 @@
- 
- namespace {
-     constexpr std::string_view FragmentShader = R"(
-+  #version 330 core
+@@ #version 460 core @@
 -  #version 460 core
--
++  #version 330 core
+
+@@ in Data { @@
 -  in Data {
 -    vec2 texCoords;
 -    vec4 color;
 -  } in_data;
- 
-+  in vec2 tr_uv;
-   out vec4 out_diffuse;
- 
-   uniform sampler2D right;
-@@ -46,10 +42,9 @@ namespace {
-   uniform sampler2D left;
-   uniform sampler2D zRight;
- 
 -
-   void main() {
-+    float column = tr_uv.x * 3.0; // 3 columns
-+    float row = tr_uv.y * 2.0;    // 2 rows
++  in vec2 tr_uv;
+
+@@ void main() { @@
+-
+-
+-  void main() {
++
++  void main() {
+
+@@ float column = in_data.texCoords.x * 3.0; // 3 columns @@
 -    float column = in_data.texCoords.x * 3.0; // 3 columns
 -    float row = in_data.texCoords.y * 2.0;    // 2 rows
-     
-     int col = int(floor(column));
-     int rowId = int(floor(row));
-@@ -57,22 +52,22 @@ namespace {
-     vec2 localCoord = vec2(fract(column), fract(row));
-     
-     if (rowId == 0 && col == 0) {
-+        out_diffuse = texture(zRight, localCoord);
++    float column = tr_uv.x * 3.0; // 3 columns
++    float row = tr_uv.y * 2.0;    // 2 rows
+
+@@ out_diffuse = texture(zRight, localCoord); @@
 -      out_diffuse = texture(zRight, localCoord);
-     } 
-     else if (rowId == 0 && col == 1) {
-+        out_diffuse = texture(top, localCoord);
++        out_diffuse = texture(zRight, localCoord);
+
+@@ out_diffuse = texture(top, localCoord); @@
 -      out_diffuse = texture(top, localCoord);
-     } 
-     else if (rowId == 0 && col == 2) {
-+        out_diffuse = texture(left, localCoord);
++        out_diffuse = texture(top, localCoord);
+
+@@ out_diffuse = texture(left, localCoord); @@
 -      out_diffuse = texture(left, localCoord);
-     } 
-     else if (rowId == 1 && col == 0) {
-+        out_diffuse = texture(zLeft, localCoord);
++        out_diffuse = texture(left, localCoord);
+
+@@ out_diffuse = texture(zLeft, localCoord); @@
 -      out_diffuse = texture(zLeft, localCoord);
-     } 
-     else if (rowId == 1 && col == 1) {
-+        out_diffuse = texture(bottom, localCoord);
-+    } 
++        out_diffuse = texture(zLeft, localCoord);
+
+@@ out_diffuse = texture(bottom, localCoord); @@
 -      out_diffuse = texture(bottom, localCoord);
 -    }
-     else if (rowId == 1 && col == 2) {
-+        out_diffuse = texture(right, localCoord);
++        out_diffuse = texture(bottom, localCoord);
++    } 
+
+@@ out_diffuse = texture(right, localCoord); @@
 -      out_diffuse = texture(right, localCoord);
-     } 
-   }
- )";
-@@ -152,8 +147,11 @@ void CubemapProjection::render(const BaseViewport& viewport,
-     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-     glDisable(GL_SCISSOR_TEST);
- 
++        out_diffuse = texture(right, localCoord);
+
+@@ glDisable(GL_SCISSOR_TEST); @@
+-    glDisable(GL_SCISSOR_TEST);
+-
++    glDisable(GL_SCISSOR_TEST);
++
 +    _shader.bind();
 +
-     for (int i = 0; i < 6; i++) {
+
+@@ glBindTextureUnit(i, _cubeFaces[i].enabled ? _cubeFaces[i].t... @@
+-        glBindTextureUnit(i, _cubeFaces[i].enabled ? _cubeFaces[i].texture : 0);
 +        glActiveTexture(GL_TEXTURE0 + i);
 +        glBindTexture(GL_TEXTURE_2D, _cubeFaces[i].enabled ? _cubeFaces[i].texture : 0);
--        glBindTextureUnit(i, _cubeFaces[i].enabled ? _cubeFaces[i].texture : 0);
-     }
- 
-     glDisable(GL_CULL_FACE);
-@@ -161,15 +159,17 @@ void CubemapProjection::render(const BaseViewport& viewport,
-     glEnable(GL_DEPTH_TEST);
-     glDepthFunc(GL_ALWAYS);
- 
+
+@@ _shader.bind(); @@
 -    _shader.bind();
-     glBindVertexArray(_vao);
-     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-     glBindVertexArray(0);
+
+@@ glBindVertexArray(0); @@
+-    glBindVertexArray(0);
++    glBindVertexArray(0);
 +
-     ShaderProgram::unbind();
- 
-     glDisable(GL_DEPTH_TEST);
-     glDepthFunc(GL_LESS);
- 
+
+@@ glDepthFunc(GL_LESS); @@
+-    glDepthFunc(GL_LESS);
++    glDepthFunc(GL_LESS);
++
 +    ShaderProgram::unbind();
-+
-     for (int i = 0; i < 6; i++) {
-         if (!_cubeFaces[i].enabled) {
-             continue;
-@@ -196,12 +196,12 @@ void CubemapProjection::render(const BaseViewport& viewport,
- #ifdef SGCT_HAS_NDI
-         if (_ndiEnabled) {
-             // Download the texture data from the GPU
+
+@@ glGetTextureImage( @@
+-            glGetTextureImage(
+-                _cubeFaces[i].texture,
 +            glBindTexture(GL_TEXTURE_2D, _cubeFaces[i].texture);
 +            glGetTexImage(
 +                GL_TEXTURE_2D,
--            glGetTextureImage(
--                _cubeFaces[i].texture,
-                 0,
-                 GL_RGBA,
-                 GL_UNSIGNED_BYTE,
+
+@@ _cubemapResolution.x * _cubemapResolution.y * 4, @@
 -                _cubemapResolution.x * _cubemapResolution.y * 4,
-                 _cubeFaces[i].ndi.currentVideoBuffer->data()
-             );
- 
-@@ -237,8 +237,10 @@ void CubemapProjection::setSpoutRigOrientation(vec3 orientation) {
-     _rigOrientation = std::move(orientation);
- }
- 
+
+@@ _rigOrientation = std::move(orientation); @@
+-    _rigOrientation = std::move(orientation);
++    _rigOrientation = std::move(orientation);
++    _rigOrientation = std::move(orientation);
+
+@@ void CubemapProjection::initTextures(unsigned int internalFo... @@
+-void CubemapProjection::initTextures(unsigned int internalFormat) {
+-    NonLinearProjection::initTextures(internalFormat);
 +void CubemapProjection::initTextures(unsigned int internalFormat, unsigned int format,
 +                                         unsigned int type)
 +{
 +    NonLinearProjection::initTextures(internalFormat, format, type);
--void CubemapProjection::initTextures(unsigned int internalFormat) {
--    NonLinearProjection::initTextures(internalFormat);
- 
-     Log::Debug("CubemapProjection initTextures");
- 
-@@ -248,21 +250,26 @@ void CubemapProjection::initTextures(unsigned int internalFormat, unsigned int f
-             continue;
-         }
- 
+
+@@ Log::Debug(std::format("CubemapProjection initTextures {}",... @@
+-        Log::Debug(std::format("CubemapProjection initTextures {}", i));
+-        if (!_cubeFaces[i].enabled) {
+-            continue;
+-        }
++        Log::Debug(std::format("CubemapProjection initTextures {}", i));
++        if (!_cubeFaces[i].enabled) {
++            continue;
++            continue;
++        }
+
+@@ glCreateTextures(GL_TEXTURE_2D, 1, &_cubeFaces[i].texture); @@
+-        glCreateTextures(GL_TEXTURE_2D, 1, &_cubeFaces[i].texture);
 +        glGenTextures(1, &_cubeFaces[i].texture);
 +        glBindTexture(GL_TEXTURE_2D, _cubeFaces[i].texture);
-+
-+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-+        glTexImage2D(
-+            GL_TEXTURE_2D,
-+            0,
--        glCreateTextures(GL_TEXTURE_2D, 1, &_cubeFaces[i].texture);
--
+
+@@ glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_BASE_L... @@
 -        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_BASE_LEVEL, 0);
 -        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_MAX_LEVEL, 0);
 -        glTextureParameteri(_cubeFaces[i].texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -2960,48 +2932,67 @@ index a632d86b..c7e5eeab 100644
 -        glTextureStorage2D(
 -            _cubeFaces[i].texture,
 -            1,
-             internalFormat,
-             _cubemapResolution.x,
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++        glTexImage2D(
++            GL_TEXTURE_2D,
++            0,
+
+@@ _cubemapResolution.x, @@
+-            _cubemapResolution.x,
+-            _cubemapResolution.y
+-        );
++            _cubemapResolution.x,
 +            _cubemapResolution.y,
 +            0,
 +            format,
 +            type,
 +            nullptr
--            _cubemapResolution.y
-         );
- 
- #ifdef SGCT_HAS_SPOUT
-@@ -346,25 +353,34 @@ void CubemapProjection::initVBO() {
-         float t;
-     };
- 
-+    glGenVertexArrays(1, &_vao);
-+    glBindVertexArray(_vao);
++        );
+
+@@ float t; @@
+-        float t;
++        float t;
++        float t;
+
+@@ glCreateBuffers(1, &_vbo); @@
 -    glCreateBuffers(1, &_vbo);
 -    constexpr std::array<Vertex, 4> v = {
--        Vertex{ -1.f, -1.f, -1.f, 0.f, 0.f },
--        Vertex{ -1.f,  1.f, -1.f, 0.f, 1.f },
--        Vertex{  1.f, -1.f, -1.f, 1.f, 0.f },
--        Vertex{  1.f,  1.f, -1.f, 1.f, 1.f }
--    };
--    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), v.data(), GL_NONE_BIT);
- 
+-        Vertex { -1.f, -1.f, -1.f, 0.f, 0.f },
+-        Vertex { -1.f,  1.f, -1.f, 0.f, 1.f },
+-        Vertex {  1.f, -1.f, -1.f, 1.f, 0.f },
+-        Vertex {  1.f,  1.f, -1.f, 1.f, 1.f }
++    glGenVertexArrays(1, &_vao);
++    glBindVertexArray(_vao);
++
 +    glGenBuffers(1, &_vbo);
 +    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
--    glCreateVertexArrays(1, &_vao);
--    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
- 
++
 +    constexpr std::array<float, 20> v = {
 +        -1.f, -1.f, -1.f, 0.f, 0.f,
 +        -1.f,  1.f, -1.f, 0.f, 1.f,
 +         1.f, -1.f, -1.f, 1.f, 0.f,
 +         1.f,  1.f, -1.f, 1.f, 1.f
-+    };
+
+@@ glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), v.data(), GL_... @@
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), v.data(), GL_NONE_BIT);
 +    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), v.data(), GL_STATIC_DRAW);
-+
+
+@@ glCreateVertexArrays(1, &_vao); @@
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
 +    glEnableVertexAttribArray(0);
 +    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
-+
+
+@@ glEnableVertexArrayAttrib(_vao, 0); @@
+-    glEnableVertexArrayAttrib(_vao, 0);
+-    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+-    glVertexArrayAttribBinding(_vao, 0, 0);
 +    glEnableVertexAttribArray(1);
 +    glVertexAttribPointer(
 +        1,
@@ -3011,85 +3002,86 @@ index a632d86b..c7e5eeab 100644
 +        sizeof(Vertex),
 +        reinterpret_cast<void*>(offsetof(Vertex, s))
 +    );
--    glEnableVertexArrayAttrib(_vao, 0);
--    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
--    glVertexArrayAttribBinding(_vao, 0, 0);
- 
-+    glBindVertexArray(0);
+
+@@ glEnableVertexArrayAttrib(_vao, 1); @@
 -    glEnableVertexArrayAttrib(_vao, 1);
 -    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, s));
 -    glVertexArrayAttribBinding(_vao, 1, 0);
- }
- 
- void CubemapProjection::initViewports() {
-@@ -514,13 +530,16 @@ void CubemapProjection::initShaders() {
-     _shader.addVertexShader(shaders::BaseVert);
-     _shader.addFragmentShader(FragmentShader);
-     _shader.createAndLinkProgram();
++    glBindVertexArray(0);
+
+@@ _shader.addVertexShader(shaders::BaseVert); @@
+-    _shader.addVertexShader(shaders::BaseVert);
++    _shader.addVertexShader(shaders::BaseVert);
++    _shader.addVertexShader(shaders::BaseVert);
+
+@@ _shader.createAndLinkProgram(); @@
+-    _shader.createAndLinkProgram();
++    _shader.createAndLinkProgram();
 +    _shader.bind();
-+
-+    glUniform1i(glGetUniformLocation(_shader.id(), "right"), 0);
-+    glUniform1i(glGetUniformLocation(_shader.id(), "zLeft"), 1);
-+    glUniform1i(glGetUniformLocation(_shader.id(), "bottom"), 2);
-+    glUniform1i(glGetUniformLocation(_shader.id(), "top"), 3);
-+    glUniform1i(glGetUniformLocation(_shader.id(), "left"), 4);
-+    glUniform1i(glGetUniformLocation(_shader.id(), "zRight"), 5);
- 
-+    ShaderProgram::unbind();
+
+@@ glProgramUniform1i(_shader.id(), glGetUniformLocation(_shade... @@
 -    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "right"), 0);
 -    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "zLeft"), 1);
 -    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "bottom"), 2);
 -    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "top"), 3);
 -    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "left"), 4);
 -    glProgramUniform1i(_shader.id(), glGetUniformLocation(_shader.id(), "zRight"), 5);
- }
- 
- void CubemapProjection::initFBO(unsigned int internalFormat, int nSamples) {
-@@ -528,7 +547,7 @@ void CubemapProjection::initFBO(unsigned int internalFormat, int nSamples) {
- 
-     _spoutFBO = std::make_unique<OffScreenBuffer>(internalFormat);
-     _spoutFBO->createFBO(_cubemapResolution.x, _cubemapResolution.y, 1);
-+    glGenFramebuffers(1, &_blitFbo);
++    glUniform1i(glGetUniformLocation(_shader.id(), "right"), 0);
++    glUniform1i(glGetUniformLocation(_shader.id(), "zLeft"), 1);
++    glUniform1i(glGetUniformLocation(_shader.id(), "bottom"), 2);
++    glUniform1i(glGetUniformLocation(_shader.id(), "top"), 3);
++    glUniform1i(glGetUniformLocation(_shader.id(), "left"), 4);
++    glUniform1i(glGetUniformLocation(_shader.id(), "zRight"), 5);
++
++    ShaderProgram::unbind();
+
+@@ NonLinearProjection::initFBO(internalFormat, nSamples); @@
+-    NonLinearProjection::initFBO(internalFormat, nSamples);
+-
++    NonLinearProjection::initFBO(internalFormat, nSamples);
++
++
+
+@@ glCreateFramebuffers(1, &_blitFbo); @@
 -    glCreateFramebuffers(1, &_blitFbo);
- }
- 
- void CubemapProjection::renderCubemap(FrustumMode frustumMode) const {
++    glGenFramebuffers(1, &_blitFbo);
+
+
 diff --git a/src/projection/cylindrical.cpp b/src/projection/cylindrical.cpp
 index d226bb3f..4ee36971 100644
 --- a/src/projection/cylindrical.cpp
 +++ b/src/projection/cylindrical.cpp
-@@ -24,12 +24,9 @@
- 
- namespace {
-     constexpr std::string_view FragmentShader = R"(
-+  #version 330 core
+@@ #version 460 core @@
 -  #version 460 core
--
++  #version 330 core
+
+@@ in Data { @@
 -  in Data {
 -    vec2 texCoords;
 -  } in_data;
- 
-+  in vec2 tr_uv;
-   out vec4 out_diffuse;
- 
-   uniform samplerCube cubemap;
-@@ -38,16 +35,23 @@ namespace {
- 
-   const float PI = 3.141592654;
- 
 -
-   void main() {
-+    vec2 pixelNormalized = tr_uv;
++  in vec2 tr_uv;
+
+@@ void main() { @@
+-
+-
+-  void main() {
++
++  void main() {
+
+@@ vec2 pixelNormalized = in_data.texCoords; @@
 -    vec2 pixelNormalized = in_data.texCoords;
-     float angle = 2.0 * PI * pixelNormalized.x;
-     vec2 direction = vec2(cos(-angle + rotation), sin(-angle + rotation));
- 
-+    vec3 sample = (vec3(direction, pixelNormalized.y + heightOffset));
-+    out_diffuse = texture(cubemap, sample);
++    vec2 pixelNormalized = tr_uv;
+
+@@ vec3 tex = vec3(direction, pixelNormalized.y + heightOffset)... @@
 -    vec3 tex = vec3(direction, pixelNormalized.y + heightOffset);
 -    out_diffuse = texture(cubemap, tex);
-   }
- )";
++    vec3 sample = (vec3(direction, pixelNormalized.y + heightOffset));
++    out_diffuse = texture(cubemap, sample);
+
+@@ )"; @@
+-)";
++)";
 +
 +    struct Vertex {
 +        float x;
@@ -3098,52 +3090,39 @@ index d226bb3f..4ee36971 100644
 +        float s;
 +        float t;
 +    };
- } // namespace
- 
- namespace sgct {
-@@ -84,23 +88,28 @@ void CylindricalProjection::render(const BaseViewport& viewport,
-     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-     glDisable(GL_SCISSOR_TEST);
- 
+
+@@ glDisable(GL_SCISSOR_TEST); @@
+-    glDisable(GL_SCISSOR_TEST);
+-
++    glDisable(GL_SCISSOR_TEST);
++
 +    _shader.program.bind();
 +
-     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
- 
+
+@@ glBindTextureUnit(0, _textures.cubeMapColor); @@
+-    glBindTextureUnit(0, _textures.cubeMapColor);
 +    // if for some reason the active texture has been reset
 +    glActiveTexture(GL_TEXTURE0);
 +    glBindTexture(GL_TEXTURE_CUBE_MAP, _textures.cubeMapColor);
--    glBindTextureUnit(0, _textures.cubeMapColor);
- 
-     glDisable(GL_CULL_FACE);
-     glDisable(GL_BLEND);
-     glEnable(GL_DEPTH_TEST);
-     glDepthFunc(GL_ALWAYS);
- 
-+    glUniform1i(_shader.cubemap, 0);
-+    glUniform1f(_shader.rotation, glm::radians(_rotation));
-+    glUniform1f(_shader.heightOffset, _heightOffset);
-+
+
+@@ glProgramUniform1i(_shader.program.id(), _shader.cubemap, 0)... @@
 -    glProgramUniform1i(_shader.program.id(), _shader.cubemap, 0);
 -    glProgramUniform1f(_shader.program.id(), _shader.rotation, glm::radians(_rotation));
 -    glProgramUniform1f(_shader.program.id(), _shader.heightOffset, _heightOffset);
- 
++    glUniform1i(_shader.cubemap, 0);
++    glUniform1f(_shader.rotation, glm::radians(_rotation));
++    glUniform1f(_shader.heightOffset, _heightOffset);
+
+@@ _shader.program.bind(); @@
 -    _shader.program.bind();
-     glBindVertexArray(_vao);
-     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-     glBindVertexArray(0);
 +
-     ShaderProgram::unbind();
- 
-     glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-@@ -122,33 +131,34 @@ void CylindricalProjection::renderCubemap(FrustumMode frustumMode) const {
- void CylindricalProjection::update(const vec2&) const {}
- 
- void CylindricalProjection::initVBO() {
-+    glGenVertexArrays(1, &_vao);
-+    glBindVertexArray(_vao);
+
+@@ glBindVertexArray(0); @@
+-    glBindVertexArray(0);
++    glBindVertexArray(0);
 +
-+    glGenBuffers(1, &_vbo);
-+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+
+@@ struct Vertex { @@
 -    struct Vertex {
 -        float x;
 -        float y;
@@ -3151,24 +3130,37 @@ index d226bb3f..4ee36971 100644
 -        float s;
 -        float t;
 -    };
- 
+-
++    glGenVertexArrays(1, &_vao);
++    glBindVertexArray(_vao);
++
++    glGenBuffers(1, &_vbo);
++    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
++
 +    constexpr std::array<float, 20> v = {
 +        -1.f, -1.f, -1.f, 0.f, 0.f,
 +        -1.f,  1.f, -1.f, 0.f, 1.f,
 +         1.f, -1.f, -1.f, 1.f, 0.f,
 +         1.f,  1.f, -1.f, 1.f, 1.f
--    glCreateBuffers(1, &_vbo);
--    constexpr std::array<Vertex, 4> v = {
--        Vertex{ -1.f, -1.f, -1.f, 0.f, 0.f },
--        Vertex{ -1.f,  1.f, -1.f, 0.f, 1.f },
--        Vertex{  1.f, -1.f, -1.f, 1.f, 0.f },
--        Vertex{  1.f,  1.f, -1.f, 1.f, 1.f }
-     };
++    };
 +    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), v.data(), GL_STATIC_DRAW);
 +
+
+@@ glCreateBuffers(1, &_vbo); @@
+-    glCreateBuffers(1, &_vbo);
+-    constexpr std::array<Vertex, 4> v = {
+-        Vertex { -1.f, -1.f, -1.f, 0.f, 0.f },
+-        Vertex { -1.f,  1.f, -1.f, 0.f, 1.f },
+-        Vertex {  1.f, -1.f, -1.f, 1.f, 0.f },
+-        Vertex {  1.f,  1.f, -1.f, 1.f, 1.f }
+-    };
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), v.data(), GL_NONE_BIT);
 +    glEnableVertexAttribArray(0);
 +    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
-+
+
+@@ glCreateVertexArrays(1, &_vao); @@
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
 +    glEnableVertexAttribArray(1);
 +    glVertexAttribPointer(
 +        1,
@@ -3178,12 +3170,8 @@ index d226bb3f..4ee36971 100644
 +        sizeof(Vertex),
 +        reinterpret_cast<void*>(offsetof(Vertex, s))
 +    );
--    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), v.data(), GL_NONE_BIT);
- 
-+    glBindVertexArray(0);
--    glCreateVertexArrays(1, &_vao);
--    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
--
+
+@@ glEnableVertexArrayAttrib(_vao, 0); @@
 -    glEnableVertexArrayAttrib(_vao, 0);
 -    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
 -    glVertexArrayAttribBinding(_vao, 0, 0);
@@ -3191,25 +3179,26 @@ index d226bb3f..4ee36971 100644
 -    glEnableVertexArrayAttrib(_vao, 1);
 -    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, s));
 -    glVertexArrayAttribBinding(_vao, 1, 0);
- }
- 
- void CylindricalProjection::initViewports() {
-@@ -278,11 +288,14 @@ void CylindricalProjection::initShaders() {
-     _shader.program.addVertexShader(shaders_fisheye::BaseVert);
-     _shader.program.addFragmentShader(FragmentShader);
-     _shader.program.createAndLinkProgram();
++    glBindVertexArray(0);
+
+@@ _shader.program.createAndLinkProgram(); @@
+-    _shader.program.createAndLinkProgram();
++    _shader.program.createAndLinkProgram();
 +    _shader.program.bind();
- 
-     _shader.cubemap = glGetUniformLocation(_shader.program.id(), "cubemap");
-+    glUniform1i(_shader.cubemap, 0);
+
+@@ _shader.cubemap = glGetUniformLocation(_shader.program.id(),... @@
+-    _shader.cubemap = glGetUniformLocation(_shader.program.id(), "cubemap");
 -    glProgramUniform1i(_shader.program.id(), _shader.cubemap, 0);
-     _shader.rotation = glGetUniformLocation(_shader.program.id(), "rotation");
-     _shader.heightOffset = glGetUniformLocation(_shader.program.id(), "heightOffset");
++    _shader.cubemap = glGetUniformLocation(_shader.program.id(), "cubemap");
++    glUniform1i(_shader.cubemap, 0);
+
+@@ _shader.heightOffset = glGetUniformLocation(_shader.program.... @@
+-    _shader.heightOffset = glGetUniformLocation(_shader.program.id(), "heightOffset");
++    _shader.heightOffset = glGetUniformLocation(_shader.program.id(), "heightOffset");
 +
 +    ShaderProgram::unbind();
- }
- 
- void CylindricalProjection::setRotation(float rotation) {
+
+
 diff --git a/src/projection/equirectangular.cpp b/src/projection/equirectangular.cpp
 index 2a1fff6c..a79a3ce0 100644
 --- a/src/projection/equirectangular.cpp
