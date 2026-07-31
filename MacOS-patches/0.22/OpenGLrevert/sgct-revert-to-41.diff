@@ -2409,17 +2409,15 @@ diff --git a/src/font.cpp b/src/font.cpp
 index 1617495f..99f71f44 100644
 --- a/src/font.cpp
 +++ b/src/font.cpp
-@@ -131,21 +131,32 @@ namespace {
- 
-     unsigned int generateTexture(int w, int h, const std::vector<unsigned char>& buffer) {
-         unsigned int tex = 0;
+@@ unsigned int tex = 0; @@
+-        unsigned int tex = 0;
++        unsigned int tex = 0;
 +        glGenTextures(1, &tex);
 +        glBindTexture(GL_TEXTURE_2D, tex);
--        glCreateTextures(GL_TEXTURE_2D, 1, &tex);
- 
-         glPixelStorei(GL_PACK_ALIGNMENT, 1);
-         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
- 
++
++        glPixelStorei(GL_PACK_ALIGNMENT, 1);
++        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
++
 +        glTexImage2D(
 +            GL_TEXTURE_2D,
 +            0,
@@ -2436,25 +2434,74 @@ index 1617495f..99f71f44 100644
 +        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 +        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 +        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
--        glTextureParameteri(tex, GL_TEXTURE_BASE_LEVEL, 0);
--        glTextureParameteri(tex, GL_TEXTURE_MAX_LEVEL, 0);
--        glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
--        glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
- 
++
 +        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 +        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
--        glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
--        glTextureParameteri(tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
- 
--        glTextureStorage2D(tex, 1, GL_COMPRESSED_RG, w, h);
--        glTextureSubImage2D(tex, 0, 0, 0, w, h, GL_RG, GL_UNSIGNED_BYTE, buffer.data());
-         return tex;
-     }
- 
-@@ -210,32 +221,28 @@ Font::Font(FT_Library lib, FT_Face face, unsigned int height)
-     , _face(face)
-     , _height(static_cast<float>(height))
- {
++
++        return tex;
++    }
++
++    std::optional<sgct::text::Font::FontFaceData>
++    createGlyph(FT_Library library, FT_Face face, FT_Fixed strokeSize, char c)
++    {
++        // Load the Glyph for our character.
++        // Hints:
++        // www.freetype.org/freetype2/docs/reference/ft2-base_interface.html#FT_LOAD_XXX
++
++        const FT_UInt charIndex = FT_Get_Char_Index(face, static_cast<FT_ULong>(c));
++        if (charIndex == 0) {
++            return std::nullopt;
++        }
++
++        const FT_Error loadError = FT_Load_Glyph(face, charIndex, FT_LOAD_FORCE_AUTOHINT);
++        if (loadError) {
++            return std::nullopt;
++        }
++
++        // Load pixel data
++        const PixelDataResult res = getPixelData(library, face, strokeSize);
++        if (!res.success) {
++            return std::nullopt;
++        }
++
++        sgct::text::Font::FontFaceData ffd;
++        // Create texture
++        if (charIndex > 0 && c != ' ') {
++            ffd.texId = generateTexture(res.width, res.height, res.pixels);
++        }
++        else {
++            ffd.texId = 0;
++        }
++
++        // Setup geometry data
++        ffd.pos.x = static_cast<float>(res.gd.bitmapGlyph->left);
++        // abock (2010-10-19) Don't remove this variable;  if the expression is directly
++        // inserted in the static_cast, something goes wrong when rows > top and things
++        // get wrongly converted into unsigned integer type before the cast
++        const int y = res.gd.bitmapGlyph->top - res.gd.bitmap->rows;
++        ffd.pos.y = static_cast<float>(y);
++        ffd.size.x = static_cast<float>(res.width);
++        ffd.size.y = static_cast<float>(res.height);
++
++        // Delete the stroke glyph
++        FT_Stroker_Done(res.gd.stroker);
++        FT_Done_Glyph(res.gd.strokeGlyph);
++
++        // Can't delete them while they are used, delete when font is cleaned
++        ffd.glyph = res.gd.glyph;
++        ffd.distToNextChar = static_cast<float>(face->glyph->advance.x / 64);
++
++        return ffd;
++    }
++} // namespace
++
++namespace sgct::text {
++
++Font::Font(FT_Library lib, FT_Face face, unsigned int height)
++    : _library(lib)
++    , _face(face)
++    , _height(static_cast<float>(height))
++{
 +    glGenVertexArrays(1, &_vao);
 +    glGenBuffers(1, &_vbo);
 +
@@ -2464,123 +2511,240 @@ index 1617495f..99f71f44 100644
 +        1.f, 1.f, 1.f, 0.f,
 +        0.f, 0.f, 0.f, 1.f,
 +        1.f, 0.f, 1.f, 1.f
--    struct Vertex {
--        float x;
--        float y;
--        float s;
--        float t;
-     };
--    constexpr std::array<Vertex, 4> c = {
--        Vertex{ 0.f, 1.f, 0.f, 0.f },
--        Vertex{ 1.f, 1.f, 1.f, 0.f },
--        Vertex{ 0.f, 0.f, 0.f, 1.f },
--        Vertex{ 1.f, 0.f, 1.f, 1.f }
--    };
--
--    glCreateBuffers(1, &_vbo);
--    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), c.data(), GL_NONE_BIT);
- 
++    };
++
 +    glBindVertexArray(_vao);
 +    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
 +    glBufferData(GL_ARRAY_BUFFER, c.size() * sizeof(float), c.data(), GL_STATIC_DRAW);
--    glCreateVertexArrays(1, &_vao);
--    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
- 
++
 +    constexpr int s = 4 * sizeof(float);
 +    glEnableVertexAttribArray(0);
 +    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, s, nullptr);
 +    glEnableVertexAttribArray(1);
 +    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, s, reinterpret_cast<void*>(8));
++
++    glBindVertexArray(0);
++}
++
++Font::~Font() {
++    std::string SystemFontPath;
++
++    constexpr std::string_view FontVertShader = R"(
++#version 330 core
++layout (location = 0) in vec2 in_texCoord;
++layout (location = 1) in vec2 in_position;
++out vec2 tr_uv;
++
++uniform mat4 mvp;
++
++        // Convert the glyph to a bitmap
++        FT_Glyph_To_Bitmap(&res.gd.glyph, ft_render_mode_normal, nullptr, 1);
++        res.gd.bitmapGlyph = reinterpret_cast<FT_BitmapGlyph>(res.gd.glyph);
++void main() {
++    gl_Position = mvp * vec4(in_position, 0.0, 1.0);
++    tr_uv = in_texCoord;
++})";
++
++    constexpr std::string_view FontFragShader = R"(
++#version 330 core
++in vec2 tr_uv;
++out vec4 out_color;
++
++uniform vec4 col;
++uniform sampler2D tex;
++
++const vec4 StrokeCol = vec4(0.0, 0.0, 0.0, 0.9);
++
++void main() {
++    vec2 luminanceAlpha = texture(tex, tr_uv).rg;
++    vec4 blend = mix(StrokeCol, col, luminanceAlpha.r);
++    out_color = blend * vec4(1.0, 1.0, 1.0, luminanceAlpha.g);
++})";
++        res.height = res.gd.strokeBitmap->rows;
++
++        // Allocate memory for the texture data
++        res.pixels.resize(
++            2 * static_cast<size_t>(res.width) * static_cast<size_t>(res.height)
++        );
++        std::fill(res.pixels.begin(), res.pixels.end(), static_cast<unsigned char>(0));
++
++        // Read alpha to one channel and stroke - alpha in the second channel. We use the
++        // ?: operator so that value which we use will be 0 if we are in the padding zone,
++        // and whatever is the the Freetype bitmap otherwise
++        const int offsetWidth = (res.gd.strokeBitmap->width - res.gd.bitmap->width) / 2;
++        const int offsetRows = (res.gd.strokeBitmap->rows - res.gd.bitmap->rows) / 2;
++        for (int j = 0; j < res.height; j++) {
++            for (int i = 0; i < res.width; i++) {
++                const int k = i - offsetWidth;
++                const int l = j - offsetRows;
++
++
++                const size_t idx = 2 * (
++                    static_cast<size_t>(i) + static_cast<size_t>(j) *
++                    static_cast<size_t>(res.width)
++                );
++                if (k >= static_cast<int>(res.gd.bitmap->width) ||
++                    l >= static_cast<int>(res.gd.bitmap->rows) || k < 0 || l < 0)
++                {
++                    res.pixels[idx] = 0;
++                }
++                else {
++                    res.pixels[idx] = res.gd.bitmap->buffer[k + res.gd.bitmap->width * l];
++                }
++
++                const bool strokeInRange =
++                    i >= static_cast<int>(res.gd.strokeBitmap->width) ||
++                    j >= static_cast<int>(res.gd.strokeBitmap->rows);
++                const unsigned char stroke =
++                    strokeInRange ?
++                    0 :
++                    res.gd.strokeBitmap->buffer[i + res.gd.strokeBitmap->width * j];
++
++                res.pixels[idx + 1] = stroke < res.pixels[idx] ?
++                    res.pixels[idx] :
++                    stroke;
++            }
++        }
++
++        res.success = true;
++        return res;
++    }
++
++    unsigned int generateTexture(int w, int h, const std::vector<unsigned char>& buffer) {
++        unsigned int tex = 0;
+
+@@ return tex; @@
+-        return tex;
+-    }
++        return tex;
++    }
++void FontManager::bindShader(const mat4& mvp, const vec4& color, int texture) const {
++    _shader.bind();
+
+@@ std::optional<sgct::text::Font::FontFaceData> @@
+-    std::optional<sgct::text::Font::FontFaceData>
+-    createGlyph(FT_Library library, FT_Face face, FT_Fixed strokeSize, char c)
+-    {
+-        // Load the Glyph for our character.
+-        // Hints:
+-        // www.freetype.org/freetype2/docs/reference/ft2-base_interface.html#FT_LOAD_XXX
++    glUniform4fv(_colorLocation, 1, &color.x);
++    glUniform1i(_textureLocation, texture);
++    glUniformMatrix4fv(_mvpLocation, 1, GL_FALSE, mvp.values.data());
++}
+
+@@ const FT_UInt charIndex = FT_Get_Char_Index(face, static_cas... @@
+-        const FT_UInt charIndex = FT_Get_Char_Index(face, static_cast<FT_ULong>(c));
++bool FontManager::addFont(std::string name, std::string file, bool isAbsolutePath) {
+
+@@ Vertex{ 1.f, 0.f, 1.f, 1.f } @@
+-        Vertex{ 1.f, 0.f, 1.f, 1.f }
+-    };
++        Vertex{ 1.f, 0.f, 1.f, 1.f }
++    };
++        _shader.addVertexShader(FontVertShader);
++        _shader.addFragmentShader(FontFragShader);
++        _shader.createAndLinkProgram();
++        _shader.bind();
+
+@@ glCreateBuffers(1, &_vbo); @@
+-    glCreateBuffers(1, &_vbo);
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), c.data(), GL_NONE_BIT);
++        _mvpLocation = glGetUniformLocation(_shader.id(), "mvp");
++        _colorLocation = glGetUniformLocation(_shader.id(), "col");
++        _textureLocation = glGetUniformLocation(_shader.id(), "tex");
++        ShaderProgram::unbind();
+
+@@ glCreateVertexArrays(1, &_vao); @@
+-    glCreateVertexArrays(1, &_vao);
+-    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
+-
 -    glEnableVertexArrayAttrib(_vao, 0);
 -    glVertexArrayAttribFormat(_vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
 -    glVertexArrayAttribBinding(_vao, 0, 0);
- 
-+    glBindVertexArray(0);
--    glEnableVertexArrayAttrib(_vao, 1);
--    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, s));
--    glVertexArrayAttribBinding(_vao, 1, 0);
- }
- 
- Font::~Font() {
++        isShaderCreated = true;
++    }
+
+
 diff --git a/src/fontmanager.cpp b/src/fontmanager.cpp
 index d76f052e..7652a71c 100644
 --- a/src/fontmanager.cpp
 +++ b/src/fontmanager.cpp
-@@ -42,40 +42,30 @@ namespace {
-     std::string SystemFontPath;
- 
-     constexpr std::string_view FontVertShader = R"(
-+#version 330 core
-+layout (location = 0) in vec2 in_texCoord;
+@@ #version 460 core @@
 -#version 460 core
 -
 -layout (location = 0) in vec2 in_texCoords;
- layout (location = 1) in vec2 in_position;
-+out vec2 tr_uv;
++#version 330 core
++layout (location = 0) in vec2 in_texCoord;
+
+@@ out Data { @@
 -
 -out Data {
 -  vec2 texCoords;
 -} out_data;
- 
- uniform mat4 mvp;
- 
++out vec2 tr_uv;
+
+@@ uniform mat4 mvp; @@
+-uniform mat4 mvp;
 -
- void main() {
-+    gl_Position = mvp * vec4(in_position, 0.0, 1.0);
-+    tr_uv = in_texCoord;
+-
+-void main() {
++uniform mat4 mvp;
++
++void main() {
+
+@@ gl_Position = mvp * vec4(in_position, 0.0, 1.0); @@
 -  gl_Position = mvp * vec4(in_position, 0.0, 1.0);
 -  out_data.texCoords = in_texCoords;
- })";
- 
-     constexpr std::string_view FontFragShader = R"(
-+#version 330 core
-+in vec2 tr_uv;
++    gl_Position = mvp * vec4(in_position, 0.0, 1.0);
++    tr_uv = in_texCoord;
+
+@@ #version 460 core @@
 -#version 460 core
 -
 -in Data {
 -  vec2 texCoords;
 -} in_data;
 -
- out vec4 out_color;
- 
- uniform vec4 col;
- uniform sampler2D tex;
- 
++#version 330 core
++in vec2 tr_uv;
+
+@@ const vec4 StrokeCol = vec4(0.0, 0.0, 0.0, 0.9); @@
 -
- const vec4 StrokeCol = vec4(0.0, 0.0, 0.0, 0.9);
- 
- void main() {
-+    vec2 luminanceAlpha = texture(tex, tr_uv).rg;
+-
+-const vec4 StrokeCol = vec4(0.0, 0.0, 0.0, 0.9);
++
++const vec4 StrokeCol = vec4(0.0, 0.0, 0.0, 0.9);
+
+@@ vec2 luminanceAlpha = texture(tex, in_data.texCoords).rg; @@
 -    vec2 luminanceAlpha = texture(tex, in_data.texCoords).rg;
-     vec4 blend = mix(StrokeCol, col, luminanceAlpha.r);
-     out_color = blend * vec4(1.0, 1.0, 1.0, luminanceAlpha.g);
- })";
-@@ -151,9 +141,9 @@ FontManager::~FontManager() {
- void FontManager::bindShader(const mat4& mvp, const vec4& color, int texture) const {
-     _shader.bind();
- 
-+    glUniform4fv(_colorLocation, 1, &color.x);
-+    glUniform1i(_textureLocation, texture);
-+    glUniformMatrix4fv(_mvpLocation, 1, GL_FALSE, mvp.values.data());
++    vec2 luminanceAlpha = texture(tex, tr_uv).rg;
+
+@@ glProgramUniform4fv(_shader.id(), _colorLocation, 1, &color.... @@
 -    glProgramUniform4fv(_shader.id(), _colorLocation, 1, &color.x);
 -    glProgramUniform1i(_shader.id(), _textureLocation, texture);
 -    glProgramUniformMatrix4fv(_shader.id(), _mvpLocation, 1, GL_FALSE, mvp.values.data());
- }
- 
- bool FontManager::addFont(std::string name, std::string file, bool isAbsolutePath) {
-@@ -225,10 +215,12 @@ std::unique_ptr<Font> FontManager::createFont(const std::string& name, int heigh
-         _shader.addVertexShader(FontVertShader);
-         _shader.addFragmentShader(FontFragShader);
-         _shader.createAndLinkProgram();
++void FontManager::bindShader(const mat4& mvp, const vec4& color, int texture) const {
++    _shader.bind();
++
++    glUniform4fv(_colorLocation, 1, &color.x);
++    glUniform1i(_textureLocation, texture);
++    glUniformMatrix4fv(_mvpLocation, 1, GL_FALSE, mvp.values.data());
+
+@@ _shader.createAndLinkProgram(); @@
+-        _shader.createAndLinkProgram();
++        _shader.createAndLinkProgram();
++        _shader.addVertexShader(FontVertShader);
++        _shader.addFragmentShader(FontFragShader);
++        _shader.createAndLinkProgram();
 +        _shader.bind();
- 
-         _mvpLocation = glGetUniformLocation(_shader.id(), "mvp");
-         _colorLocation = glGetUniformLocation(_shader.id(), "col");
-         _textureLocation = glGetUniformLocation(_shader.id(), "tex");
+
+@@ _textureLocation = glGetUniformLocation(_shader.id(), "tex")... @@
+-        _textureLocation = glGetUniformLocation(_shader.id(), "tex");
++        _textureLocation = glGetUniformLocation(_shader.id(), "tex");
 +        ShaderProgram::unbind();
- 
-         isShaderCreated = true;
-     }
+
+
 diff --git a/src/freetype.cpp b/src/freetype.cpp
 index 1a88a39b..cbd5f87b 100644
 --- a/src/freetype.cpp
