@@ -3884,59 +3884,67 @@ diff --git a/src/screencapture.cpp b/src/screencapture.cpp
 index 3422cd46..e9f04e80 100644
 --- a/src/screencapture.cpp
 +++ b/src/screencapture.cpp
-@@ -82,11 +82,14 @@ void ScreenCapture::resize(ivec2 resolution) {
-         info.isRunning = false;
-     }
- 
+@@ } @@
+-    }
+-
+-    Log::Debug(std::format(
++    }
++
 +    glGenBuffers(1, &_pbo);
-     Log::Debug(std::format(
-         "Generating {}x{}x{} PBO: {}", _resolution.x, _resolution.y, nChannels, _pbo
-     ));
++    Log::Debug(std::format(
+
+@@ glCreateBuffers(1, &_pbo); @@
+-    glCreateBuffers(1, &_pbo);
+-    glNamedBufferStorage(_pbo, _dataSize, nullptr, GL_MAP_READ_BIT);
 +
 +    glBindBuffer(GL_PIXEL_PACK_BUFFER, _pbo);
 +    glBufferData(GL_PIXEL_PACK_BUFFER, _dataSize, nullptr, GL_STATIC_READ);
 +    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
--    glCreateBuffers(1, &_pbo);
--    glNamedBufferStorage(_pbo, _dataSize, nullptr, GL_NONE_BIT);
- }
- 
- void ScreenCapture::saveScreenCapture(unsigned int textureId, CaptureSource capSrc) {
+
+
+
 diff --git a/src/statisticsrenderer.cpp b/src/statisticsrenderer.cpp
 index f9683d0c..488cfcfc 100644
 --- a/src/statisticsrenderer.cpp
 +++ b/src/statisticsrenderer.cpp
-@@ -41,24 +41,16 @@ namespace {
-     constexpr sgct::vec4 ColorLoopTimeMax = sgct::vec4{ 0.15f, 0.15f, 0.8f, 0.8f };
- 
-     constexpr std::string_view StatsVertShader = R"(
-+#version 330 core
+@@ constexpr std::string_view StatsVertShader = R"( @@
+-    constexpr std::string_view StatsVertShader = R"(
 -#version 460 core
 -
- layout (location = 0) in vec2 in_vertPosition;
++    constexpr std::string_view StatsVertShader = R"(
++#version 330 core
+
+@@ layout (location = 0) in vec2 in_vertPosition; @@
+-layout (location = 0) in vec2 in_vertPosition;
 -
- uniform mat4 mvp;
++layout (location = 0) in vec2 in_vertPosition;
+
+@@ uniform mat4 mvp; @@
+-uniform mat4 mvp;
 -
 -
- void main() { gl_Position = mvp * vec4(in_vertPosition, 0.0, 1.0); }
- )";
- 
-     constexpr std::string_view StatsFragShader = R"(
++uniform mat4 mvp;
+
+@@ constexpr std::string_view StatsFragShader = R"( @@
+-    constexpr std::string_view StatsFragShader = R"(
+-#version 460 core
+-
++    constexpr std::string_view StatsFragShader = R"(
 +#version 330 core
 +uniform vec4 col;
--#version 460 core
--
- out vec4 out_color;
+
+@@ uniform vec4 col; @@
 -
 -uniform vec4 col;
 -
 -
- void main() { out_color = col; }
- )";
- 
-@@ -74,111 +66,89 @@ StatisticsRenderer::StatisticsRenderer(const Engine::Statistics& statistics)
- {
-     ZoneScoped;
- 
+
+@@ ZoneScoped; @@
+-    ZoneScoped;
+-
+-    // Setup shaders
++    ZoneScoped;
++
 +    // Static background quad
 +    std::vector<Vertex> vs;
 +    vs.emplace_back(0.f, 0.f);
@@ -3962,16 +3970,22 @@ index f9683d0c..488cfcfc 100644
 +    vs.emplace_back(0.f, 1.f / 60.f);
 +    vs.emplace_back(static_cast<float>(Engine::Statistics::HistoryLength), 1.f / 60.f);
 +
-     // Setup shaders
-     _shader = ShaderProgram("General Statistics Shader");
-     _shader.addVertexShader(StatsVertShader);
-     _shader.addFragmentShader(StatsFragShader);
-     _shader.createAndLinkProgram();
++    // Setup shaders
+
+@@ _shader.createAndLinkProgram(); @@
+-    _shader.createAndLinkProgram();
++    _shader.createAndLinkProgram();
 +    _shader.bind();
-     _mvpLoc = glGetUniformLocation(_shader.id(), "mvp");
-     _colorLoc = glGetUniformLocation(_shader.id(), "col");
+
+@@ _colorLoc = glGetUniformLocation(_shader.id(), "col"); @@
+-    _colorLoc = glGetUniformLocation(_shader.id(), "col");
++    _colorLoc = glGetUniformLocation(_shader.id(), "col");
 +    ShaderProgram::unbind();
-+
+
+@@ { @@
+-    {
+-        unsigned int& vao = _lines.staticDraw.vao;
+-        unsigned int& vbo = _lines.staticDraw.vbo;
 +    // OpenGL objects for lines
 +    glGenVertexArrays(1, &_lines.staticDraw.vao);
 +    glGenBuffers(1, &_lines.staticDraw.vbo);
@@ -3980,7 +3994,15 @@ index f9683d0c..488cfcfc 100644
 +    glBufferData(GL_ARRAY_BUFFER, vs.size() * sizeof(Vertex), vs.data(), GL_STATIC_DRAW);
 +    glEnableVertexAttribArray(0);
 +    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-+
+
+@@ constexpr float Length = static_cast<float>(Engine::Statisti... @@
+-        constexpr float Length = static_cast<float>(Engine::Statistics::HistoryLength);
+-        // Static background quad
+-        std::vector<Vertex> vs;
+-        vs.emplace_back(0.f, 0.f);
+-        vs.emplace_back(Length, 0.f);
+-        vs.emplace_back(0.f, 1.f / 30.f);
+-        vs.emplace_back(Length, 1.f / 30.f);
 +    glGenVertexArrays(1, &_lines.dynamicDraw.vao);
 +    glGenBuffers(1, &_lines.dynamicDraw.vbo);
 +    glBindVertexArray(_lines.dynamicDraw.vao);
@@ -3989,7 +4011,15 @@ index f9683d0c..488cfcfc 100644
 +    glEnableVertexAttribArray(0);
 +    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
 +    glBindVertexArray(0);
-+
+
+@@ // Static 1 ms lines @@
+-        // Static 1 ms lines
+-        _lines.staticDraw.nLines = 0;
+-        for (float f = 0.001f; f < (1.f / 30.f); f += 0.001f) {
+-            vs.emplace_back(0.f, f);
+-            vs.emplace_back(Length, f);
+-            _lines.staticDraw.nLines++;
+-        }
 +    // OpenGL objects for histogram
 +    glGenVertexArrays(1, &_histogram.staticDraw.vao);
 +    glGenBuffers(1, &_histogram.staticDraw.vbo);
@@ -4006,41 +4036,8 @@ index f9683d0c..488cfcfc 100644
 +    );
 +    glEnableVertexAttribArray(0);
 +    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-+
-+    glGenVertexArrays(1, &_histogram.dynamicDraw.vao);
-+    glGenBuffers(1, &_histogram.dynamicDraw.vbo);
-+    glBindVertexArray(_histogram.dynamicDraw.vao);
-+    glBindBuffer(GL_ARRAY_BUFFER, _histogram.dynamicDraw.vbo);
-+    glBufferData(
-+        GL_ARRAY_BUFFER,
-+        sizeof(Histogram::Vertices),
-+        nullptr,
-+        GL_DYNAMIC_DRAW
-+    );
-+    glEnableVertexAttribArray(0);
-+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-+    glBindVertexArray(0);
--
--    {
--        unsigned int vao = _lines.staticDraw.vao;
--        unsigned int vbo = _lines.staticDraw.vbo;
--
--        constexpr float Length = static_cast<float>(Engine::Statistics::HistoryLength);
--        // Static background quad
--        std::vector<Vertex> vs;
--        vs.emplace_back(0.f, 0.f);
--        vs.emplace_back(Length, 0.f);
--        vs.emplace_back(0.f, 1.f / 30.f);
--        vs.emplace_back(Length, 1.f / 30.f);
--
--        // Static 1 ms lines
--        _lines.staticDraw.nLines = 0;
--        for (float f = 0.001f; f < (1.f / 30.f); f += 0.001f) {
--            vs.emplace_back(0.f, f);
--            vs.emplace_back(Length, f);
--            _lines.staticDraw.nLines++;
--        }
--
+
+@@ // Static 0, 30 & 60 FPS lines @@
 -        // Static 0, 30 & 60 FPS lines
 -        vs.emplace_back(0.f, 0.f);
 -        vs.emplace_back(Length, 0.f);
@@ -4063,19 +4060,19 @@ index f9683d0c..488cfcfc 100644
 -    }
 -
 -    {
--        unsigned int vao = _lines.dynamicDraw.vao;
--        unsigned int vbo = _lines.dynamicDraw.vbo;
+-        unsigned int& vao = _lines.dynamicDraw.vao;
+-        unsigned int& vbo = _lines.dynamicDraw.vbo;
 -
 -        glCreateBuffers(1, &vbo);
 -        glNamedBufferStorage(
 -            vbo,
--            sizeof(Engine::Statistics),
+-            sizeof(StatisticsRenderer::Lines::Vertices),
 -            nullptr,
 -            GL_DYNAMIC_STORAGE_BIT
 -        );
 -
 -        glCreateVertexArrays(1, &vao);
--        glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Engine::Statistics));
+-        glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Vertex));
 -
 -        glEnableVertexArrayAttrib(vao, 0);
 -        glVertexArrayAttribFormat(vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
@@ -4083,14 +4080,10 @@ index f9683d0c..488cfcfc 100644
 -    }
 -
 -    {
--        unsigned int vao = _histogram.staticDraw.vao;
--        unsigned int vbo = _histogram.staticDraw.vbo;
+-        unsigned int& vao = _histogram.staticDraw.vao;
+-        unsigned int& vbo = _histogram.staticDraw.vbo;
 -
 -        glCreateBuffers(1, &vbo);
--        struct Vertex {
--            float x;
--            float y;
--        };
 -        constexpr std::array<Vertex, 4> Vertices = {
 -            Vertex{ 0.f, 0.f }, Vertex{ 1.f, 0.f }, Vertex{ 0.f, 0.f }, Vertex{ 0.f, 1.f }
 -        };
@@ -4105,129 +4098,170 @@ index f9683d0c..488cfcfc 100644
 -    }
 -
 -    {
--        unsigned int vao = _histogram.dynamicDraw.vao;
--        unsigned int vbo = _histogram.dynamicDraw.vbo;
+-        unsigned int& vao = _histogram.dynamicDraw.vao;
+-        unsigned int& vbo = _histogram.dynamicDraw.vbo;
 -
 -        glCreateBuffers(1, &vbo);
--        glBufferData(vbo, sizeof(Histogram::Vertices), nullptr, GL_DYNAMIC_DRAW);
+-        glNamedBufferStorage(
+-            vbo,
+-            sizeof(Histogram::Vertices),
+-            nullptr,
+-            GL_DYNAMIC_STORAGE_BIT
+-        );
 -
 -        glCreateVertexArrays(1, &vao);
--        glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Histogram::Vertices));
+-        glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(Vertex));
 -
 -        glEnableVertexArrayAttrib(vao, 0);
 -        glVertexArrayAttribFormat(vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
 -        glVertexArrayAttribBinding(vao, 0, 0);
 -    }
- }
- 
- StatisticsRenderer::~StatisticsRenderer() {
-@@ -223,12 +193,14 @@ void StatisticsRenderer::update() {
-         _lines.buffer.loopTimeMax[i].y = static_cast<float>(_statistics.loopTimeMax[i]);
-     }
- 
-+    glBindBuffer(GL_ARRAY_BUFFER, _lines.dynamicDraw.vbo);
-+    glBufferData(
-+        GL_ARRAY_BUFFER,
--    glNamedBufferSubData(
--        _lines.dynamicDraw.vbo,
--        0,
-         sizeof(Lines::Vertices),
-+        &_lines.buffer.frametimes,
-+        GL_DYNAMIC_DRAW
--        &_lines.buffer.frametimes
-     );
-+    glBindBuffer(GL_ARRAY_BUFFER, 0);
- 
- 
-     // Histogram update
-@@ -289,11 +261,12 @@ void StatisticsRenderer::update() {
-     convertValues(h.buffer.loopTimeMax, h.values.loopTimeMax, h.maxBinValue.loopTimeMax);
- 
- 
++    glGenVertexArrays(1, &_histogram.dynamicDraw.vao);
++    glGenBuffers(1, &_histogram.dynamicDraw.vbo);
++    glBindVertexArray(_histogram.dynamicDraw.vao);
 +    glBindBuffer(GL_ARRAY_BUFFER, _histogram.dynamicDraw.vbo);
 +    glBufferData(
 +        GL_ARRAY_BUFFER,
++        sizeof(Histogram::Vertices),
++        nullptr,
++        GL_DYNAMIC_DRAW
++    );
++    glEnableVertexAttribArray(0);
++    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
++    glBindVertexArray(0);
+
+@@ } @@
+-}
+-
+-StatisticsRenderer::~StatisticsRenderer() {
++}
++
++StatisticsRenderer::~StatisticsRenderer() {
++StatisticsRenderer::~StatisticsRenderer() {
+
+@@ glNamedBufferSubData( @@
+-    glNamedBufferSubData(
+-        _lines.dynamicDraw.vbo,
+-        0,
++    glBindBuffer(GL_ARRAY_BUFFER, _lines.dynamicDraw.vbo);
++    glBufferData(
++        GL_ARRAY_BUFFER,
+
+@@ &_lines.buffer.frametimes @@
+-        &_lines.buffer.frametimes
+-    );
+-
++        &_lines.buffer.frametimes,
++        GL_DYNAMIC_DRAW
++    );
++    glBindBuffer(GL_ARRAY_BUFFER, 0);
++
+
+@@ // Histogram update @@
+-
+-    // Histogram update
++
++    // Histogram update
++    // Histogram update
+
+@@ glNamedBufferSubData( @@
 -    glNamedBufferSubData(
 -        _histogram.dynamicDraw.vbo,
 -        0,
-         sizeof(Histogram::Vertices),
++
++    glBindBuffer(GL_ARRAY_BUFFER, _histogram.dynamicDraw.vbo);
++    glBufferData(
++        GL_ARRAY_BUFFER,
+
+@@ _histogram.buffer.frametimes.data() @@
+-        _histogram.buffer.frametimes.data()
 +        _histogram.buffer.frametimes.data(),
 +        GL_DYNAMIC_DRAW
--        _histogram.buffer.frametimes.data()
-     );
-     glBindBuffer(GL_ARRAY_BUFFER, 0);
- }
-@@ -350,43 +323,43 @@ void StatisticsRenderer::render(const Window& window, const Viewport& viewport)
-         glm::mat4 m = glm::translate(orthoMat, glm::vec3(0.f, 250.f * _scale, 0.f));
-         m = glm::translate(m, glm::vec3(_offset.x * res.x, _offset.y * res.y, 0.f));
-         m = glm::scale(m, glm::vec3(size.x, size.y, 1.f));
-+        glUniformMatrix4fv(_mvpLoc, 1, GL_FALSE, glm::value_ptr(m));
+
+@@ ); @@
+-    );
+-}
++    );
++    glBindBuffer(GL_ARRAY_BUFFER, 0);
++}
+
+@@ glm::mat4 m = glm::translate(orthoMat, glm::vec3(0.f, 250.f... @@
+-        glm::mat4 m = glm::translate(orthoMat, glm::vec3(0.f, 250.f * _scale, 0.f));
++        glm::mat4 m = glm::translate(orthoMat, glm::vec3(0.f, 250.f * _scale, 0.f));
++        glm::mat4 m = glm::translate(orthoMat, glm::vec3(0.f, 250.f * _scale, 0.f));
+
+@@ glProgramUniformMatrix4fv(_shader.id(), _mvpLoc, 1, GL_FALSE... @@
 -        glProgramUniformMatrix4fv(_shader.id(), _mvpLoc, 1, GL_FALSE, glm::value_ptr(m));
- 
-         glBindVertexArray(_lines.staticDraw.vao);
- 
-         // draw background (1024x1024 canvas)
-+        glUniform4fv(_colorLoc, 1, &ColorStaticBackground.x);
++        glUniformMatrix4fv(_mvpLoc, 1, GL_FALSE, glm::value_ptr(m));
+
+@@ // Draw background (1024x1024 canvas) @@
+-        // Draw background (1024x1024 canvas)
 -        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorStaticBackground.x);
-         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
- 
-         // 1 ms lines
-+        glUniform4fv(_colorLoc, 1, &ColorStaticGrid.x);
++        // draw background (1024x1024 canvas)
++        glUniform4fv(_colorLoc, 1, &ColorStaticBackground.x);
+
+@@ glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorStatic... @@
 -        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorStaticGrid.x);
-         glDrawArrays(GL_LINES, 4, _lines.staticDraw.nLines * 2);
- 
-         // zero line, 60hz & 30hz
-+        glUniform4fv(_colorLoc, 1, &ColorStaticFrequency.x);
++        glUniform4fv(_colorLoc, 1, &ColorStaticGrid.x);
+
+@@ // Zero line, 60hz & 30hz @@
+-        // Zero line, 60hz & 30hz
 -        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorStaticFrequency.x);
-         glDrawArrays(GL_LINES, 4 + _lines.staticDraw.nLines * 2, 6);
- 
-         glBindVertexArray(_lines.dynamicDraw.vao);
- 
-         // frametime
-         constexpr int StatsLength = Engine::Statistics::HistoryLength;
-+        glUniform4fv(_colorLoc, 1, &ColorFrameTime.x);
++        // zero line, 60hz & 30hz
++        glUniform4fv(_colorLoc, 1, &ColorStaticFrequency.x);
+
+@@ // Frametime @@
+-        // Frametime
++        // frametime
+
+@@ glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorFrameT... @@
 -        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorFrameTime.x);
-         glDrawArrays(GL_LINE_STRIP, 0 * StatsLength, StatsLength);
- 
-         // drawtime
-+        glUniform4fv(_colorLoc, 1, &ColorDrawTime.x);
++        glUniform4fv(_colorLoc, 1, &ColorFrameTime.x);
+
+@@ // Drawtime @@
+-        // Drawtime
 -        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorDrawTime.x);
-         glDrawArrays(GL_LINE_STRIP, 1 * StatsLength, StatsLength);
- 
-         // synctime
-+        glUniform4fv(_colorLoc, 1, &ColorSyncTime.x);
++        // drawtime
++        glUniform4fv(_colorLoc, 1, &ColorDrawTime.x);
+
+@@ // Synctime @@
+-        // Synctime
 -        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorSyncTime.x);
-         glDrawArrays(GL_LINE_STRIP, 2 * StatsLength, StatsLength);
- 
-         // looptimemin
-+        glUniform4fv(_colorLoc, 1, &ColorLoopTimeMin.x);
++        // synctime
++        glUniform4fv(_colorLoc, 1, &ColorSyncTime.x);
+
+@@ // Looptimemin @@
+-        // Looptimemin
 -        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorLoopTimeMin.x);
-         glDrawArrays(GL_LINE_STRIP, 3 * StatsLength, StatsLength);
- 
-         // looptimemax
-+        glUniform4fv(_colorLoc, 1, &ColorLoopTimeMax.x);
++        // looptimemin
++        glUniform4fv(_colorLoc, 1, &ColorLoopTimeMin.x);
+
+@@ // Looptimemax @@
+-        // Looptimemax
 -        glProgramUniform4fv(_shader.id(), _colorLoc, 1, &ColorLoopTimeMax.x);
-         glDrawArrays(GL_LINE_STRIP, 4 * StatsLength, StatsLength);
- 
-         glBindVertexArray(0);
++        // looptimemax
++        glUniform4fv(_colorLoc, 1, &ColorLoopTimeMax.x);
+
+
+
 diff --git a/src/texturemanager.cpp b/src/texturemanager.cpp
 index aee3d5fc..27021ec7 100644
 --- a/src/texturemanager.cpp
 +++ b/src/texturemanager.cpp
-@@ -21,7 +21,8 @@ namespace {
-                              float anisotropicFilterSize)
-     {
-         unsigned int tex = 0;
+@@ glCreateTextures(GL_TEXTURE_2D, 1, &tex); @@
+-        glCreateTextures(GL_TEXTURE_2D, 1, &tex);
 +        glGenTextures(1, &tex);
 +        glBindTexture(GL_TEXTURE_2D, tex);
--        glCreateTextures(GL_TEXTURE_2D, 1, &tex);
- 
-         const auto [type, internalFormat] = [](int c) -> std::pair<GLenum, GLenum> {
-             switch (c) {
-@@ -41,44 +42,65 @@ namespace {
-         glPixelStorei(GL_PACK_ALIGNMENT, 1);
-         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
- 
+
+@@ const auto [type, internalFormat] = [](int c) { @@
+-        const auto [type, internalFormat] = [](int c) {
++        const auto [type, internalFormat] = [](int c) -> std::pair<GLenum, GLenum> {
+
+@@ glTextureParameteri(tex, GL_TEXTURE_BASE_LEVEL, 0); @@
+-        glTextureParameteri(tex, GL_TEXTURE_BASE_LEVEL, 0);
+-        glTextureParameteri(tex, GL_TEXTURE_MAX_LEVEL, mipmap - 1);
+-
+-        const GLenum interp = interpolate ? GL_LINEAR : GL_NEAREST;
 +        constexpr GLenum Format = GL_UNSIGNED_BYTE;
 +        glTexImage2D(
 +            GL_TEXTURE_2D,
@@ -4242,21 +4276,18 @@ index aee3d5fc..27021ec7 100644
 +        );
 +        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
 +        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipmap - 1);
--        glTextureParameteri(tex, GL_TEXTURE_BASE_LEVEL, 0);
--        glTextureParameteri(tex, GL_TEXTURE_MAX_LEVEL, mipmap - 1);
- 
-+        if (mipmap > 1) {
-+            glGenerateMipmap(GL_TEXTURE_2D);
--        const GLenum interp = interpolate ? GL_LINEAR : GL_NEAREST;
- 
-+            glTexParameteri(
-+                GL_TEXTURE_2D,
--        if (mipmap > 1) {
+
+@@ glTextureParameteri( @@
 -            glTextureParameteri(
 -                tex,
-                 GL_TEXTURE_MIN_FILTER,
-                 interpolate ? GL_LINEAR_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_LINEAR
-             );
++            glGenerateMipmap(GL_TEXTURE_2D);
++
++            glTexParameteri(
++                GL_TEXTURE_2D,
+
+@@ glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, interp); @@
+-            glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, interp);
+-            glTextureParameterf(tex, GL_TEXTURE_MAX_ANISOTROPY, anisotropicFilterSize);
 +            glTexParameteri(
 +                GL_TEXTURE_2D,
 +                GL_TEXTURE_MAG_FILTER,
@@ -4277,10 +4308,10 @@ index aee3d5fc..27021ec7 100644
 +                    anisotropicFilterSize
 +                );
 +            #endif
+
+@@ glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, interp); @@
+-            glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, interp);
 -            glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, interp);
--            glTextureParameterf(tex, GL_TEXTURE_MAX_ANISOTROPY, anisotropicFilterSize);
-         }
-         else {
 +            glTexParameteri(
 +                GL_TEXTURE_2D,
 +                GL_TEXTURE_MIN_FILTER,
@@ -4291,12 +4322,8 @@ index aee3d5fc..27021ec7 100644
 +                GL_TEXTURE_MAG_FILTER,
 +                interpolate ? GL_LINEAR : GL_NEAREST
 +            );
--            glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, interp);
--            glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, interp);
-         }
- 
-+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+@@ glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE... @@
 -        glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 -        glTextureParameteri(tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 -
@@ -4316,126 +4343,160 @@ index aee3d5fc..27021ec7 100644
 -        if (mipmap > 1) {
 -            glGenerateTextureMipmap(tex);
 -        }
- 
-         return tex;
-     }
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+
+
 diff --git a/src/viewport.cpp b/src/viewport.cpp
 index c9f2356e..390aaadf 100644
 --- a/src/viewport.cpp
 +++ b/src/viewport.cpp
-@@ -136,11 +136,11 @@ Viewport::Viewport(const config::Viewport& viewport, const Window& parent)
- Viewport::~Viewport() = default;
- 
- void Viewport::initialize(vec2 size, bool hasStereo, unsigned int internalFormat,
-+                          unsigned int format, unsigned int type, uint8_t samples)
+@@ uint8_t samples) @@
 -                          uint8_t samples)
- {
-     if (_nonLinearProjection) {
-         _nonLinearProjection->setStereo(hasStereo);
-+        _nonLinearProjection->initialize(internalFormat, format, type, samples);
++                          unsigned int format, unsigned int type, uint8_t samples)
+
+@@ _nonLinearProjection->initialize(internalFormat, samples); @@
 -        _nonLinearProjection->initialize(internalFormat, samples);
-         _nonLinearProjection->update(std::move(size));
-     }
- }
++        _nonLinearProjection->initialize(internalFormat, format, type, samples);
+
+
 diff --git a/src/window.cpp b/src/window.cpp
 index c68c9678..c7918e99 100644
 --- a/src/window.cpp
 +++ b/src/window.cpp
-@@ -824,6 +824,8 @@ void Window::initialize() {
-             viewportSize,
-             _stereoMode != StereoMode::NoStereo,
-             _internalColorFormat,
+@@ if (_spout.handle) { @@
+-        if (_spout.handle) {
+-            success = _spout.handle->CreateSender(
+-                _spout.name.c_str(),
+-                _framebufferRes.x,
+-                _framebufferRes.y
+-            );
++            viewportSize,
++            _stereoMode != StereoMode::NoStereo,
++            _internalColorFormat,
 +            GL_BGRA,
 +            _colorDataType,
-             _nAASamples
-         );
-     }
-@@ -1038,29 +1040,32 @@ void Window::renderFBOTexture() {
-     if (_stereoMode > Window::StereoMode::Active &&
-         _stereoMode < Window::StereoMode::SideBySide)
-     {
++            _nAASamples
++        );
++    }
+
+@@ renderViewports(FrustumMode::StereoRight, Eye::Right); @@
+-        renderViewports(FrustumMode::StereoRight, Eye::Right);
+-    }
+-}
+-
++        renderViewports(FrustumMode::StereoRight, Eye::Right);
++    }
++    if (_stereoMode > Window::StereoMode::Active &&
++        _stereoMode < Window::StereoMode::SideBySide)
++    {
 +        _stereo.bind();
 +
+
+@@ void Window::renderFBOTexture() { @@
+-void Window::renderFBOTexture() {
+-    ZoneScoped;
++        glActiveTexture(GL_TEXTURE0);
++        glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.leftEye);
+
+@@ if (!isVisible()) [[unlikely]] { @@
+-    if (!isVisible()) [[unlikely]] {
+-        return;
+-    }
+-
+-    OffScreenBuffer::unbind();
+-
+-    makeOpenGLContextCurrent();
+-
++        glActiveTexture(GL_TEXTURE1);
++        glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.rightEye);
++
++        std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
++    }
++    else {
 +        glActiveTexture(GL_TEXTURE0);
 +        glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.leftEye);
 +
-+        glActiveTexture(GL_TEXTURE1);
-+        glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.rightEye);
--        glBindTextureUnit(0, _frameBufferTextures.leftEye);
--        glBindTextureUnit(1, _frameBufferTextures.rightEye);
- 
--        _stereo.bind();
-         std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
-     }
-     else {
-+        glActiveTexture(GL_TEXTURE0);
-+        glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.leftEye);
--        glBindTextureUnit(0, _frameBufferTextures.leftEye);
- 
 +        _fboQuad.bind();
-         maskShaderSet = true;
- 
++        maskShaderSet = true;
++
 +        glUniform1i(
--        glProgramUniform1i(
--            _fboQuad.id(),
-             glGetUniformLocation(_fboQuad.id(), "flipX"),
-             _mirrorX ? 1 : 0
-         );
++            glGetUniformLocation(_fboQuad.id(), "flipX"),
++            _mirrorX ? 1 : 0
++        );
 +        glUniform1i(
--        glProgramUniform1i(
--            _fboQuad.id(),
-             glGetUniformLocation(_fboQuad.id(), "flipY"),
-             _mirrorY ? 1 : 0
-         );
- 
--        _fboQuad.bind();
-         std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
- 
-         // render right eye in active stereo mode
-@@ -1074,7 +1079,7 @@ void Window::renderFBOTexture() {
-                 FrustumMode::StereoRight
-             );
- 
++            glGetUniformLocation(_fboQuad.id(), "flipY"),
++            _mirrorY ? 1 : 0
++        );
++
+
+@@ glDisable(GL_BLEND); @@
+-    glDisable(GL_BLEND);
+-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
++        std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
+
+@@ const FrustumMode frustum = @@
+-    const FrustumMode frustum =
+-        (stereoMode() == Window::StereoMode::Active) ?
+-        FrustumMode::StereoLeft :
+-        FrustumMode::Mono;
+-
+-    const ivec2 size = ivec2{
+-        static_cast<int>(std::ceil(scale().x * _windowSize.x)),
+-        static_cast<int>(std::ceil(scale().y * _windowSize.y))
+-    };
+-
+-    glViewport(0, 0, size.x, size.y);
+-    setAndClearBuffer(*this, BufferMode::BackBufferBlack, frustum);
+-
++        // render right eye in active stereo mode
+
+@@ glBindTextureUnit(1, _frameBufferTextures.rightEye); @@
+-        glBindTextureUnit(1, _frameBufferTextures.rightEye);
++        glBindTextureUnit(1, _frameBufferTextures.rightEye);
++                FrustumMode::StereoRight
++            );
+
+@@ _stereo.bind(); @@
+-        _stereo.bind();
+-        std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
 +            glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.rightEye);
--            glBindTextureUnit(0, _frameBufferTextures.rightEye);
-             std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
-         }
-     }
-@@ -1476,31 +1481,44 @@ void Window::generateTexture(unsigned int& id, Window::TextureType type) {
-     TracyGpuZone("Generate Textures");
- 
-     glDeleteTextures(1, &id);
++            std::for_each(vps.begin(), vps.end(), std::mem_fn(&Viewport::renderWarpMesh));
++        }
+
+@@ void Window::setHorizFieldOfView(float hFovDeg) { @@
+-void Window::setHorizFieldOfView(float hFovDeg) {
+-    // Set field of view of each of this window's viewports to match new horiz/vert aspect
+-    // ratio, adjusting only the horizontal (x) values
+-    for (const std::unique_ptr<Viewport>& vp : _viewports) {
+-        vp->setHorizontalFieldOfView(hFovDeg);
+-    }
+-    Log::Debug(std::format("HFOV changed to {} for window {}", hFovDeg, _id));
++    TracyGpuZone("Generate Textures");
++
++    glDeleteTextures(1, &id);
 +    glGenTextures(1, &id);
 +    glBindTexture(GL_TEXTURE_2D, id);
--    glCreateTextures(GL_TEXTURE_2D, 1, &id);
--
--    glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
--    glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
--    glTextureParameteri(id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
--    glTextureParameteri(id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
- 
-     // Determine the internal texture format, the texture format, and the pixel type
++
++    // Determine the internal texture format, the texture format, and the pixel type
 +    const std::tuple<GLenum, GLenum, GLenum> formats =
 +        [this](Window::TextureType t) -> std::tuple<GLenum, GLenum, GLenum>
 +    {
--    const GLenum formats = [this](Window::TextureType t) -> GLenum {
-         switch (t) {
-             case TextureType::Color:
++        switch (t) {
++            case TextureType::Color:
 +                return { _internalColorFormat, GL_BGRA, _colorDataType };
--                return _internalColorFormat;
-             case TextureType::Depth:
++            case TextureType::Depth:
 +                return { GL_DEPTH_COMPONENT32, GL_DEPTH_COMPONENT, GL_FLOAT };
--                return GL_DEPTH_COMPONENT32;
-             case TextureType::Normal:
-             case TextureType::Position:
++            case TextureType::Normal:
++            case TextureType::Position:
 +                return { GL_RGB32F, GL_RGB, GL_FLOAT };
--                return GL_RGB32F;
-             default:
-                 throw std::logic_error("Unhandled case label");
-         }
-     }(type);
- 
-     const ivec2 res = _framebufferRes;
++            default:
++                throw std::logic_error("Unhandled case label");
++        }
++    }(type);
++
++    const ivec2 res = _framebufferRes;
 +    glTexImage2D(
 +        GL_TEXTURE_2D,
 +        0,
@@ -4447,106 +4508,172 @@ index c68c9678..c7918e99 100644
 +        std::get<2>(formats),
 +        nullptr
 +    );
--    glTextureStorage2D(id, 1, formats, res.x, res.y);
-     Log::Debug(std::format("{}x{} texture generated for window {}", res.x, res.y, id));
++    Log::Debug(std::format("{}x{} texture generated for window {}", res.x, res.y, id));
 +
 +    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 +    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 +    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 +    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
- }
- 
- void Window::resizeFBOs() {
-@@ -1715,20 +1733,14 @@ void Window::renderViewports(FrustumMode frustum, Eye eye) const {
-             glClearColor(0.f, 0.f, 0.f, 0.f);
-             glClear(GL_COLOR_BUFFER_BIT);
- 
+
+@@ float Window::horizFieldOfViewDegrees() const { @@
+-float Window::horizFieldOfViewDegrees() const {
+-    return _viewports[0]->horizontalFieldOfViewDegrees();
+-}
+-
+-void Window::setCallDraw2DFunction(bool state) {
+-    _hasCallDraw2DFunction = state;
+-}
+-
+-void Window::setCallDraw3DFunction(bool state) {
+-    _hasCallDraw3DFunction = state;
+-}
+-
+-void Window::setStereoMode(StereoMode sm) {
+-    _stereoMode = sm;
+-    loadShaders();
+-}
+-
+-Window::StereoMode Window::stereoMode() const {
+-    return _stereoMode;
+-}
+-
+-bool Window::isStereo() const {
++void Window::resizeFBOs() {
+
+@@ auto it = std::find_if( @@
+-        auto it = std::find_if(
+-            wins.cbegin(),
+-            wins.cend(),
+-            [id = _blitWindowId](const std::unique_ptr<Window>& w) {
+-                return w->id() == id;
+-            }
+-        );
+-        assert(it != wins.cend());
+-        const Window& srcWin = **it;
++            glClearColor(0.f, 0.f, 0.f, 0.f);
++            glClear(GL_COLOR_BUFFER_BIT);
+
+@@ if (!srcWin.isVisible() && !srcWin.isRenderingWhileHidden())... @@
+-        if (!srcWin.isVisible() && !srcWin.isRenderingWhileHidden()) {
+-            glClearColor(0.f, 0.f, 0.f, 0.f);
+-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 +            glActiveTexture(GL_TEXTURE0);
--            glBindTextureUnit(0, _frameBufferTextures.intermediate);
- 
++
 +            glBindTexture(GL_TEXTURE_2D, _frameBufferTextures.intermediate);
--            glProgramUniform1f(
--                _fxaa->shader.id(),
--                _fxaa->sizeX,
--                static_cast<float>(framebufferSize.x)
--            );
--            glProgramUniform1f(
++
++            _fxaa->shader.bind();
++            glUniform1f(_fxaa->sizeX, static_cast<float>(framebufferSize.x));
++            glUniform1f(_fxaa->sizeY, static_cast<float>(framebufferSize.y));
++
++            renderScreenQuad();
++            ShaderProgram::unbind();
+
+@@ if (Engine::instance().settings().useNormalTexture) { @@
+-            if (Engine::instance().settings().useNormalTexture) {
+-                _finalFBO->attachColorTexture(
+-                    _frameBufferTextures.normals,
+-                    GL_COLOR_ATTACHMENT1
+-                );
++        // if viewport has overlay
++        if (vp->hasOverlayTexture()) {
++            glActiveTexture(GL_TEXTURE0);
++            glBindTexture(GL_TEXTURE_2D, vp->overlayTextureIndex());
++            _overlay.bind();
++            renderScreenQuad();
++        }
+
+@@ _fxaa->shader.id(), @@
 -                _fxaa->shader.id(),
 -                _fxaa->sizeY,
 -                static_cast<float>(framebufferSize.y)
 -            );
- 
-             _fxaa->shader.bind();
-+            glUniform1f(_fxaa->sizeX, static_cast<float>(framebufferSize.x));
-+            glUniform1f(_fxaa->sizeY, static_cast<float>(framebufferSize.y));
-+
-             renderScreenQuad();
-             ShaderProgram::unbind();
-         }
-@@ -1755,7 +1767,8 @@ void Window::render2D(FrustumMode frustum) const {
- 
-         // if viewport has overlay
-         if (vp->hasOverlayTexture()) {
-+            glActiveTexture(GL_TEXTURE0);
-+            glBindTexture(GL_TEXTURE_2D, vp->overlayTextureIndex());
--            glBindTextureUnit(0, vp->overlayTextureIndex());
-             _overlay.bind();
-             renderScreenQuad();
-         }
-@@ -1797,7 +1810,9 @@ void Window::blitWindowViewport(const Window& prevWindow, const Viewport& viewpo
-     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-     glDisable(GL_SCISSOR_TEST);
- 
++    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
++    glDisable(GL_SCISSOR_TEST);
+
+@@ _fxaa->shader.bind(); @@
+-            _fxaa->shader.bind();
+-            renderScreenQuad();
 +    _overlay.bind();
- 
++
 +    glActiveTexture(GL_TEXTURE0);
-     const unsigned int tex = [&prevWindow](FrustumMode v) {
-         switch (v) {
-             case FrustumMode::Mono:
-@@ -1810,9 +1825,8 @@ void Window::blitWindowViewport(const Window& prevWindow, const Viewport& viewpo
-                 throw std::logic_error("Missing case label");
-         }
-     }(mode);
++    const unsigned int tex = [&prevWindow](FrustumMode v) {
++        switch (v) {
++            case FrustumMode::Mono:
+
+@@ render2D(FrustumMode::StereoLeft); @@
+-            render2D(FrustumMode::StereoLeft);
+-        }
+-    }
+-
++                throw std::logic_error("Missing case label");
++        }
++    }(mode);
 +    glBindTexture(GL_TEXTURE_2D, tex);
--    glBindTextureUnit(0, tex);
- 
--    _overlay.bind();
-     renderScreenQuad();
-     ShaderProgram::unbind();
- }
-@@ -1821,43 +1835,45 @@ void Window::createVBOs() {
-     ZoneScoped;
-     TracyGpuZone("Create VBOs");
- 
++
+
+@@ glDisable(GL_BLEND); @@
+-    glDisable(GL_BLEND);
+-}
++    renderScreenQuad();
++    ShaderProgram::unbind();
++}
+
+@@ for (const std::unique_ptr<Viewport>& vp : _viewports) { @@
+-    for (const std::unique_ptr<Viewport>& vp : _viewports) {
+-        if (!vp->isEnabled()) {
+-            continue;
+-        }
++    for (const std::unique_ptr<Viewport>& vp : _viewports) {
++    ZoneScoped;
++    TracyGpuZone("Create VBOs");
+
+@@ vp->setupViewport(frustum); @@
+-
+-        vp->setupViewport(frustum);
++
 +    constexpr std::array<const float, 36> QuadVerts = {
 +    //     x     y     z      u    v      r    g    b    a
 +        -1.f, -1.f, -1.f,   0.f, 0.f,   1.f, 1.f, 1.f, 1.f,
 +         1.f, -1.f, -1.f,   1.f, 0.f,   1.f, 1.f, 1.f, 1.f,
 +        -1.f,  1.f, -1.f,   0.f, 1.f,   1.f, 1.f, 1.f, 1.f,
 +         1.f,  1.f, -1.f,   1.f, 1.f,   1.f, 1.f, 1.f, 1.f
--    struct Vertex {
--        float x;
--        float y;
--        float z;
--
--        float u;
--        float v;
--
--        float r;
--        float g;
--        float b;
--        float a;
-     };
- 
++    };
+
+@@ // If viewport has overlay @@
+-        // If viewport has overlay
+-        if (vp->hasOverlayTexture()) {
+-            glBindTextureUnit(0, vp->overlayTextureIndex());
+-            _overlay.bind();
+-            renderScreenQuad();
+-        }
 +    glGenVertexArrays(1, &_vao);
 +    glGenBuffers(1, &_vbo);
--    glCreateBuffers(1, &_vbo);
--    glCreateVertexArrays(1, &_vao);
--    glVertexArrayVertexBuffer(_vao, 0, _vbo, 0, sizeof(Vertex));
- 
+
+@@ if (Engine::instance().statisticsRenderer()) { @@
+-        if (Engine::instance().statisticsRenderer()) {
+-            Engine::instance().statisticsRenderer()->render(*this, *vp);
+-        }
 +    glBindVertexArray(_vao);
 +    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-+
+
+@@ // Check if we should call the use defined draw2D function @@
+-        // Check if we should call the use defined draw2D function
+-        if (Engine::instance().draw2DFunction() && _hasCallDraw2DFunction) {
+-            ZoneScopedN("[SGCT] Draw 2D");
+-            const RenderData renderData = {
+-                *this,
+-                *vp,
+-                frustum,
+-                ClusterManager::instance().sceneTransform(),
+-                vp->projection(frustum).viewMatrix(),
+-                vp->projection(frustum).projectionMatrix(),
+-                vp->projection(frustum).viewProjectionMatrix() *
+-                    ClusterManager::instance().sceneTransform(),
+-                framebufferResolution()
+-            };
+-            Engine::instance().draw2DFunction()(renderData);
+-        }
+-    }
 +    glBufferData(GL_ARRAY_BUFFER, 36 * sizeof(float), QuadVerts.data(), GL_STATIC_DRAW);
 +    glEnableVertexAttribArray(0);
 +    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), nullptr);
@@ -4560,10 +4687,7 @@ index c68c9678..c7918e99 100644
 +        9 * sizeof(float),
 +        reinterpret_cast<void*>(3 * sizeof(float))
 +    );
--    glEnableVertexArrayAttrib(_vao, 0);
--    glVertexArrayAttribFormat(_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
--    glVertexArrayAttribBinding(_vao, 0, 0);
- 
++
 +    glEnableVertexAttribArray(2);
 +    glVertexAttribPointer(
 +        2,
@@ -4573,75 +4697,107 @@ index c68c9678..c7918e99 100644
 +        9 * sizeof(float),
 +        reinterpret_cast<void*>(5 * sizeof(float))
 +    );
--    glEnableVertexArrayAttrib(_vao, 1);
--    glVertexArrayAttribFormat(_vao, 1, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, u));
--    glVertexArrayAttribBinding(_vao, 1, 0);
- 
++
 +    glBindVertexArray(0);
--    glEnableVertexArrayAttrib(_vao, 2);
--    glVertexArrayAttribFormat(_vao, 2, 4, GL_FLOAT, GL_FALSE, offsetof(Vertex, r));
--    glVertexArrayAttribBinding(_vao, 2, 0);
+
+@@ void Window::blitWindowViewport(const Window& prevWindow, co... @@
+-void Window::blitWindowViewport(const Window& prevWindow, const Viewport& viewport,
+-                                FrustumMode mode) const
+-{
+-    ZoneScoped;
 -
--    constexpr std::array<Vertex, 4> QuadVerts = {
--        Vertex{ -1.f, -1.f, -1.f,   0.f, 0.f,   1.f, 1.f, 1.f, 1.f },
--        Vertex{  1.f, -1.f, -1.f,   1.f, 0.f,   1.f, 1.f, 1.f, 1.f },
--        Vertex{ -1.f,  1.f, -1.f,   0.f, 1.f,   1.f, 1.f, 1.f, 1.f },
--        Vertex{  1.f,  1.f, -1.f,   1.f, 1.f,   1.f, 1.f, 1.f, 1.f }
--    };
--    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), QuadVerts.data(), GL_NONE_BIT);
- }
- 
- void Window::loadShaders() {
-@@ -1870,7 +1886,8 @@ void Window::loadShaders() {
-         _fboQuad.addVertexShader(shaders::BaseVert);
-         _fboQuad.addFragmentShader(shaders::BaseFrag);
-         _fboQuad.createAndLinkProgram();
+-    assert(prevWindow.id() != id());
+-
++void Window::loadShaders() {
+
+@@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); @@
+-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+-    glDisable(GL_SCISSOR_TEST);
++    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
++    glDisable(GL_SCISSOR_TEST);
++        _fboQuad.addVertexShader(shaders::BaseVert);
++        _fboQuad.addFragmentShader(shaders::BaseFrag);
++        _fboQuad.createAndLinkProgram();
 +        _fboQuad.bind();
 +        glUniform1i(glGetUniformLocation(_fboQuad.id(), "tex"), 0);
--        glProgramUniform1i(_fboQuad.id(), glGetUniformLocation(_fboQuad.id(), "tex"), 0);
-     }
- 
-     {
-@@ -1879,7 +1896,8 @@ void Window::loadShaders() {
-         _overlay.addVertexShader(shaders::BaseVert);
-         _overlay.addFragmentShader(shaders::OverlayFrag);
-         _overlay.createAndLinkProgram();
++    }
+
+@@ const unsigned int tex = [&prevWindow](FrustumMode v) { @@
+-
+-    const unsigned int tex = [&prevWindow](FrustumMode v) {
+-        switch (v) {
+-            case FrustumMode::Mono:
+-                return prevWindow._frameBufferTextures.leftEye;
+-            case FrustumMode::StereoLeft:
++    {
+
+@@ return prevWindow._frameBufferTextures.intermediate; @@
+-                return prevWindow._frameBufferTextures.intermediate;
+-            default:
+-                throw std::logic_error("Missing case label");
+-        }
+-    }(mode);
+-    glBindTextureUnit(0, tex);
++        _overlay.addVertexShader(shaders::BaseVert);
++        _overlay.addFragmentShader(shaders::OverlayFrag);
++        _overlay.createAndLinkProgram();
 +        _overlay.bind();
 +        glUniform1i(glGetUniformLocation(_overlay.id(), "tex"), 0);
--        glProgramUniform1i(_overlay.id(), glGetUniformLocation(_overlay.id(), "tex"), 0);
-     }
- 
-     if (_useFXAA) {
-@@ -1895,14 +1913,14 @@ void Window::loadShaders() {
-         const int id = _fxaa->shader.id();
-         _fxaa->sizeX = glGetUniformLocation(id, "rt_w");
-         const ivec2 framebufferSize = framebufferResolution();
++    }
+
+@@ _overlay.bind(); @@
+-
+-    _overlay.bind();
++
++    if (_useFXAA) {
++    _overlay.bind();
+
+@@ struct Vertex { @@
+-    struct Vertex {
+-        float x;
+-        float y;
+-        float z;
++        const int id = _fxaa->shader.id();
++        _fxaa->sizeX = glGetUniformLocation(id, "rt_w");
++        const ivec2 framebufferSize = framebufferResolution();
 +        glUniform1f(_fxaa->sizeX, static_cast<float>(framebufferSize.x));
--        glProgramUniform1f(id, _fxaa->sizeX, static_cast<float>(framebufferSize.x));
- 
-         _fxaa->sizeY = glGetUniformLocation(id, "rt_h");
+
+@@ float u; @@
+-        float u;
+-        float v;
++        _fxaa->sizeY = glGetUniformLocation(id, "rt_h");
 +        glUniform1f(_fxaa->sizeY, static_cast<float>(framebufferSize.y));
--        glProgramUniform1f(id, _fxaa->sizeY, static_cast<float>(framebufferSize.y));
- 
+
+@@ float r; @@
+-        float r;
+-        float g;
+-        float b;
+-        float a;
+-    };
 +        glUniform1f(glGetUniformLocation(id, "FXAA_SUBPIX_TRIM"), 1.f / 4.f);
 +        glUniform1f(glGetUniformLocation(id, "FXAA_SUBPIX_OFFSET"), 1.f / 2.f);
 +        glUniform1i(glGetUniformLocation(id, "tex"), 0);
--        glProgramUniform1f(id, glGetUniformLocation(id, "FxaaSubPixTrim"), 1.f / 4.f);
--        glProgramUniform1f(id, glGetUniformLocation(id, "FxaaSubpixOffset"), 1.f / 2.f);
--        glProgramUniform1i(id, glGetUniformLocation(id, "tex"), 0);
-     }
- 
- 
-@@ -1932,9 +1950,9 @@ void Window::loadShaders() {
-         _stereo.addVertexShader(stereoVertShader);
-         _stereo.addFragmentShader(stereoFragShader);
-         _stereo.createAndLinkProgram();
++    }
++
+
+@@ glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), QuadVerts.dat... @@
+-    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), QuadVerts.data(), GL_NONE_BIT);
+-}
++    glNamedBufferStorage(_vbo, 4 * sizeof(Vertex), QuadVerts.data(), GL_NONE_BIT);
++        _stereo.addVertexShader(stereoVertShader);
++        _stereo.addFragmentShader(stereoFragShader);
++        _stereo.createAndLinkProgram();
 +        _stereo.bind();
 +        glUniform1i(glGetUniformLocation(_stereo.id(), "leftTex"), 0);
 +        glUniform1i(glGetUniformLocation(_stereo.id(), "rightTex"), 1);
--        unsigned int id = _stereo.id();
--        glProgramUniform1i(id, glGetUniformLocation(id, "leftTex"), 0);
--        glProgramUniform1i(id, glGetUniformLocation(id, "rightTex"), 1);
-     }
- 
-     ShaderProgram::unbind();
++    }
+
+@@ void Window::loadShaders() { @@
+-void Window::loadShaders() {
+-    ZoneScoped;
+-    TracyGpuZone("Load Shaders");
+-
+-    {
+-        ZoneScopedN("Quad Shader");
+-        _fboQuad = ShaderProgram("FBOQuadShader");
++    ShaderProgram::unbind();
