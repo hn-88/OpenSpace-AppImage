@@ -2207,23 +2207,21 @@ diff --git a/src/engine.cpp b/src/engine.cpp
 index 9c074b1e..f4cd48e5 100644
 --- a/src/engine.cpp
 +++ b/src/engine.cpp
-@@ -356,77 +356,37 @@ Engine::Engine(config::Cluster cluster, Callbacks callbacks, const Configuration
- void Engine::initialize() {
-     ZoneScoped;
- 
-+    int major = 0;
-+    int minor = 0;
--    ZoneScoped;
--
-     {
-+        ZoneScopedN("OpenGL Version");
--        int major = 0;
+@@ int minor = 0; @@
 -        int minor = 0;
 -        int release = 0;
 -        glfwGetVersion(&major, &minor, &release);
 -        Log::Info(std::format("Using GLFW version {}.{}.{}", major, minor, release));
 -    }
- 
+-
++void Engine::initialize() {
++    ZoneScoped;
++
++    int major = 0;
++    int minor = 0;
++    {
++        ZoneScopedN("OpenGL Version");
++
 +        // Detect the available OpenGL version
 +#ifdef __APPLE__
 +        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -2237,6 +2235,20 @@ index 9c074b1e..f4cd48e5 100644
 +            throw Err(3007, "Error creating OpenGL context when initializing the engine");
 +        }
 +        glfwMakeContextCurrent(offscreen);
++        gladLoadGL();
++
++        // Get the OpenGL version
++        glGetIntegerv(GL_MAJOR_VERSION, &major);
++        glGetIntegerv(GL_MINOR_VERSION, &minor);
++
++        // And get rid of the window again
++        glfwDestroyWindow(offscreen);
++        glfwWindowHint(GLFW_VISIBLE, GL_TRUE);
++    }
++    Log::Info(std::format("Detected OpenGL version: {}.{}", major, minor));
++
+
+@@ glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); @@
 -    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 -    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 -
@@ -2269,24 +2281,18 @@ index 9c074b1e..f4cd48e5 100644
 -        GLFWwindow* s = (i == 0) ? nullptr : windows[0]->windowHandle();
 -        const bool isLastWindow = i == windows.size() - 1;
 -        windows[i]->openWindow(s, isLastWindow);
-         gladLoadGL();
+-        gladLoadGL();
 -#ifdef WIN32
 -        gladLoadWGL(wglGetCurrentDC());
 -#endif // WIN32
 -        TracyGpuContext;
- 
-+        // Get the OpenGL version
-+        glGetIntegerv(GL_MAJOR_VERSION, &major);
-+        glGetIntegerv(GL_MINOR_VERSION, &minor);
+-
 -        if (i == 0) {
 -            int major = 0;
 -            glGetIntegerv(GL_MAJOR_VERSION, &major);
 -            int minor = 0;
 -            glGetIntegerv(GL_MINOR_VERSION, &minor);
- 
-+        // And get rid of the window again
-+        glfwDestroyWindow(offscreen);
-+        glfwWindowHint(GLFW_VISIBLE, GL_TRUE);
+-
 -            if (major != 4 || minor != 6) {
 -                throw Err(
 -                    3007,
@@ -2295,29 +2301,37 @@ index 9c074b1e..f4cd48e5 100644
 -                );
 -            }
 -        }
-     }
-+    Log::Info(std::format("Detected OpenGL version: {}.{}", major, minor));
- 
-+    initWindows(major, minor);
--    // clear directly otherwise junk will be displayed on some OSs (OS X Yosemite)
+-    }
+-
+-    // Clear directly otherwise junk will be displayed on some OSs (OS X Yosemite)
 -    glClearColor(0.f, 0.f, 0.f, 0.f);
 -    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 -
 -    if (RunFrameLockCheckThread && ClusterManager::instance().numberOfNodes() > 1) {
 -        _thread = std::make_unique<std::thread>(updateFrameLockLoop, nullptr);
 -    }
- 
-     // Window resolution may have been set by the config. However, it only sets a pending
-     // resolution, so it needs to apply it using the same routine as in the end of a frame
-@@ -667,6 +627,68 @@ Engine::~Engine() {
-     Log::Debug("Finished cleaning");
- }
- 
++    initWindows(major, minor);
+
+@@ _shouldTerminate = true; @@
+-    _shouldTerminate = true;
+-}
++    _shouldTerminate = true;
++}
++    Log::Debug("Finished cleaning");
++}
+
+@@ void Engine::frameLockPreStage() { @@
+-void Engine::frameLockPreStage() {
 +void Engine::initWindows(int majorVersion, int minorVersion) {
-+    ZoneScoped;
-+
+
+@@ NetworkManager& nm = NetworkManager::instance(); @@
+-    NetworkManager& nm = NetworkManager::instance();
 +    assert(majorVersion > 0);
 +    assert(minorVersion > 0);
+
+@@ const double ts = glfwGetTime(); @@
+-
+-    const double ts = glfwGetTime();
 +
 +    {
 +        int major = 0;
@@ -2375,21 +2389,22 @@ index 9c074b1e..f4cd48e5 100644
 +    }
 +}
 +
- void Engine::terminate() {
-     _shouldTerminate = true;
- }
-@@ -779,9 +801,9 @@ void Engine::exec() {
-     Window::makeSharedContextCurrent();
- 
-     unsigned int timeQueryBegin = 0;
-+    glGenQueries(1, &timeQueryBegin);
--    glCreateQueries(GL_TIMESTAMP, 1, &timeQueryBegin);
-     unsigned int timeQueryEnd = 0;
-+    glGenQueries(1, &timeQueryEnd);
++void Engine::terminate() {
++    _shouldTerminate = true;
++}
++    const double ts = glfwGetTime();
+
+@@ glCreateQueries(GL_TIMESTAMP, 1, &timeQueryEnd); @@
 -    glCreateQueries(GL_TIMESTAMP, 1, &timeQueryEnd);
- 
-     Node& thisNode = ClusterManager::instance().thisNode();
-     const std::vector<std::unique_ptr<Window>>& wins = thisNode.windows();
++    glCreateQueries(GL_TIMESTAMP, 1, &timeQueryEnd);
++    Window::makeSharedContextCurrent();
++
++    unsigned int timeQueryBegin = 0;
++    glGenQueries(1, &timeQueryBegin);
++    unsigned int timeQueryEnd = 0;
++    glGenQueries(1, &timeQueryEnd);
+
+
 diff --git a/src/font.cpp b/src/font.cpp
 index 1617495f..99f71f44 100644
 --- a/src/font.cpp
