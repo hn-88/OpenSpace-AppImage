@@ -3,8 +3,8 @@ name: windows-11-arm
 on: 
   workflow_dispatch:
   
-  schedule:
-    - cron: "04 23 * * *"   # runs daily at 23:04 UTC
+  #schedule:
+  #  - cron: "04 23 * * *"   # runs daily at 23:04 UTC
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
