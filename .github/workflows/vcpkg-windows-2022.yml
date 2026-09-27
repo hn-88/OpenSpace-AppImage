@@ -85,16 +85,23 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.PAT }}
      
 
-
+    
+    # CMake configure: point VCPKG_INSTALLED_DIR at the SAME path the cache was
+    # restored into (so the automatic manifest install sees everything already
+    # satisfied instead of installing into its own default vcpkg_installed/<triplet>
+    # location and rebuilding from scratch), and explicitly request the qt feature
+    # so vcpkg's manifest reconciliation doesn't prune the Qt packages we cached.
     - name: Configure CMake
       run: |
         cd "$env:openSpaceHome/build"
-        cmake -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET="x64-windows" `
-        -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
-        -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
-        -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
-        -DOPENSPACE_USE_SYSTEM_QT=ON `
-        -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
+        cmake -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
+          -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLATION_ROOT/installed" `
+          -DVCPKG_MANIFEST_FEATURES="qt" `
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
+          -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
+          -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
+          -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
         
     - name: Build
       # Build your program with the given configuration
