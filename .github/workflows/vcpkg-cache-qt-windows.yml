@@ -1,0 +1,109 @@
+name: vcpkg-windows-qt-cache
+
+on:
+  workflow_dispatch:      # run manually after the deps cache changes, or when Qt version changes
+
+env:
+  VCPKG_TRIPLET: x64-windows-static-md
+  VCPKG_INSTALLATION_ROOT: C:/vcpkg
+  openSpaceHome: ${{ github.workspace }}/source/OpenSpace
+
+jobs:
+  build-qt-cache:
+    runs-on: windows-2022
+
+    steps:
+    - name: Get OpenSpace source (recursive — overlay ports live in submodules)
+      run: |
+        git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
+        cd $env:openSpaceHome
+        git checkout "master" --recurse-submodules
+
+    - name: Install CMake 4.0.7
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.0.7'
+
+    - name: Bootstrap vcpkg
+      run: |
+        git clone https://github.com/microsoft/vcpkg $env:VCPKG_INSTALLATION_ROOT
+        & "$env:VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+        echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+        echo "$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_PATH
+
+    # Restore the deps-only tree FIRST so Qt gets installed into the same
+    # install-root as an addition to it — this keeps a single, consistent
+    # vcpkg status file instead of merging two independently-built trees.
+    - name: Download and restore deps cache
+      shell: pwsh
+      run: |
+        $RELEASE_TAG  = "vcpkg-windows-deps-cache"
+        $ZIP_FILE     = "vcpkg-windows-deps.zip"
+        $INSTALL_ROOT = $env:VCPKG_INSTALLATION_ROOT
+
+        Write-Host "Downloading deps cache from release $RELEASE_TAG ..."
+        gh release download $RELEASE_TAG --pattern $ZIP_FILE --clobber
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Failed to download $ZIP_FILE from release $RELEASE_TAG"
+          exit 1
+        }
+
+        New-Item -ItemType Directory -Force -Path "$INSTALL_ROOT\installed" | Out-Null
+        7z x $ZIP_FILE -o"$INSTALL_ROOT\installed" -y
+
+        $probe = "$INSTALL_ROOT/installed/$env:VCPKG_TRIPLET/include/curl/curl.h"
+        if (-not (Test-Path $probe)) {
+          Write-Error "deps cache extraction looks wrong — $probe not found"
+          exit 1
+        }
+        Write-Host "deps cache restored."
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
+
+    - name: Install the qt feature into the same tree
+      # Runs against the real vcpkg.json with --x-feature=qt. Because the
+      # install-root already has the base deps in it, vcpkg only needs to
+      # build qtbase/qtwayland etc. and adds them to the existing status db.
+      run: |
+        & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install `
+          --triplet $env:VCPKG_TRIPLET `
+          --x-manifest-root="$env:openSpaceHome" `
+          --x-feature=qt `
+          --x-install-root="$env:VCPKG_INSTALLATION_ROOT/installed"
+
+    - name: Verify Qt and a deps header both exist
+      run: |
+        $qtProbe   = "$env:VCPKG_INSTALLATION_ROOT/installed/$env:VCPKG_TRIPLET/include/QtCore/qglobal.h"
+        $depsProbe = "$env:VCPKG_INSTALLATION_ROOT/installed/$env:VCPKG_TRIPLET/include/curl/curl.h"
+        foreach ($p in @($qtProbe, $depsProbe)) {
+          if (-not (Test-Path $p)) {
+            Write-Error "Expected header not found at $p"
+            exit 1
+          }
+        }
+
+    - name: Zip combined installed tree (deps + qt)
+      shell: pwsh
+      run: |
+        $src = "$env:VCPKG_INSTALLATION_ROOT\installed"
+        Write-Host "Zipping from: $src"
+        7z a -tzip -mx=5 vcpkg-windows-full.zip "$src\*"
+
+    - name: Upload combined cache to GitHub Release
+      shell: pwsh
+      run: |
+        $RELEASE_TAG = "vcpkg-windows-full-cache"
+        $ZIP_FILE    = "vcpkg-windows-full.zip"
+        gh release view $RELEASE_TAG > $null 2>&1
+        if ($LASTEXITCODE -ne 0) {
+          gh release create $RELEASE_TAG `
+            -t "vcpkg Windows full cache (deps + qt)" `
+            -n "Pre-built vcpkg packages for $env:VCPKG_TRIPLET, including the qt feature (OpenSpace master)."
+        }
+        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
+        gh release edit $RELEASE_TAG `
+          -t "vcpkg Windows full cache (deps + qt)" `
+          -n "Pre-built vcpkg packages for $env:VCPKG_TRIPLET, including the qt feature (OpenSpace master). Updated $timestamp UTC."
+        gh release upload $RELEASE_TAG $ZIP_FILE --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
