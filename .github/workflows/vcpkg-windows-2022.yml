@@ -87,12 +87,51 @@ jobs:
         # A file, directory or wildcard pattern that describes what to upload
         path: ${{ env.openSpaceHome }}/bin/**
 
-    - name: Deploy
-      # Build and deploy your program with the given configuration
+        
+    - name: Locate Qt bin and plugins directories
+      shell: pwsh
       run: |
-        cd $env:openSpaceHome
-        # ./deploy.bat This fails, probably due to warnings which are treated as errors, and CMake flags
+        $installedTriplet = "$env:VCPKG_INSTALLATION_ROOT\installed\$env:VCPKG_TRIPLET"
+        Write-Host "Searching under $installedTriplet ..."
     
+        if (-not (Test-Path $installedTriplet)) {
+          Write-Error "Install tree not found at $installedTriplet — did the vcpkg cache restore run first?"
+          exit 1
+        }
+    
+        # Qt6Core.dll marks the bin directory. Exclude any \debug\ copy since this
+        # is a RelWithDebInfo (release-config) build.
+        $qtCoreDll = Get-ChildItem -Path $installedTriplet -Recurse -Filter "Qt6Core.dll" -File -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -notmatch '\\debug\\' } |
+          Select-Object -First 1
+    
+        if (-not $qtCoreDll) {
+          Write-Error "Could not find Qt6Core.dll anywhere under $installedTriplet"
+          Write-Host "Directory listing for debugging:"
+          Get-ChildItem -Path $installedTriplet -Recurse -Directory | Select-Object -ExpandProperty FullName | Select-Object -First 100
+          exit 1
+        }
+        $qtBin = $qtCoreDll.DirectoryName
+        Write-Host "Found Qt bin directory: $qtBin"
+    
+        # qwindows.dll (the platform plugin) always sits directly under
+        # <plugins-root>\platforms\ — its parent's parent is the plugins root.
+        $qwindowsDll = Get-ChildItem -Path $installedTriplet -Recurse -Filter "qwindows.dll" -File -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -notmatch '\\debug\\' } |
+          Select-Object -First 1
+    
+        if (-not $qwindowsDll) {
+          Write-Error "Could not find qwindows.dll anywhere under $installedTriplet"
+          Write-Host "Directory listing for debugging:"
+          Get-ChildItem -Path $installedTriplet -Recurse -Directory | Select-Object -ExpandProperty FullName | Select-Object -First 100
+          exit 1
+        }
+        $qtPlugins = Split-Path $qwindowsDll.DirectoryName -Parent
+        Write-Host "Found Qt plugins directory: $qtPlugins"
+    
+        echo "QT_BIN_DIR=$qtBin" >> $env:GITHUB_ENV
+        echo "QT_PLUGINS_DIR=$qtPlugins" >> $env:GITHUB_ENV
+        
     - name: Prepare and deploy
       shell: cmd
       run: |
@@ -119,8 +158,8 @@ jobs:
            
         @echo off
         REM Path variables
-        set "QtBin=${{ env.QT_DIR }}\bin"
-        set "QtPlugins=${{ env.QT_DIR }}\plugins"
+        set "QtBin=${{ env.QT_BIN_DIR }}"
+        set "QtPlugins=${{ env.QT_PLUGINS_DIR }}"
         set "TargetBin=${{ env.openSpaceHome }}\bin"
         
         echo Copying required Qt runtime DLLs from %QtBin% to %TargetBin%...
