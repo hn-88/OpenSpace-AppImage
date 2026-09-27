@@ -13,12 +13,9 @@ env:
   BUILD_TYPE: RelWithDebInfo
   OPENSPACE_VERSION: "0.22.0+"
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
-  # QT_DIR: C:/Qt/6.9.3/msvc2019_64
-  # QT6_DIR: C:/Qt/6.9.3/msvc2019_64
-  # CMAKE_PREFIX_PATH: C:/Qt/6.9.3/msvc2019_64/lib/cmake
-  # The install qt action is supposed to set QT_DIR variable.
   buildConfig: RelWithDebInfo
-  VCPKG_DEFAULT_TRIPLET: x64-windows
+  VCPKG_TRIPLET: x64-windows-static-md
+  VCPKG_INSTALLATION_ROOT: C:/vcpkg
   
 jobs:
   build:
@@ -46,20 +43,47 @@ jobs:
       with:
         cmakeVersion: '4.0.7'
 
-    - name: Install Qt 6.9
-      uses: jurplel/install-qt-action@v4
-      with:
-        version: 6.9.*
-
-
+    
     - name: Bootstrap vcpkg
-      # mirrors the vcpkg bootstrap step in the Ubuntu 24.04 vcpkg-branch workflow,
-      # swapped to the Windows bootstrap script and x64-windows triplet
       run: |
-        git clone https://github.com/microsoft/vcpkg "$env:RUNNER_TEMP/vcpkg"
-        & "$env:RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
-        echo "VCPKG_ROOT=$env:RUNNER_TEMP/vcpkg" >> $env:GITHUB_ENV
-        echo "$env:RUNNER_TEMP/vcpkg" >> $env:GITHUB_PATH
+        git clone https://github.com/microsoft/vcpkg $env:VCPKG_INSTALLATION_ROOT
+        & "$env:VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+        echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+        echo "$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_PATH
+     
+    - name: Download and restore vcpkg full (deps + qt) cache
+      shell: pwsh
+      run: |
+        $RELEASE_TAG  = "vcpkg-windows-full-cache"
+        $ZIP_FILE     = "vcpkg-windows-full.zip"
+        $INSTALL_ROOT = $env:VCPKG_INSTALLATION_ROOT
+     
+        Write-Host "Downloading vcpkg cache from release $RELEASE_TAG ..."
+        gh release download $RELEASE_TAG --pattern $ZIP_FILE --clobber
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Failed to download $ZIP_FILE from release $RELEASE_TAG"
+          exit 1
+        }
+     
+        Write-Host "Extracting to $INSTALL_ROOT\installed ..."
+        New-Item -ItemType Directory -Force -Path "$INSTALL_ROOT\installed" | Out-Null
+        7z x $ZIP_FILE -o"$INSTALL_ROOT\installed" -y
+     
+        Write-Host "Verifying key headers exist..."
+        $probes = @(
+          "$INSTALL_ROOT\installed\$env:VCPKG_TRIPLET\include\QtCore\qglobal.h",
+          "$INSTALL_ROOT\installed\$env:VCPKG_TRIPLET\include\curl\curl.h"
+        )
+        foreach ($p in $probes) {
+          if (-not (Test-Path $p)) {
+            Write-Error "$p not found — cache extraction may have failed"
+            exit 1
+          }
+        }
+        Write-Host "vcpkg cache restored successfully."
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
+     
 
 
     - name: Configure CMake
