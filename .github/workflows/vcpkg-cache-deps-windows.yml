@@ -15,6 +15,9 @@ jobs:
     runs-on: windows-2022
 
     steps:
+    - uses: actions/checkout@v6 
+    # required for gh release edit and create
+    
     - name: Get OpenSpace source (recursive — overlay ports live in submodules)
       run: |
         git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
