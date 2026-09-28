@@ -38,10 +38,10 @@ jobs:
         mkdir build
         cd build
 
-    - name: Install CMake 4.0.7
+    - name: Install CMake 4.4.3
       uses: lukka/get-cmake@latest
       with:
-        cmakeVersion: '4.0.7'
+        cmakeVersion: '4.3.3'
 
     
     - name: Bootstrap vcpkg
