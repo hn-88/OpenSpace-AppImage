@@ -1,0 +1,27 @@
+name: Watch OpenSpace vcpkg.json
+
+on:
+  schedule:
+    - cron: "17 1 * * *" 
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare upstream vcpkg.json against recorded hash
+        run: |
+          URL="https://raw.githubusercontent.com/OpenSpace/OpenSpace/master/vcpkg.json"
+          expected=$(tr -d '[:space:]' < vcpkg.json.sha256)
+          actual=$(curl -fsSL "$URL" | sha256sum | cut -d' ' -f1)
+
+          echo "expected: $expected"
+          echo "actual:   $actual"
+
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::OpenSpace vcpkg.json has changed upstream."
+            echo "See: https://github.com/OpenSpace/OpenSpace/commits/master/vcpkg.json"
+            exit 1
+          fi
