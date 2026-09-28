@@ -22,10 +22,6 @@ jobs:
         cd $env:openSpaceHome
         git checkout "master" --recurse-submodules
 
-    - name: Install CMake 4.0.7
-      uses: lukka/get-cmake@latest
-      with:
-        cmakeVersion: '4.0.7'
 
     - name: Bootstrap vcpkg
       run: |
