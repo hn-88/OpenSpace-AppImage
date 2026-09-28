@@ -75,14 +75,29 @@ jobs:
           --x-install-root="$env:VCPKG_INSTALLATION_ROOT/installed"
 
     - name: Verify Qt and a deps header both exist
+      shell: pwsh
       run: |
-        $qtProbe   = "$env:VCPKG_INSTALLATION_ROOT/installed/$env:VCPKG_TRIPLET/include/QtCore/qglobal.h"
-        $depsProbe = "$env:VCPKG_INSTALLATION_ROOT/installed/$env:VCPKG_TRIPLET/include/curl/curl.h"
-        foreach ($p in @($qtProbe, $depsProbe)) {
-          if (-not (Test-Path $p)) {
-            Write-Error "Expected header not found at $p"
-            exit 1
-          }
+        $tree = "$env:VCPKG_INSTALLATION_ROOT/installed/$env:VCPKG_TRIPLET"
+
+        # Search instead of hardcoding, since vcpkg nests Qt6 headers under include/Qt6/
+        $qglobal = Get-ChildItem -Path $tree -Recurse -Filter "qglobal.h" -File -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -notmatch '\\debug\\' } | Select-Object -First 1
+        $qtCoreDll = Get-ChildItem -Path $tree -Recurse -Filter "Qt6Core.dll" -File -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -notmatch '\\debug\\' } | Select-Object -First 1
+        $curl = Test-Path "$tree/include/curl/curl.h"
+
+        Write-Host "qglobal.h : $($qglobal.FullName)"
+        Write-Host "Qt6Core.dll: $($qtCoreDll.FullName)"
+        Write-Host "curl.h found: $curl"
+
+        if (-not $qglobal -and -not $qtCoreDll) {
+          Write-Error "Neither qglobal.h nor Qt6Core.dll found under $tree"
+          Get-ChildItem -Path $tree -Directory | Select-Object -ExpandProperty FullName
+          exit 1
+        }
+        if (-not $curl) {
+          Write-Error "curl.h missing — deps portion of the cache looks wrong"
+          exit 1
         }
 
     - name: Zip combined installed tree (deps + qt)
