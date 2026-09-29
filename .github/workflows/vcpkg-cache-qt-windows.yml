@@ -13,15 +13,13 @@ jobs:
     runs-on: windows-2022
 
     steps:
-    - uses: actions/checkout@v6 
-    # required for gh release edit and create
-    
+    - uses: actions/checkout@v6      # needed so gh release calls have a git repo to work in
+
     - name: Get OpenSpace source (recursive — overlay ports live in submodules)
       run: |
         git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
         git checkout "master" --recurse-submodules
-
 
     - name: Bootstrap vcpkg
       run: |
@@ -37,18 +35,18 @@ jobs:
       shell: pwsh
       run: |
         $RELEASE_TAG  = "vcpkg-windows-deps-cache"
-        $ZIP_FILE     = "vcpkg-windows-deps.zip"
         $INSTALL_ROOT = $env:VCPKG_INSTALLATION_ROOT
 
-        Write-Host "Downloading deps cache from release $RELEASE_TAG ..."
-        gh release download $RELEASE_TAG --pattern $ZIP_FILE --clobber
+        Write-Host "Downloading deps cache volumes from release $RELEASE_TAG ..."
+        gh release download $RELEASE_TAG --pattern "vcpkg-windows-deps.zip.*" --clobber
         if ($LASTEXITCODE -ne 0) {
-          Write-Error "Failed to download $ZIP_FILE from release $RELEASE_TAG"
+          Write-Error "Failed to download deps cache volumes from release $RELEASE_TAG"
           exit 1
         }
 
         New-Item -ItemType Directory -Force -Path "$INSTALL_ROOT\installed" | Out-Null
-        7z x $ZIP_FILE -o"$INSTALL_ROOT\installed" -y
+        # 7z reassembles all .zip.NNN volumes automatically when you extract from .001
+        7z x "vcpkg-windows-deps.zip.001" -o"$INSTALL_ROOT\installed" -y
 
         $probe = "$INSTALL_ROOT/installed/$env:VCPKG_TRIPLET/include/curl/curl.h"
         if (-not (Test-Path $probe)) {
@@ -75,14 +73,14 @@ jobs:
       run: |
         $tree = "$env:VCPKG_INSTALLATION_ROOT/installed/$env:VCPKG_TRIPLET"
 
-        # Search instead of hardcoding, since vcpkg nests Qt6 headers under include/Qt6/
+        # Search instead of hardcoding — vcpkg nests Qt6 headers under include/Qt6/
         $qglobal = Get-ChildItem -Path $tree -Recurse -Filter "qglobal.h" -File -ErrorAction SilentlyContinue |
           Where-Object { $_.FullName -notmatch '\\debug\\' } | Select-Object -First 1
         $qtCoreDll = Get-ChildItem -Path $tree -Recurse -Filter "Qt6Core.dll" -File -ErrorAction SilentlyContinue |
           Where-Object { $_.FullName -notmatch '\\debug\\' } | Select-Object -First 1
         $curl = Test-Path "$tree/include/curl/curl.h"
 
-        Write-Host "qglobal.h : $($qglobal.FullName)"
+        Write-Host "qglobal.h  : $($qglobal.FullName)"
         Write-Host "Qt6Core.dll: $($qtCoreDll.FullName)"
         Write-Host "curl.h found: $curl"
 
@@ -96,18 +94,19 @@ jobs:
           exit 1
         }
 
-    - name: Zip combined installed tree (deps + qt)
+    - name: Zip combined installed tree (deps + qt), split into <2GB volumes
       shell: pwsh
       run: |
         $src = "$env:VCPKG_INSTALLATION_ROOT\installed"
         Write-Host "Zipping from: $src"
-        7z a -tzip -mx=5 vcpkg-windows-full.zip "$src\*"
+        # -v1900m splits into ~1.9 GiB volumes (GitHub's release asset limit is 2 GiB exactly)
+        # producing vcpkg-windows-full.zip.001, .002, ...
+        7z a -tzip -mx=5 -v1900m vcpkg-windows-full.zip "$src\*"
 
-    - name: Upload combined cache to GitHub Release
+    - name: Upload combined cache volumes to GitHub Release
       shell: pwsh
       run: |
         $RELEASE_TAG = "vcpkg-windows-full-cache"
-        $ZIP_FILE    = "vcpkg-windows-full.zip"
         gh release view $RELEASE_TAG > $null 2>&1
         if ($LASTEXITCODE -ne 0) {
           gh release create $RELEASE_TAG `
@@ -118,6 +117,15 @@ jobs:
         gh release edit $RELEASE_TAG `
           -t "vcpkg Windows full cache (deps + qt)" `
           -n "Pre-built vcpkg packages for $env:VCPKG_TRIPLET, including the qt feature (OpenSpace master). Updated $timestamp UTC."
-        gh release upload $RELEASE_TAG $ZIP_FILE --clobber
+
+        $volumes = Get-ChildItem -Path . -Filter "vcpkg-windows-full.zip.*"
+        if ($volumes.Count -eq 0) {
+          Write-Error "No volume files found to upload (expected vcpkg-windows-full.zip.001 etc.)"
+          exit 1
+        }
+        foreach ($v in $volumes) {
+          Write-Host "Uploading $($v.Name) ..."
+          gh release upload $RELEASE_TAG $v.FullName --clobber
+        }
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}

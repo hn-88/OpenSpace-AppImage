@@ -15,9 +15,8 @@ jobs:
     runs-on: windows-2022
 
     steps:
-    - uses: actions/checkout@v6 
-    # required for gh release edit and create
-    
+    - uses: actions/checkout@v6      # needed so gh release calls have a git repo to work in
+
     - name: Get OpenSpace source (recursive — overlay ports live in submodules)
       run: |
         git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
@@ -48,18 +47,20 @@ jobs:
           exit 1
         }
 
-    - name: Zip installed vcpkg packages (deps only)
+    - name: Zip installed vcpkg packages (deps only), split into <2GB volumes
       shell: pwsh
       run: |
         $src = "$env:VCPKG_INSTALLATION_ROOT\installed"
         Write-Host "Zipping from: $src"
-        7z a -tzip -mx=5 vcpkg-windows-deps.zip "$src\*"
+        # -v1900m splits into ~1.9 GiB volumes (GitHub's release asset limit is 2 GiB exactly)
+        # producing vcpkg-windows-deps.zip.001, .002, ... — matches the qt-cache
+        # workflow's restore step, which expects this naming pattern.
+        7z a -tzip -mx=5 -v1900m vcpkg-windows-deps.zip "$src\*"
 
-    - name: Upload to GitHub Release
+    - name: Upload volumes to GitHub Release
       shell: pwsh
       run: |
         $RELEASE_TAG = "vcpkg-windows-deps-cache"
-        $ZIP_FILE    = "vcpkg-windows-deps.zip"
         gh release view $RELEASE_TAG > $null 2>&1
         if ($LASTEXITCODE -ne 0) {
           gh release create $RELEASE_TAG `
@@ -70,6 +71,15 @@ jobs:
         gh release edit $RELEASE_TAG `
           -t "vcpkg Windows deps cache (non-Qt)" `
           -n "Pre-built vcpkg packages for $env:VCPKG_TRIPLET, excluding Qt (OpenSpace master). Updated $timestamp UTC."
-        gh release upload $RELEASE_TAG $ZIP_FILE --clobber
+
+        $volumes = Get-ChildItem -Path . -Filter "vcpkg-windows-deps.zip.*"
+        if ($volumes.Count -eq 0) {
+          Write-Error "No volume files found to upload (expected vcpkg-windows-deps.zip.001 etc.)"
+          exit 1
+        }
+        foreach ($v in $volumes) {
+          Write-Host "Uploading $($v.Name) ..."
+          gh release upload $RELEASE_TAG $v.FullName --clobber
+        }
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}

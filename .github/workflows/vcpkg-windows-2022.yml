@@ -55,32 +55,33 @@ jobs:
       shell: pwsh
       run: |
         $RELEASE_TAG  = "vcpkg-windows-full-cache"
-        $ZIP_FILE     = "vcpkg-windows-full.zip"
         $INSTALL_ROOT = $env:VCPKG_INSTALLATION_ROOT
-     
-        Write-Host "Downloading vcpkg cache from release $RELEASE_TAG ..."
-        gh release download $RELEASE_TAG --pattern $ZIP_FILE --clobber
+
+        Write-Host "Downloading vcpkg cache volumes from release $RELEASE_TAG ..."
+        gh release download $RELEASE_TAG --pattern "vcpkg-windows-full.zip.*" --clobber
         if ($LASTEXITCODE -ne 0) {
-          Write-Error "Failed to download $ZIP_FILE from release $RELEASE_TAG"
+          Write-Error "Failed to download cache volumes from release $RELEASE_TAG"
           exit 1
         }
-     
+
         Write-Host "Extracting to $INSTALL_ROOT\installed ..."
         New-Item -ItemType Directory -Force -Path "$INSTALL_ROOT\installed" | Out-Null
-        7z x $ZIP_FILE -o"$INSTALL_ROOT\installed" -y
-     
-        Write-Host "Verifying key headers exist..."
-        $probes = @(
-          "$INSTALL_ROOT\installed\$env:VCPKG_TRIPLET\include\QtCore\qglobal.h",
-          "$INSTALL_ROOT\installed\$env:VCPKG_TRIPLET\include\curl\curl.h"
-        )
-        foreach ($p in $probes) {
-          if (-not (Test-Path $p)) {
-            Write-Error "$p not found — cache extraction may have failed"
-            exit 1
-          }
+        # 7z reassembles all .zip.NNN volumes automatically when you extract from .001
+        7z x "vcpkg-windows-full.zip.001" -o"$INSTALL_ROOT\installed" -y
+
+        Write-Host "Verifying key files exist..."
+        $tree = "$INSTALL_ROOT\installed\$env:VCPKG_TRIPLET"
+        $qtCoreDll = Get-ChildItem -Path $tree -Recurse -Filter "Qt6Core.dll" -File -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -notmatch '\\debug\\' } | Select-Object -First 1
+        if (-not $qtCoreDll) {
+          Write-Error "Qt6Core.dll not found under $tree — cache extraction may have failed"
+          exit 1
         }
-        Write-Host "vcpkg cache restored successfully."
+        if (-not (Test-Path "$tree\include\curl\curl.h")) {
+          Write-Error "curl.h not found under $tree — cache extraction may have failed"
+          exit 1
+        }
+        Write-Host "vcpkg cache restored successfully. Qt bin dir: $($qtCoreDll.DirectoryName)"
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
      
