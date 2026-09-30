@@ -1,0 +1,104 @@
+name: vcpkg-linux-deps-cache
+
+on:
+  workflow_dispatch:      # run manually whenever vcpkg.json's base dependencies change
+
+env:
+  VCPKG_TRIPLET: x64-linux   # OpenSpace's overlay triplet: static except qt* (dynamic, LGPL)
+  VCPKG_INSTALLATION_ROOT: /home/runner/vcpkg
+  openSpaceHome: /home/runner/source/OpenSpace
+
+jobs:
+  build-deps-cache:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v6      # needed so gh release calls have a git repo to work in
+
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: true
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
+
+    - name: Get OpenSpace source (recursive — overlay ports live in submodules)
+      run: |
+        git clone --recursive https://github.com/OpenSpace/OpenSpace "$openSpaceHome"
+        cd "$openSpaceHome"
+        git checkout "master" --recurse-submodules
+
+    - name: Install system build dependencies
+      # Headers/libs vcpkg's Qt and other ports link against at the OS level rather
+      # than vendoring — same list used on the pre-vcpkg Ubuntu workflow.
+      run: |
+        sudo apt update
+        sudo apt-get -y install glew-utils libpng-dev freeglut3-dev git libxrandr-dev libxinerama-dev xorg-dev libxcursor-dev libcurl4-openssl-dev libxi-dev libasound2-dev libgdal-dev libboost-all-dev libmpv-dev libvulkan-dev
+        sudo apt-get -y install software-properties-common
+        sudo apt-get -y install libasound2t64
+        sudo apt-get install -y libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev wayland-protocols libx11-dev libx11-xcb-dev libxext-dev libxfixes-dev libxi-dev libxrender-dev libxcb1-dev libxcb-glx0-dev libxcb-keysyms1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev libxcb-xinput-dev libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev libxcb-xinerama0-dev libxcb-xkb-dev libxcb-cursor-dev libegl-dev libgl-dev libdbus-1-dev libatspi2.0-dev libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev xorg-dev libmpv-dev libnss3 libnspr4 xvfb libgl1-mesa-dri
+        sudo apt-get install -y curl zip unzip autoconf autoconf-archive automake libtool python3 bison flex pkg-config
+        # p7zip-full for multi-volume archive splitting (matches the Windows cache workflows)
+        sudo apt-get install -y p7zip-full
+
+    - name: Bootstrap vcpkg
+      run: |
+        git clone https://github.com/microsoft/vcpkg "$VCPKG_INSTALLATION_ROOT"
+        "$VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+        echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+        echo "$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_PATH"
+
+    - name: Install base (non-Qt) dependencies
+      # "qt" is an opt-in feature in OpenSpace's vcpkg.json — a plain install
+      # (no --x-feature) already installs everything except Qt.
+      run: |
+        "$VCPKG_INSTALLATION_ROOT/vcpkg" install \
+          --triplet "$VCPKG_TRIPLET" \
+          --x-manifest-root="$openSpaceHome" \
+          --x-install-root="$VCPKG_INSTALLATION_ROOT/installed"
+
+    - name: Verify a known header exists
+      run: |
+        probe="$VCPKG_INSTALLATION_ROOT/installed/$VCPKG_TRIPLET/include/curl/curl.h"
+        if [ ! -f "$probe" ]; then
+          echo "::error::Expected header not found at $probe — deps install may have failed."
+          exit 1
+        fi
+
+    - name: Zip installed vcpkg packages (deps only), split into <2GB volumes
+      run: |
+        src="$VCPKG_INSTALLATION_ROOT/installed"
+        echo "Zipping from: $src"
+        # -v1900m splits into ~1.9 GiB volumes (GitHub's release asset limit is 2 GiB exactly)
+        # producing vcpkg-linux-deps.zip.001, .002, ...
+        7z a -tzip -mx=5 -v1900m vcpkg-linux-deps.zip "$src"/*
+
+    - name: Upload volumes to GitHub Release
+      run: |
+        RELEASE_TAG="vcpkg-linux-deps-cache"
+        gh release view "$RELEASE_TAG" > /dev/null 2>&1 || \
+          gh release create "$RELEASE_TAG" \
+            -t "vcpkg Linux deps cache (non-Qt)" \
+            -n "Pre-built vcpkg packages for $VCPKG_TRIPLET, excluding Qt (OpenSpace master)."
+
+        timestamp=$(date -u '+%Y-%m-%d %H:%M:%S')
+        gh release edit "$RELEASE_TAG" \
+          -t "vcpkg Linux deps cache (non-Qt)" \
+          -n "Pre-built vcpkg packages for $VCPKG_TRIPLET, excluding Qt (OpenSpace master). Updated $timestamp UTC."
+
+        shopt -s nullglob
+        volumes=(vcpkg-linux-deps.zip.*)
+        if [ ${#volumes[@]} -eq 0 ]; then
+          echo "::error::No volume files found to upload (expected vcpkg-linux-deps.zip.001 etc.)"
+          exit 1
+        fi
+        for v in "${volumes[@]}"; do
+          echo "Uploading $v ..."
+          gh release upload "$RELEASE_TAG" "$v" --clobber
+        done
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
