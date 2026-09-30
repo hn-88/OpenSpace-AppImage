@@ -89,6 +89,10 @@ jobs:
           ENV X_VCPKG_INSTALLED_DIR=/vcpkg/installed
           EOF
 
+      - name: Inject System Qt into Dockerfile
+        run: |
+          echo "RUN apt-get update && apt-get install -y qt6-base-dev qt6-wayland libqt6opengl6-dev && rm -rf /var/lib/apt/lists/*" >> openspace-docker/build/ubuntu-2604-gcc15.Dockerfile
+          
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
