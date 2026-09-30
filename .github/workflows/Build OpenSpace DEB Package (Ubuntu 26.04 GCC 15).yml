@@ -1,0 +1,90 @@
+name: Build OpenSpace DEB Package (Ubuntu 26.04 GCC 15)
+
+on:
+  workflow_dispatch:
+  
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/openspace-deps-ubuntu-2604-gcc15
+
+jobs:
+  build-deb-ubuntu-2604:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false  # Must be false so the local Docker daemon remains operational
+          swap-storage: true
+
+      - name: Verify Available Disk Space
+        run: |
+          echo "Disk space available for compilation:"
+          df -h /
+
+      - name: Checkout OpenSpace Upstream
+        uses: actions/checkout@v4
+        with:
+          repository: 'OpenSpace/OpenSpace'
+          submodules: recursive
+          path: openspace-src
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve Docker Image Name
+        id: image_tag
+        run: |
+          LOWER_IMAGE="${IMAGE_NAME,,}"
+          echo "image=${REGISTRY}/${LOWER_IMAGE}:ubuntu-26.04-gcc15" >> $GITHUB_OUTPUT
+
+      - name: Pull Docker Image
+        run: |
+          docker pull ${{ steps.image_tag.outputs.image }}
+
+      - name: Build OpenSpace and Generate .deb
+        run: |
+          # We mount ${{ github.workspace }}/openspace-src to /workspace inside the container.
+          # All 15+ GB of compile files and final .deb packages are written to the host's freed disk.
+          docker run --rm \
+            -v "${{ github.workspace }}/openspace-src:/workspace" \
+            -w /workspace \
+            ${{ steps.image_tag.outputs.image }} \
+            bash -c '
+              set -ex
+
+              # Configure CMake pointing to vcpkg installed in the Docker image
+              cmake -B build -S . \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake \
+                -DCPACK_GENERATOR="DEB"
+
+              # Compile OpenSpace
+              cmake --build build --parallel $(nproc)
+
+              # Package using CPack
+              cd build
+              cpack -G DEB
+            '
+
+      - name: Upload Debian Package (.deb)
+        uses: actions/upload-artifact@v4
+        with:
+          name: openspace-ubuntu-2604-gcc15-deb
+          path: openspace-src/build/*.deb
+          if-no-files-found: error
