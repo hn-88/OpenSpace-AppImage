@@ -33,11 +33,8 @@ jobs:
           df -h /
 
       - name: Checkout OpenSpace Upstream
-        uses: actions/checkout@v7
-        with:
-          repository: 'OpenSpace/OpenSpace'
-          submodules: recursive
-          path: openspace-src
+        run: |
+          git clone --recursive https://github.com/OpenSpace/OpenSpace openspace-src
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
