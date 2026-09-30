@@ -2,7 +2,7 @@ name: Build and Push Docker Image (Ubuntu 26.04 GCC 15)
 
 on:
   workflow_dispatch:
-  schedule:
+  #schedule:
     # Optional: rebuild weekly on Sunday at midnight to catch upstream updates
     #- cron: '0 0 * * 0'
 
