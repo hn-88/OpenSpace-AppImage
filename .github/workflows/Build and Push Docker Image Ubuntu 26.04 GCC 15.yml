@@ -3,7 +3,7 @@ name: Build and Push Docker Image (Ubuntu 26.04 GCC 15)
 on:
   workflow_dispatch:
   #schedule:
-    # Optional: rebuild weekly on Sunday at midnight to catch upstream updates
+    # Rebuild weekly on Sundays at 00:00 UTC to catch upstream dependency updates
     #- cron: '0 0 * * 0'
 
 permissions:
@@ -12,7 +12,6 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  # Replace or use repository owner for standard ghcr.io namespace
   IMAGE_NAME: ${{ github.repository_owner }}/openspace-deps-ubuntu-2604-gcc15
 
 jobs:
@@ -30,20 +29,45 @@ jobs:
           docker-images: true
           swap-storage: true
 
-      - name: Prepare Build Context and Download Upstream Files
+      - name: Verify Host Disk Space
         run: |
-          mkdir -p docker-context
-          cd docker-context
+          echo "Disk space available for image build:"
+          df -h /
 
-          echo "Downloading Dockerfile..."
-          curl -sSL -o Dockerfile \
-            https://raw.githubusercontent.com/OpenSpace/docker/master/build/ubuntu-2604-gcc15.Dockerfile
+      - name: Checkout OpenSpace Docker Repo
+        uses: actions/checkout@v4
+        with:
+          repository: 'OpenSpace/docker'
+          path: openspace-docker
 
-          echo "Downloading vcpkg.json..."
-          curl -sSL -o vcpkg.json \
+      - name: Download Upstream vcpkg.json
+        run: |
+          curl -sSL -o openspace-docker/build/vcpkg.json \
             https://raw.githubusercontent.com/OpenSpace/OpenSpace/master/vcpkg.json
 
-          ls -la
+      - name: Inject vcpkg Dependency Installation into Dockerfile
+        run: |
+          # Append steps to build the dependencies and purge temporary compiler files in a single layer
+          cat << 'EOF' >> openspace-docker/build/ubuntu-2604-gcc15.Dockerfile
+
+          # -------------------------------------------------------------
+          # Pre-compile OpenSpace dependencies using vcpkg
+          # -------------------------------------------------------------
+          COPY vcpkg.json /vcpkg-manifest/vcpkg.json
+
+          # Install packages directly into /vcpkg/installed and discard intermediate build bloat
+          RUN vcpkg install \
+                --x-manifest-root=/vcpkg-manifest \
+                --x-install-root=/vcpkg/installed \
+                --clean-buildtrees-after-build \
+                --clean-packages-after-build \
+                --clean-downloads-after-build && \
+              rm -rf /root/.cache/vcpkg && \
+              rm -rf /vcpkg/buildtrees /vcpkg/downloads /vcpkg/packages
+
+          # Instruct CMake in this image to use the pre-installed tree
+          ENV X_VCPKG_INSTALLED_DIR=/vcpkg/installed
+          EOF
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -55,18 +79,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Format Image Name
+      - name: Format Lowercase Image Name
         id: image_tag
         run: |
-          # ghcr.io strictly enforces lower-case repo names
+          # ghcr.io strictly requires all-lowercase repository/image paths
           LOWER_IMAGE="${IMAGE_NAME,,}"
           echo "image=${REGISTRY}/${LOWER_IMAGE}" >> $GITHUB_OUTPUT
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./docker-context
-          file: ./docker-context/Dockerfile
+          context: ./openspace-docker/build
+          file: ./openspace-docker/build/ubuntu-2604-gcc15.Dockerfile
           push: true
           tags: |
             ${{ steps.image_tag.outputs.image }}:latest
