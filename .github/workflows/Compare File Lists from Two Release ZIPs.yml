@@ -1,0 +1,74 @@
+name: Compare File Lists from Two Release ZIPs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VCPKG_ZIP_URL: https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily-vcpkg.zip
+  PLAIN_ZIP_URL: https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily.zip
+
+jobs:
+  compare-release-zips:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Download the vcpkg release zip
+      - name: Download vcpkg release ZIP
+        run: |
+          set -eu
+          curl -L --fail --retry 3 -o vcpkg.zip "$VCPKG_ZIP_URL"
+          ls -lh vcpkg.zip
+
+      # Step 2: Download the plain release zip
+      - name: Download plain release ZIP
+        run: |
+          set -eu
+          curl -L --fail --retry 3 -o plain.zip "$PLAIN_ZIP_URL"
+          ls -lh plain.zip
+
+      # Step 3: List zip contents (no extraction needed)
+      - name: List contents of both ZIPs
+        run: |
+          set -eu
+          mkdir compare
+          # -Z1 prints one path per line; drop directory entries (trailing '/')
+          unzip -Z1 vcpkg.zip | grep -v '/$' | sort -u > compare/vcpkg_paths.txt
+          unzip -Z1 plain.zip | grep -v '/$' | sort -u > compare/plain_paths.txt
+          echo "vcpkg zip: $(wc -l < compare/vcpkg_paths.txt) files"
+          echo "plain zip: $(wc -l < compare/plain_paths.txt) files"
+
+      # Step 4: Compare full paths
+      - name: Compare full paths
+        run: |
+          set -eu
+          comm -23 compare/vcpkg_paths.txt compare/plain_paths.txt > compare/paths_only_in_vcpkg.txt
+          comm -13 compare/vcpkg_paths.txt compare/plain_paths.txt > compare/paths_only_in_plain.txt
+          echo "===== Paths only in vcpkg zip ($(wc -l < compare/paths_only_in_vcpkg.txt)) ====="
+          cat compare/paths_only_in_vcpkg.txt || true
+          echo "===== Paths only in plain zip ($(wc -l < compare/paths_only_in_plain.txt)) ====="
+          cat compare/paths_only_in_plain.txt || true
+
+      # Step 5: Compare only filenames (ignore directories)
+      - name: Compare filenames only
+        run: |
+          set -eu
+          awk -F/ '{print $NF}' compare/vcpkg_paths.txt | sort -u > compare/vcpkg_filenames.txt
+          awk -F/ '{print $NF}' compare/plain_paths.txt | sort -u > compare/plain_filenames.txt
+
+          comm -23 compare/vcpkg_filenames.txt compare/plain_filenames.txt > compare/names_only_in_vcpkg.txt
+          comm -13 compare/vcpkg_filenames.txt compare/plain_filenames.txt > compare/names_only_in_plain.txt
+
+          echo "===== Filenames only in vcpkg zip ($(wc -l < compare/names_only_in_vcpkg.txt)) ====="
+          cat compare/names_only_in_vcpkg.txt || true
+          echo "===== Filenames only in plain zip ($(wc -l < compare/names_only_in_plain.txt)) ====="
+          cat compare/names_only_in_plain.txt || true
+
+      # Step 6: Upload all results
+      - name: Upload comparison results
+        uses: actions/upload-artifact@v4
+        with:
+          name: zip_comparison
+          path: compare/
