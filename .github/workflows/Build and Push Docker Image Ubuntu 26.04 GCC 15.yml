@@ -2,9 +2,8 @@ name: Build and Push Docker Image (Ubuntu 26.04 GCC 15)
 
 on:
   workflow_dispatch:
-  #schedule:
-    # Rebuild weekly on Sundays at 00:00 UTC to catch upstream dependency updates
-    #- cron: '0 0 * * 0'
+  schedule:
+    - cron: '0 0 * * 0'
 
 permissions:
   contents: read
@@ -29,33 +28,54 @@ jobs:
           docker-images: true
           swap-storage: true
 
-      - name: Verify Host Disk Space
-        run: |
-          echo "Disk space available for image build:"
-          df -h /
-
+      # 1. Checkout OpenSpace/docker for Dockerfile and data/build.sh
       - name: Checkout OpenSpace Docker Repo
         uses: actions/checkout@v4
         with:
           repository: 'OpenSpace/docker'
           path: openspace-docker
 
-      - name: Download Upstream vcpkg.json
-        run: |
-          curl -sSL -o openspace-docker/build/vcpkg.json \
-            https://raw.githubusercontent.com/OpenSpace/OpenSpace/master/vcpkg.json
+      # 2. Shallow checkout of OpenSpace to get vcpkg files and custom overlay ports
+      - name: Checkout OpenSpace Manifest & Overlays
+        uses: actions/checkout@v4
+        with:
+          repository: 'OpenSpace/OpenSpace'
+          path: openspace-src
+          sparse-checkout: |
+            vcpkg.json
+            vcpkg-configuration.json
+            support/vcpkg
+          sparse-checkout-cone-mode: false
+          depth: 1
 
+      # 3. Copy manifest, config, and support/vcpkg into the docker build context
+      - name: Prepare vcpkg Context
+        run: |
+          mkdir -p openspace-docker/build/manifest/support/vcpkg
+          cp openspace-src/vcpkg.json openspace-docker/build/manifest/
+          
+          # Copy vcpkg-configuration.json if it exists
+          if [ -f openspace-src/vcpkg-configuration.json ]; then
+            cp openspace-src/vcpkg-configuration.json openspace-docker/build/manifest/
+          fi
+
+          # Copy custom overlay ports
+          if [ -d openspace-src/support/vcpkg ]; then
+            cp -r openspace-src/support/vcpkg openspace-docker/build/manifest/support/
+          fi
+
+          echo "Files prepared in manifest directory:"
+          ls -laR openspace-docker/build/manifest
+
+      # 4. Inject vcpkg installation commands into Dockerfile
       - name: Inject vcpkg Dependency Installation into Dockerfile
         run: |
-          # Append steps to build the dependencies and purge temporary compiler files in a single layer
           cat << 'EOF' >> openspace-docker/build/ubuntu-2604-gcc15.Dockerfile
 
-          # -------------------------------------------------------------
-          # Pre-compile OpenSpace dependencies using vcpkg
-          # -------------------------------------------------------------
-          COPY vcpkg.json /vcpkg-manifest/vcpkg.json
+          # Copy entire manifest and overlay ports folder
+          COPY manifest/ /vcpkg-manifest/
 
-          # Install packages directly into /vcpkg/installed and discard intermediate build bloat
+          # Install packages using the manifest and overlay ports
           RUN vcpkg install \
                 --x-manifest-root=/vcpkg-manifest \
                 --x-install-root=/vcpkg/installed \
@@ -65,7 +85,7 @@ jobs:
               rm -rf /root/.cache/vcpkg && \
               rm -rf /vcpkg/buildtrees /vcpkg/downloads /vcpkg/packages
 
-          # Instruct CMake in this image to use the pre-installed tree
+          # Point CMake to the installed packages
           ENV X_VCPKG_INSTALLED_DIR=/vcpkg/installed
           EOF
 
@@ -82,7 +102,6 @@ jobs:
       - name: Format Lowercase Image Name
         id: image_tag
         run: |
-          # ghcr.io strictly requires all-lowercase repository/image paths
           LOWER_IMAGE="${IMAGE_NAME,,}"
           echo "image=${REGISTRY}/${LOWER_IMAGE}" >> $GITHUB_OUTPUT
 
@@ -94,5 +113,5 @@ jobs:
           push: true
           tags: |
             ${{ steps.image_tag.outputs.image }}:latest
-            ${{ steps.image_tag.outputs.image }}:ubuntu-26.04-gcc15
+            ${{ steps.image_tag.outputs.image }}:ubuntu-2604-gcc15
             ${{ steps.image_tag.outputs.image }}:${{ github.sha }}
