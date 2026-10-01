@@ -247,7 +247,6 @@ jobs:
           bin/*^
           config/*^
           data/*^
-          documentation/*^
           scripts/*^
           shaders/*^
           ACKNOWLEDGMENTS.md^
@@ -264,10 +263,11 @@ jobs:
           modules/molecule/ext/mold/src/shaders/gfx/*^
           modules/*/scripts/*^
           modules/globebrowsing/gdal_data/*^
-          modules/webgui/ext/nodejs/node.exe^
-          ^
-          %sync%^
-          -x!documentation/.git
+          modules/webgui/ext/nodejs/node.exe
+
+        :: 7z returns 1 for non-fatal warnings; only 2+ is a real failure
+        if %errorlevel% geq 2 exit /b %errorlevel%
+        exit /b 0
               
     
     - name: Upload Artifact minimal
