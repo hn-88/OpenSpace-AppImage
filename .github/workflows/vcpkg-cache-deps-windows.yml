@@ -7,7 +7,8 @@ env:
   # Check support/vcpkg/triplets/ in the repo first — OpenSpace ships its own
   # overlay triplets, one of them may already be the intended Windows triplet.
   VCPKG_TRIPLET: x64-windows-static-md
-  VCPKG_INSTALLATION_ROOT: C:/vcpkg
+  VCPKG_ROOT: C:/vcpkg-pinned          # NOT C:/vcpkg (preinstalled on the runner)
+  VCPKG_INSTALLED: C:/vcpkg_installed  # separate from vcpkg's classic tree
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
 
 jobs:
@@ -17,27 +18,41 @@ jobs:
     steps:
     - uses: actions/checkout@v6      # needed so gh release calls have a git repo to work in
 
-    - name: Get OpenSpace source (recursive — overlay ports live in submodules)
+    - name: Get OpenSpace source
       run: |
-        git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
+        git clone https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
-        git checkout "master" --recurse-submodules
+        git checkout "master"
 
-    - name: Bootstrap vcpkg
+    - name: Bootstrap vcpkg (pinned to manifest baseline)
+      shell: pwsh
       run: |
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $true
+        $m = Get-Content "$env:openSpaceHome/vcpkg.json" -Raw | ConvertFrom-Json
+        $commit = $m.'vcpkg-configuration'.'default-registry'.baseline
+        if (-not $commit) { throw "No baseline found in vcpkg.json" }
         git clone https://github.com/microsoft/vcpkg $env:VCPKG_INSTALLATION_ROOT
+        git -C $env:VCPKG_INSTALLATION_ROOT checkout $commit
         & "$env:VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.bat" -disableMetrics
-        echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
-        echo "$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_PATH
+        "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+        "$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_PATH
 
-    - name: Install base (non-Qt) dependencies
-      # "qt" is an opt-in feature in OpenSpace's vcpkg.json — a plain install
-      # (no --x-feature) already installs everything except Qt.
+    - name: Install CMake
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.4.3'
+
+    - name: Configure (this runs the vcpkg manifest install)
       run: |
-        & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install `
-          --triplet $env:VCPKG_TRIPLET `
-          --x-manifest-root="$env:openSpaceHome" `
-          --x-install-root="$env:VCPKG_INSTALLATION_ROOT/installed"
+        cmake -S $env:openSpaceHome -B "$env:openSpaceHome/build" `
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
+          -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLED" `
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
+          -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
+          -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
+          -DOPENSPACE_ENABLE_ALL_MODULES=ON
 
     - name: Verify a known header exists
       run: |
