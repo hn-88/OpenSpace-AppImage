@@ -15,7 +15,8 @@ env:
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
   buildConfig: RelWithDebInfo
   VCPKG_TRIPLET: x64-windows-static-md
-  VCPKG_INSTALLATION_ROOT: C:/vcpkg
+  VCPKG_ROOT: C:/vcpkg-pinned          # NOT C:/vcpkg (preinstalled on the runner)
+  VCPKG_INSTALLED: C:/vcpkg_installed  # separate from vcpkg's classic tree
   
 jobs:
   build:
@@ -31,34 +32,51 @@ jobs:
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
-        git clone --recursive https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
+        git clone https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
-        git checkout "master" --recurse-submodules
-        git submodule update --init --recursive
+        git checkout "master"
         mkdir build
         cd build
 
     - name: Install CMake 4.4.3
       uses: lukka/get-cmake@latest
       with:
-        cmakeVersion: '4.3.3'
+        cmakeVersion: '4.4.3'
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.9.*'          # set to the version OpenSpace expects
+        host: windows
+        target: desktop
+        arch: win64_msvc2022_64
+        cache: true
 
     
-    - name: Bootstrap vcpkg
-      run: |
-        git clone https://github.com/microsoft/vcpkg $env:VCPKG_INSTALLATION_ROOT
-        & "$env:VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.bat" -disableMetrics
-        echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
-        echo "$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_PATH
-     
-    - name: Download and restore vcpkg full (deps + qt) cache
+    - name: Bootstrap vcpkg (pinned)
       shell: pwsh
       run: |
-        $RELEASE_TAG  = "vcpkg-windows-full-cache"
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $true   # fail on native command errors
+    
+        $manifest = Get-Content "$env:openSpaceHome/vcpkg.json" -Raw | ConvertFrom-Json
+        $commit = $manifest.'builtin-baseline'
+        if (-not $commit) { $commit = $env:VCPKG_COMMIT }
+        if (-not $commit) { throw "No builtin-baseline in vcpkg.json and VCPKG_COMMIT is empty" }
+        Write-Host "Pinning vcpkg to $commit"
+    
+        git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+        git -C $env:VCPKG_ROOT checkout $commit
+        & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+     
+    - name: Download and restore vcpkg deps cache
+      shell: pwsh
+      run: |
+        $RELEASE_TAG  = "vcpkg-windows-deps-cache"
         $INSTALL_ROOT = $env:VCPKG_INSTALLATION_ROOT
 
         Write-Host "Downloading vcpkg cache volumes from release $RELEASE_TAG ..."
-        gh release download $RELEASE_TAG --pattern "vcpkg-windows-full.zip.*" --clobber
+        gh release download $RELEASE_TAG --pattern "vcpkg-windows-deps.zip.*" --clobber
         if ($LASTEXITCODE -ne 0) {
           Write-Error "Failed to download cache volumes from release $RELEASE_TAG"
           exit 1
@@ -67,7 +85,7 @@ jobs:
         Write-Host "Extracting to $INSTALL_ROOT\installed ..."
         New-Item -ItemType Directory -Force -Path "$INSTALL_ROOT\installed" | Out-Null
         # 7z reassembles all .zip.NNN volumes automatically when you extract from .001
-        7z x "vcpkg-windows-full.zip.001" -o"$INSTALL_ROOT\installed" -y
+        7z x "vcpkg-windows-deps.zip.001" -o"$INSTALL_ROOT\installed" -y
 
         Write-Host "Verifying key files exist..."
         $tree = "$INSTALL_ROOT\installed\$env:VCPKG_TRIPLET"
@@ -100,6 +118,7 @@ jobs:
           -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLATION_ROOT/installed" `
           -DVCPKG_MANIFEST_FEATURES="qt" `
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
+          -DOPENSPACE_USE_SYSTEM_QT=ON `
           -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
           -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
           -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
@@ -120,49 +139,11 @@ jobs:
         path: ${{ env.openSpaceHome }}/bin/**
 
         
-    - name: Locate Qt bin and plugins directories
+    - name: Set Qt dirs
       shell: pwsh
       run: |
-        $installedTriplet = "$env:VCPKG_INSTALLATION_ROOT\installed\$env:VCPKG_TRIPLET"
-        Write-Host "Searching under $installedTriplet ..."
-    
-        if (-not (Test-Path $installedTriplet)) {
-          Write-Error "Install tree not found at $installedTriplet — did the vcpkg cache restore run first?"
-          exit 1
-        }
-    
-        # Qt6Core.dll marks the bin directory. Exclude any \debug\ copy since this
-        # is a RelWithDebInfo (release-config) build.
-        $qtCoreDll = Get-ChildItem -Path $installedTriplet -Recurse -Filter "Qt6Core.dll" -File -ErrorAction SilentlyContinue |
-          Where-Object { $_.FullName -notmatch '\\debug\\' } |
-          Select-Object -First 1
-    
-        if (-not $qtCoreDll) {
-          Write-Error "Could not find Qt6Core.dll anywhere under $installedTriplet"
-          Write-Host "Directory listing for debugging:"
-          Get-ChildItem -Path $installedTriplet -Recurse -Directory | Select-Object -ExpandProperty FullName | Select-Object -First 100
-          exit 1
-        }
-        $qtBin = $qtCoreDll.DirectoryName
-        Write-Host "Found Qt bin directory: $qtBin"
-    
-        # qwindows.dll (the platform plugin) always sits directly under
-        # <plugins-root>\platforms\ — its parent's parent is the plugins root.
-        $qwindowsDll = Get-ChildItem -Path $installedTriplet -Recurse -Filter "qwindows.dll" -File -ErrorAction SilentlyContinue |
-          Where-Object { $_.FullName -notmatch '\\debug\\' } |
-          Select-Object -First 1
-    
-        if (-not $qwindowsDll) {
-          Write-Error "Could not find qwindows.dll anywhere under $installedTriplet"
-          Write-Host "Directory listing for debugging:"
-          Get-ChildItem -Path $installedTriplet -Recurse -Directory | Select-Object -ExpandProperty FullName | Select-Object -First 100
-          exit 1
-        }
-        $qtPlugins = Split-Path $qwindowsDll.DirectoryName -Parent
-        Write-Host "Found Qt plugins directory: $qtPlugins"
-    
-        echo "QT_BIN_DIR=$qtBin" >> $env:GITHUB_ENV
-        echo "QT_PLUGINS_DIR=$qtPlugins" >> $env:GITHUB_ENV
+        "QT_BIN_DIR=$env:QT_ROOT_DIR\bin" >> $env:GITHUB_ENV
+        "QT_PLUGINS_DIR=$env:QT_ROOT_DIR\plugins" >> $env:GITHUB_ENV
         
     - name: Prepare and deploy
       shell: cmd
