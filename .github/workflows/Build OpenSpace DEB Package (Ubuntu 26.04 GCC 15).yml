@@ -34,7 +34,7 @@ jobs:
 
       - name: Checkout OpenSpace Upstream
         run: |
-          git clone --recursive https://github.com/OpenSpace/OpenSpace openspace-src
+          git clone https://github.com/OpenSpace/OpenSpace openspace-src
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -70,6 +70,7 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake \
                 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
+                -DOPENSPACE_USE_SYSTEM_QT=ON \
                 -DCPACK_GENERATOR="DEB"
 
               # Compile OpenSpace
@@ -86,3 +87,23 @@ jobs:
           name: openspace-ubuntu-2604-gcc15-deb
           path: openspace-src/build/*.deb
           if-no-files-found: error
+
+
+      - name: Upload .deb to GitHub Release
+        run: |
+          RELEASE_TAG="daily-vcpkg-DEB"
+          DEB_FILE=openspace-src/build/openspace*.deb
+      
+          # Create release if it doesn't exist
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" -t "OpenSpace CPack Daily Deb Build" -n "Automated daily .deb build of OpenSpace."
+      
+          # (Optional) update title/notes each run
+          gh release edit "$RELEASE_TAG" \
+            -t "OpenSpace Daily Deb Build" \
+            -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  On installing this .deb file, you can run openspace by typing 'openspace' in a terminal window. Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20deb%20created%20with%20cpack"
+      
+          # Upload .deb asset (overwrite if exists)
+          gh release upload "$RELEASE_TAG" "$DEB_FILE" --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
