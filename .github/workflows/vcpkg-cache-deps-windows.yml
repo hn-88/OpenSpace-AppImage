@@ -42,7 +42,7 @@ jobs:
     - name: Install CMake
       uses: lukka/get-cmake@latest
       with:
-        cmakeVersion: '4.4.3'
+        cmakeVersion: '4.3.3'
 
     - name: Configure (this runs the vcpkg manifest install)
       run: |
