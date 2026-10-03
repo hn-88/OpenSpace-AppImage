@@ -39,10 +39,10 @@ jobs:
         mkdir build
         cd build
 
-    - name: Install CMake 4.4.3
+    - name: Install CMake 4.3.3
       uses: lukka/get-cmake@latest
       with:
-        cmakeVersion: '4.4.3'
+        cmakeVersion: '4.3.3'
 
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
@@ -61,14 +61,13 @@ jobs:
         $PSNativeCommandUseErrorActionPreference = $true   # fail on native command errors
     
         $manifest = Get-Content "$env:openSpaceHome/vcpkg.json" -Raw | ConvertFrom-Json
-        $commit = $manifest.'builtin-baseline'
-        if (-not $commit) { $commit = $env:COMMIT }
-        if (-not $commit) { throw "No builtin-baseline in vcpkg.json and COMMIT is empty" }
+        $commit = $manifest.'vcpkg-configuration'.'default-registry'.baseline
+        if (-not $commit) { throw "No builtin-baseline in vcpkg.json" }
         Write-Host "Pinning vcpkg to $commit"
     
-        git clone https://github.com/microsoft/vcpkg $env:ROOT
-        git -C $env:ROOT checkout $commit
-        & "$env:ROOT/bootstrap-vcpkg.bat" -disableMetrics
+        git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+        git -C $env:VCPKG_ROOT checkout $commit
+        & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
      
     - name: Download and restore vcpkg deps cache
       shell: pwsh
@@ -90,17 +89,12 @@ jobs:
 
         Write-Host "Verifying key files exist..."
         $tree = "$INSTALL_ROOT\installed\$env:VCPKG_TRIPLET"
-        $qtCoreDll = Get-ChildItem -Path $tree -Recurse -Filter "Qt6Core.dll" -File -ErrorAction SilentlyContinue |
-          Where-Object { $_.FullName -notmatch '\\debug\\' } | Select-Object -First 1
-        if (-not $qtCoreDll) {
-          Write-Error "Qt6Core.dll not found under $tree — cache extraction may have failed"
-          exit 1
-        }
+        
         if (-not (Test-Path "$tree\include\curl\curl.h")) {
           Write-Error "curl.h not found under $tree — cache extraction may have failed"
           exit 1
         }
-        Write-Host "vcpkg cache restored successfully. Qt bin dir: $($qtCoreDll.DirectoryName)"
+        Write-Host "vcpkg cache restored successfully."
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
      
@@ -109,15 +103,13 @@ jobs:
     # CMake configure: point VCPKG_INSTALLED_DIR at the SAME path the cache was
     # restored into (so the automatic manifest install sees everything already
     # satisfied instead of installing into its own default vcpkg_installed/<triplet>
-    # location and rebuilding from scratch), and explicitly request the qt feature
-    # so vcpkg's manifest reconciliation doesn't prune the Qt packages we cached.
+    # location and rebuilding from scratch)
     - name: Configure CMake
       run: |
         cd "$env:openSpaceHome/build"
         cmake -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
           -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
           -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLED/installed" `
-          -DVCPKG_MANIFEST_FEATURES="qt" `
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
           -DOPENSPACE_USE_SYSTEM_QT=ON `
           -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
