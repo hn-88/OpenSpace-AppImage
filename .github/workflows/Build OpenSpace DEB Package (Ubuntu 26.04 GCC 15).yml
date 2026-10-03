@@ -55,28 +55,26 @@ jobs:
 
       - name: Build OpenSpace and Generate .deb
         run: |
-          # We mount ${{ github.workspace }}/openspace-src to /workspace inside the container.
-          # All 15+ GB of compile files and final .deb packages are written to the host's freed disk.
           docker run --rm \
             -v "${{ github.workspace }}/openspace-src:/workspace" \
             -w /workspace \
             ${{ steps.image_tag.outputs.image }} \
             bash -c '
               set -ex
+              git config --global --add safe.directory "*"
 
-              # Configure CMake pointing to vcpkg installed in the Docker image
               cmake -B build -S . \
                 -G Ninja \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake \
+                -DVCPKG_MANIFEST_INSTALL=OFF \
+                -DVCPKG_INSTALLED_DIR=/vcpkg/installed \
                 -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
                 -DOPENSPACE_USE_SYSTEM_QT=ON \
                 -DCPACK_GENERATOR="DEB"
 
-              # Compile OpenSpace
               cmake --build build --parallel $(nproc)
 
-              # Package using CPack
               cd build
               cpack -G DEB
             '
@@ -107,3 +105,4 @@ jobs:
           gh release upload "$RELEASE_TAG" "$DEB_FILE" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
+          GH_REPO: ${{ github.repository }}
