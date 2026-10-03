@@ -47,7 +47,7 @@ jobs:
         id: image_tag
         run: |
           LOWER_IMAGE="${IMAGE_NAME,,}"
-          echo "image=${REGISTRY}/${LOWER_IMAGE}:latest" >> $GITHUB_OUTPUT
+          echo "image=${REGISTRY}/${LOWER_IMAGE}:ubuntu-2604-gcc15" >> $GITHUB_OUTPUT
 
       - name: Pull Docker Image
         run: |
