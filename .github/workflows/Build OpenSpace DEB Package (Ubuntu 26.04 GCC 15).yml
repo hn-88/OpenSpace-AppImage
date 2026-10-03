@@ -90,19 +90,26 @@ jobs:
       - name: Upload .deb to GitHub Release
         run: |
           RELEASE_TAG="daily-vcpkg-DEB"
-          DEB_FILE=openspace-src/build/openspace*.deb
-      
+
+          echo "Contents of build dir:"
+          ls -la openspace-src/build/*.deb
+
+          # Case-insensitive match, so the CPack file name doesn't matter
+          mapfile -t DEB_FILES < <(find openspace-src/build -maxdepth 1 -iname '*.deb')
+          if [ "${#DEB_FILES[@]}" -eq 0 ]; then
+            echo "No .deb found" && exit 1
+          fi
+
           # Create release if it doesn't exist
           gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
             gh release create "$RELEASE_TAG" -t "OpenSpace CPack Daily Deb Build" -n "Automated daily .deb build of OpenSpace."
-      
-          # (Optional) update title/notes each run
+
           gh release edit "$RELEASE_TAG" \
             -t "OpenSpace Daily Deb Build" \
-            -n "Automated daily build of OpenSpace (updated $(date '+%Y-%m-%d %H:%M:%S') UTC).  On installing this .deb file, you can run openspace by typing 'openspace' in a terminal window. Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20deb%20created%20with%20cpack"
-      
-          # Upload .deb asset (overwrite if exists)
-          gh release upload "$RELEASE_TAG" "$DEB_FILE" --clobber
+            -n "Automated daily build of OpenSpace (updated $(date -u '+%Y-%m-%d %H:%M:%S') UTC). On installing this .deb file, you can run openspace by typing 'openspace' in a terminal window. Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20deb%20created%20with%20cpack"
+
+          # Upload all matched .deb files (overwrite if they exist)
+          gh release upload "$RELEASE_TAG" "${DEB_FILES[@]}" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
           GH_REPO: ${{ github.repository }}
