@@ -8,7 +8,6 @@ env:
   # overlay triplets, one of them may already be the intended Windows triplet.
   VCPKG_TRIPLET: x64-windows-static-md
   VCPKG_ROOT: C:/vcpkg-pinned          # NOT C:/vcpkg (preinstalled on the runner)
-  VCPKG_INSTALLATION_ROOT: C:/vcpkg-pinned
   VCPKG_INSTALLED: C:/vcpkg_installed  # separate from vcpkg's classic tree
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
 
@@ -33,16 +32,24 @@ jobs:
         $m = Get-Content "$env:openSpaceHome/vcpkg.json" -Raw | ConvertFrom-Json
         $commit = $m.'vcpkg-configuration'.'default-registry'.baseline
         if (-not $commit) { throw "No baseline found in vcpkg.json" }
-        git clone https://github.com/microsoft/vcpkg $env:VCPKG_INSTALLATION_ROOT
-        git -C $env:VCPKG_INSTALLATION_ROOT checkout $commit
-        & "$env:VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.bat" -disableMetrics
-        "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
-        "$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_PATH
+        git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+        git -C $env:VCPKG_ROOT checkout $commit
+        & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+        
 
     - name: Install CMake
       uses: lukka/get-cmake@latest
       with:
         cmakeVersion: '4.3.3'
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.9.*'          # set to the version OpenSpace expects
+        host: windows
+        target: desktop
+        arch: win64_msvc2022_64
+        cache: true
 
     - name: Configure (this runs the vcpkg manifest install)
       run: |
@@ -52,12 +59,13 @@ jobs:
           -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLED" `
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
           -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
+          -DOPENSPACE_USE_SYSTEM_QT=ON `
           -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
           -DOPENSPACE_ENABLE_ALL_MODULES=ON
 
     - name: Verify a known header exists
       run: |
-        $probe = "$env:VCPKG_INSTALLATION_ROOT/installed/$env:VCPKG_TRIPLET/include/curl/curl.h"
+        $probe = "$env:VCPKG_INSTALLED/$env:VCPKG_TRIPLET/include/curl/curl.h"
         if (-not (Test-Path $probe)) {
           Write-Error "Expected header not found at $probe — deps install may have failed."
           exit 1
@@ -66,7 +74,7 @@ jobs:
     - name: Zip installed vcpkg packages (deps only), split into <2GB volumes
       shell: pwsh
       run: |
-        $src = "$env:VCPKG_INSTALLATION_ROOT\installed"
+        $src = "$env:VCPKG_INSTALLED"
         Write-Host "Zipping from: $src"
         # -v1900m splits into ~1.9 GiB volumes (GitHub's release asset limit is 2 GiB exactly)
         # producing vcpkg-windows-deps.zip.001, .002, ... — matches the qt-cache
