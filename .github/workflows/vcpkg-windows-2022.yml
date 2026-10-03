@@ -18,6 +18,7 @@ env:
   VCPKG_ROOT: C:/vcpkg-pinned          # NOT C:/vcpkg (preinstalled on the runner)
   VCPKG_INSTALLED: C:/vcpkg_installed  # separate from vcpkg's classic tree
   
+  
 jobs:
   build:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
@@ -61,19 +62,19 @@ jobs:
     
         $manifest = Get-Content "$env:openSpaceHome/vcpkg.json" -Raw | ConvertFrom-Json
         $commit = $manifest.'builtin-baseline'
-        if (-not $commit) { $commit = $env:VCPKG_COMMIT }
-        if (-not $commit) { throw "No builtin-baseline in vcpkg.json and VCPKG_COMMIT is empty" }
+        if (-not $commit) { $commit = $env:COMMIT }
+        if (-not $commit) { throw "No builtin-baseline in vcpkg.json and COMMIT is empty" }
         Write-Host "Pinning vcpkg to $commit"
     
-        git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
-        git -C $env:VCPKG_ROOT checkout $commit
-        & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+        git clone https://github.com/microsoft/vcpkg $env:ROOT
+        git -C $env:ROOT checkout $commit
+        & "$env:ROOT/bootstrap-vcpkg.bat" -disableMetrics
      
     - name: Download and restore vcpkg deps cache
       shell: pwsh
       run: |
         $RELEASE_TAG  = "vcpkg-windows-deps-cache"
-        $INSTALL_ROOT = $env:VCPKG_INSTALLATION_ROOT
+        $INSTALL_ROOT = $env:VCPKG_INSTALLED
 
         Write-Host "Downloading vcpkg cache volumes from release $RELEASE_TAG ..."
         gh release download $RELEASE_TAG --pattern "vcpkg-windows-deps.zip.*" --clobber
@@ -115,7 +116,7 @@ jobs:
         cd "$env:openSpaceHome/build"
         cmake -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
           -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
-          -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLATION_ROOT/installed" `
+          -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLED/installed" `
           -DVCPKG_MANIFEST_FEATURES="qt" `
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
           -DOPENSPACE_USE_SYSTEM_QT=ON `
