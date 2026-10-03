@@ -8,6 +8,7 @@ env:
   # overlay triplets, one of them may already be the intended Windows triplet.
   VCPKG_TRIPLET: x64-windows-static-md
   VCPKG_ROOT: C:/vcpkg-pinned          # NOT C:/vcpkg (preinstalled on the runner)
+  VCPKG_INSTALLATION_ROOT: C:/vcpkg-pinned
   VCPKG_INSTALLED: C:/vcpkg_installed  # separate from vcpkg's classic tree
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
 
