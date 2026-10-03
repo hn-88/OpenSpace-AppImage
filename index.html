@@ -438,9 +438,20 @@
       <h2>Windows</h2>  
       <ul>
         <li>
-          The latest Windows builds use vcpkg for dependencies. To reduce build times, cached vcpkg dependencies are built using the 
-          workflows <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/vcpkg-cache-deps-windows.yml">here</a> and <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/vcpkg-cache-qt-windows.yml">here</a>.
+          The latest Windows builds use vcpkg for dependencies. To reduce build times, cached vcpkg dependencies are pre-built - <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/vcpkg-cache-deps-windows.yml">workflow</a>.
         </li>
+        <li><span class="build-link">
+            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily-vcpkg.zip">
+              OpenSpace-minimal-daily-vcpkg.zip (untested)
+            </a>
+          </span>
+          <span class="workflow-link">
+            <a target=_blank href="https://docs.openspaceproject.com/latest/getting-started/install/index.html">documentation</a>
+            &nbsp;&nbsp;
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/vcpkg-windows-2022.yml">workflow</a>
+          </span>
+      </li>
+        
         <li>
         Older Windows builds are below, which use submodules for dependencies.
         </li>
