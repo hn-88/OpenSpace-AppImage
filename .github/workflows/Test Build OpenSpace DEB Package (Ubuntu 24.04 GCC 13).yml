@@ -1,0 +1,114 @@
+name: Test Build OpenSpace DEB Package (Ubuntu 24.04 GCC 13)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/openspace-deps-ubuntu-2404-gcc13
+
+jobs:
+  build-deb-ubuntu-2404:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          preinstalled-runtimes: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false  # Must be false so the local Docker daemon remains operational
+          swap-storage: true
+
+      - name: Verify Available Disk Space
+        run: |
+          echo "Disk space available for compilation:"
+          df -h /
+
+      - name: Checkout OpenSpace Upstream
+        run: |
+          git clone https://github.com/OpenSpace/OpenSpace openspace-src
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve Docker Image Name
+        id: image_tag
+        run: |
+          LOWER_IMAGE="${IMAGE_NAME,,}"
+          echo "image=${REGISTRY}/${LOWER_IMAGE}:ubuntu-2404-gcc13" >> $GITHUB_OUTPUT
+
+      - name: Pull Docker Image
+        run: |
+          docker pull ${{ steps.image_tag.outputs.image }}
+
+      - name: Build OpenSpace and Generate .deb
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/openspace-src:/workspace" \
+            -w /workspace \
+            ${{ steps.image_tag.outputs.image }} \
+            bash -c '
+              set -ex
+              git config --global --add safe.directory "*"
+
+              cmake -B build -S . \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake \
+                -DVCPKG_MANIFEST_INSTALL=OFF \
+                -DVCPKG_INSTALLED_DIR=/vcpkg/installed \
+                -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
+                -DOPENSPACE_USE_SYSTEM_QT=ON \
+                -DCPACK_GENERATOR="DEB"
+
+              cmake --build build --parallel $(nproc)
+
+              cd build
+              cpack -G DEB
+            '
+
+      - name: Upload Debian Package (.deb)
+        uses: actions/upload-artifact@v7
+        with:
+          name: openspace-ubuntu-2404-gcc13-deb
+          path: openspace-src/build/*.deb
+          if-no-files-found: error
+
+      - name: Upload .deb to GitHub Release
+        run: |
+          # Separate tag from the 26.04 build so --clobber doesn't overwrite its .deb
+          RELEASE_TAG="test-vcpkg-DEB-ubuntu2404"
+
+          echo "Contents of build dir:"
+          ls -la openspace-src/build/*.deb
+
+          # Case-insensitive match, so the CPack file name doesn't matter
+          mapfile -t DEB_FILES < <(find openspace-src/build -maxdepth 1 -iname '*.deb')
+          if [ "${#DEB_FILES[@]}" -eq 0 ]; then
+            echo "No .deb found" && exit 1
+          fi
+
+          # Create release if it doesn't exist
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" -t "OpenSpace CPack Daily Deb Build (Ubuntu 24.04)" -n "Automated daily .deb build of OpenSpace for Ubuntu 24.04."
+
+          gh release edit "$RELEASE_TAG" \
+            -t "OpenSpace Test Deb Build (Ubuntu 24.04)" \
+            -n "Automated test build of OpenSpace for Ubuntu 24.04 (updated $(date -u '+%Y-%m-%d %H:%M:%S') UTC). On installing this .deb file, you can run openspace by typing 'openspace' in a terminal window. Please note all the issues at https://github.com/hn-88/OpenSpace-AppImage/issues?q=is%3Aissue%20state%3Aopen%20deb%20created%20with%20cpack"
+
+          # Upload all matched .deb files (overwrite if they exist)
+          gh release upload "$RELEASE_TAG" "${DEB_FILES[@]}" --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+          GH_REPO: ${{ github.repository }}
