@@ -33,7 +33,9 @@ jobs:
 
       - name: Checkout OpenSpace Upstream
         run: |
-          git clone https://github.com/OpenSpace/OpenSpace openspace-src
+          git clone https://github.com/hn-88/OpenSpace openspace-src
+          cd openspace-src
+          git checkout fix-node-deb-permissions
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
