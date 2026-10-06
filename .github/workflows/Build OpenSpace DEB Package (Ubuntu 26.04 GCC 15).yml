@@ -3,7 +3,7 @@ name: Build OpenSpace DEB Package (Ubuntu 26.04 GCC 15)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "3 6 * * *"   # runs daily at 06:03 UTC
+    - cron: "3 12 * * *"   # scheduled for daily at 12:03 UTC, but gets delayed due to github congestion
   
 
 permissions:
