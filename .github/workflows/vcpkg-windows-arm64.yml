@@ -1,0 +1,275 @@
+name: vcpkg-windows-arm64
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "26 13 * * *"   # runs daily at 13:26 UTC
+
+env:
+  BUILD_TYPE: RelWithDebInfo
+  OPENSPACE_VERSION: "0.22.0+"
+  openSpaceHome: ${{ github.workspace }}/source/OpenSpace
+  buildConfig: RelWithDebInfo
+  VCPKG_TRIPLET: arm64-windows-static-md
+  VCPKG_ROOT: C:/vcpkg-pinned          # NOT C:/vcpkg (preinstalled on the runner)
+  VCPKG_INSTALLED: C:/vcpkg_installed  # must match the deps-cache workflow
+
+jobs:
+  build:
+    runs-on: windows-11-arm     # GitHub-hosted native Windows ARM64 runner
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Ensure 7-Zip is on PATH
+      shell: pwsh
+      run: |
+        if (-not (Get-Command 7z -ErrorAction SilentlyContinue)) {
+          $p = "C:\Program Files\7-Zip"
+          if (-not (Test-Path "$p\7z.exe")) {
+            if (Get-Command choco -ErrorAction SilentlyContinue) {
+              choco install 7zip -y --no-progress
+            } else {
+              winget install --id 7zip.7zip -e --accept-source-agreements --accept-package-agreements
+            }
+          }
+          $p >> $env:GITHUB_PATH
+        }
+
+    - name: Get OpenSpace code
+      run: |
+        git clone https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
+        cd $env:openSpaceHome
+        git checkout "master"
+        mkdir build
+
+    - name: Install CMake 4.3.3
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.3.3'
+
+    - name: Install Qt 6.11 (ARM64)
+      # Same invocation as the earlier windows-11-arm workflow: on an ARM64 runner
+      # install-qt-action picks the arm64 host/arch by itself, so no host/arch overrides.
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.11.*'
+        cache: true
+
+    - name: Verify Qt install
+      shell: pwsh
+      run: |
+        Write-Host "QT_ROOT_DIR = $env:QT_ROOT_DIR"
+        Write-Host "Qt6_DIR     = $env:Qt6_DIR"
+        foreach ($p in @("bin\Qt6Core.dll", "plugins\platforms\qwindows.dll", "lib\cmake\Qt6\Qt6Config.cmake")) {
+          if (-not (Test-Path "$env:QT_ROOT_DIR\$p")) { throw "Qt file missing: $env:QT_ROOT_DIR\$p" }
+        }
+        Write-Host "Qt looks complete."
+
+    - name: Bootstrap vcpkg (pinned)
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $true
+
+        $manifest = Get-Content "$env:openSpaceHome/vcpkg.json" -Raw | ConvertFrom-Json
+        $commit = $manifest.'vcpkg-configuration'.'default-registry'.baseline
+        if (-not $commit) { throw "No baseline in vcpkg.json" }
+        Write-Host "Pinning vcpkg to $commit"
+
+        git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+        git -C $env:VCPKG_ROOT checkout $commit
+        & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+
+    - name: Download and restore vcpkg deps cache
+      shell: pwsh
+      run: |
+        $RELEASE_TAG  = "vcpkg-windows-arm64-deps-cache"
+        $INSTALL_ROOT = $env:VCPKG_INSTALLED
+
+        Write-Host "Downloading vcpkg cache volumes from release $RELEASE_TAG ..."
+        gh release download $RELEASE_TAG --pattern "vcpkg-windows-arm64-deps.zip.*" --clobber
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Failed to download cache volumes from release $RELEASE_TAG"
+          exit 1
+        }
+
+        Write-Host "Extracting to $INSTALL_ROOT ..."
+        New-Item -ItemType Directory -Force -Path $INSTALL_ROOT | Out-Null
+        # 7z reassembles all .zip.NNN volumes automatically when you extract from .001
+        7z x "vcpkg-windows-arm64-deps.zip.001" -o"$INSTALL_ROOT" -y
+
+        $tree = "$INSTALL_ROOT\$env:VCPKG_TRIPLET"
+        if (-not (Test-Path "$tree\include\curl\curl.h")) {
+          Write-Error "curl.h not found under $tree — cache extraction may have failed"
+          exit 1
+        }
+        Write-Host "vcpkg cache restored successfully."
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
+
+    # VCPKG_INSTALLED_DIR points at the same path the cache was restored into, so the
+    # automatic manifest install finds everything already satisfied (only packages that
+    # changed since the cache was built get compiled).
+    - name: Configure CMake
+      run: |
+        cd "$env:openSpaceHome/build"
+        cmake -A ARM64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
+          -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLED" `
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
+          -DOPENSPACE_USE_SYSTEM_QT=ON -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" `
+          -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
+          -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
+          -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
+
+    - name: Build
+      run: |
+        cd $env:openSpaceHome
+        cmake --build ./build --config RelWithDebInfo
+
+    - name: Upload Artifact only bin
+      uses: actions/upload-artifact@v7
+      with:
+        name: OpenSpace-arm64-bindirectory-zip
+        path: ${{ env.openSpaceHome }}/bin/**
+
+    - name: Set Qt dirs
+      shell: pwsh
+      run: |
+        "QT_BIN_DIR=$env:QT_ROOT_DIR\bin" >> $env:GITHUB_ENV
+        "QT_PLUGINS_DIR=$env:QT_ROOT_DIR\plugins" >> $env:GITHUB_ENV
+
+    - name: Prepare and deploy
+      shell: cmd
+      run: |
+        cd /d "%openSpaceHome%"
+        echo ### adapted from deploy.bat commit 4bf8124
+
+        :PostBuildCleanup
+        echo ### Dealing with some files
+        :: Remove unnecessary files of our own making
+        del bin\RelWithDebInfo\*.pdb
+        del bin\RelWithDebInfo\codegen.exe
+        del bin\RelWithDebInfo\Qt6Svg.dll
+
+        :: Remove unnecessary Qt files
+        rmdir /S /Q bin\RelWithDebInfo\iconengines
+        rmdir /S /Q bin\RelWithDebInfo\imageformats
+        rmdir /S /Q bin\RelWithDebInfo\networkinformation
+
+        :: The binary files are created in the RelWithDebInfo subdirectory and we want them in bin
+        robocopy bin\\RelWithDebInfo bin /E /MOV
+        rmdir /S /Q bin\\RelWithDebInfo
+
+        :: Comparing with official release, found that QT dlls need to be bundled.
+
+        @echo off
+        REM Path variables
+        set "QtBin=${{ env.QT_BIN_DIR }}"
+        set "QtPlugins=${{ env.QT_PLUGINS_DIR }}"
+        set "TargetBin=${{ env.openSpaceHome }}\bin"
+
+        echo Copying required Qt runtime DLLs from %QtBin% to %TargetBin%...
+
+        REM Ensure directories exist
+        if not exist "%TargetBin%\platforms" mkdir "%TargetBin%\platforms"
+        if not exist "%TargetBin%\styles" mkdir "%TargetBin%\styles"
+        if not exist "%TargetBin%\tls" mkdir "%TargetBin%\tls"
+        if not exist "%TargetBin%\generic" mkdir "%TargetBin%\generic"
+
+        REM Copy essential DLLs (OpenGL + DirectX) if present for this arch
+        for %%d in (dxcompiler.dll dxil.dll opengl32sw.dll) do (
+          if exist "%QtBin%\%%d" (
+            copy /Y "%QtBin%\%%d" "%TargetBin%\" >nul
+            echo Copied %%d
+          ) else (
+            echo WARNING: Missing %%d in %QtBin%
+          )
+        )
+
+        REM Copy platform plugin (mandatory)
+        copy /Y "%QtPlugins%\platforms\qwindows.dll" "%TargetBin%\platforms\" >nul
+        echo Copied qwindows.dll
+
+        REM Copy optional style plugin (UI style)
+        if exist "%QtPlugins%\styles\qmodernwindowsstyle.dll" (
+          copy /Y "%QtPlugins%\styles\qmodernwindowsstyle.dll" "%TargetBin%\styles\" >nul
+          echo Copied qmodernwindowsstyle.dll
+        )
+
+        REM Copy optional TLS backends (network/SSL)
+        for %%d in (qcertonlybackend.dll qopensslbackend.dll qschannelbackend.dll) do (
+          if exist "%QtPlugins%\tls\%%d" (
+            copy /Y "%QtPlugins%\tls\%%d" "%TargetBin%\tls\" >nul
+            echo Copied %%d
+          )
+        )
+
+        REM Copy optional generic plugin (TUIO touch)
+        if exist "%QtPlugins%\generic\qtuiotouchplugin.dll" (
+          copy /Y "%QtPlugins%\generic\qtuiotouchplugin.dll" "%TargetBin%\generic\" >nul
+          echo Copied qtuiotouchplugin.dll
+        )
+
+        echo Qt runtime DLLs copy completed.
+
+        :: Download the Microsoft redistributable (ARM64)
+        curl "https://aka.ms/vs/17/release/vc_redist.arm64.exe" --output vc_redist.arm64.exe -L
+
+        echo ### Create main zip file
+        :: Need to manually add any new weird paths that don't match the wildcards below
+        7z.exe a -tzip -mx=9 -mfb=257 -mpass=15 -xr!*.pdb OpenSpace-minimal-daily-vcpkg-arm64.zip^
+          bin/*^
+          config/*^
+          data/*^
+          scripts/*^
+          shaders/*^
+          ACKNOWLEDGMENTS.md^
+          CITATION.cff^
+          COMMIT.md^
+          CREDITS.md^
+          LICENSE.md^
+          openspace.cfg^
+          README.md^
+          vc_redist.arm64.exe^
+          ^
+          modules/*/shaders/*^
+          modules/molecule/ext/mold/src/shaders/*^
+          modules/molecule/ext/mold/src/shaders/gfx/*^
+          modules/*/scripts/*^
+          modules/globebrowsing/gdal_data/*^
+          modules/webgui/ext/nodejs/node.exe
+
+        :: 7z returns 1 for non-fatal warnings; only 2+ is a real failure
+        if %errorlevel% geq 2 exit /b %errorlevel%
+        exit /b 0
+
+    - name: Upload Artifact minimal
+      uses: actions/upload-artifact@v7
+      with:
+        name: OpenSpace-daily-minimal-arm64
+        path: ${{ env.openSpaceHome }}/OpenSpace-minimal-daily-vcpkg-arm64.zip
+
+    - name: Upload .zip to GitHub Release - Windows ARM64
+      run: |
+        $RELEASE_TAG = "daily-WIN-ARM64-ZIP"
+        $ZIP_FILE = "${{ env.openSpaceHome }}\OpenSpace-minimal-daily-vcpkg-arm64.zip"
+
+        # Check if release exists
+        gh release view $RELEASE_TAG > $null 2>&1
+        if ($LASTEXITCODE -ne 0) {
+          gh release create $RELEASE_TAG -t "OpenSpace Windows ARM64 Daily Build" -n "Automated daily build of OpenSpace for Windows ARM64."
+        }
+
+        # Update title/notes each run
+        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
+        gh release edit $RELEASE_TAG `
+          -t "OpenSpace Windows ARM64 Daily Build" `
+          -n "Automated daily build of OpenSpace for Windows ARM64 (updated $timestamp UTC)."
+
+        # Upload .zip asset (overwrite if exists)
+        gh release upload $RELEASE_TAG $ZIP_FILE --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}

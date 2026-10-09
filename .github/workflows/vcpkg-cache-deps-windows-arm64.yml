@@ -1,0 +1,137 @@
+name: vcpkg-windows-arm64-deps-cache
+
+on:
+  workflow_dispatch:      # run manually whenever vcpkg.json's base dependencies change
+
+env:
+  # vcpkg ships arm64-windows-static-md as a community triplet (the ARM64 twin of x64-windows-static-md).
+  # If OpenSpace has an overlay triplet for ARM64 under support/vcpkg/triplets/, prefer that.
+  VCPKG_TRIPLET: arm64-windows-static-md
+  VCPKG_ROOT: C:/vcpkg-pinned          # NOT C:/vcpkg (preinstalled on the runner)
+  VCPKG_INSTALLED: C:/vcpkg_installed  # separate from vcpkg's classic tree
+  openSpaceHome: ${{ github.workspace }}/source/OpenSpace
+
+jobs:
+  build-deps-cache:
+    runs-on: windows-11-arm     # GitHub-hosted native Windows ARM64 runner
+
+    steps:
+    - uses: actions/checkout@v6      # needed so gh release calls have a git repo to work in
+
+    - name: Ensure 7-Zip is on PATH
+      shell: pwsh
+      run: |
+        if (-not (Get-Command 7z -ErrorAction SilentlyContinue)) {
+          $p = "C:\Program Files\7-Zip"
+          if (-not (Test-Path "$p\7z.exe")) {
+            if (Get-Command choco -ErrorAction SilentlyContinue) {
+              choco install 7zip -y --no-progress
+            } else {
+              winget install --id 7zip.7zip -e --accept-source-agreements --accept-package-agreements
+            }
+          }
+          $p >> $env:GITHUB_PATH
+        }
+
+    - name: Get OpenSpace source
+      run: |
+        git clone https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
+        cd $env:openSpaceHome
+        git checkout "master"
+
+    - name: Bootstrap vcpkg (pinned to manifest baseline)
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $true
+        $m = Get-Content "$env:openSpaceHome/vcpkg.json" -Raw | ConvertFrom-Json
+        $commit = $m.'vcpkg-configuration'.'default-registry'.baseline
+        if (-not $commit) { throw "No baseline found in vcpkg.json" }
+        git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+        git -C $env:VCPKG_ROOT checkout $commit
+        & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+
+    - name: Install CMake
+      # lukka/get-cmake downloads the native arm64 build on ARM runners.
+      # If this ever fails, delete this step: the Visual Studio on the image bundles a recent CMake.
+      uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: '4.3.3'
+
+    - name: Install Qt 6.11 (ARM64)
+      # Same invocation as the earlier windows-11-arm workflow: on an ARM64 runner
+      # install-qt-action picks the arm64 host/arch by itself, so no host/arch overrides.
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.11.*'
+        cache: true
+
+    - name: Verify Qt install
+      shell: pwsh
+      run: |
+        Write-Host "QT_ROOT_DIR = $env:QT_ROOT_DIR"
+        Write-Host "Qt6_DIR     = $env:Qt6_DIR"
+        foreach ($p in @("bin\Qt6Core.dll", "plugins\platforms\qwindows.dll", "lib\cmake\Qt6\Qt6Config.cmake")) {
+          if (-not (Test-Path "$env:QT_ROOT_DIR\$p")) { throw "Qt file missing: $env:QT_ROOT_DIR\$p" }
+        }
+        Write-Host "Qt looks complete."
+
+    - name: Configure (this runs the vcpkg manifest install)
+      run: |
+        cmake -S $env:openSpaceHome -B "$env:openSpaceHome/build" -A ARM64 `
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
+          -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLED" `
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
+          -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
+          -DOPENSPACE_USE_SYSTEM_QT=ON -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" `
+          -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
+          -DOPENSPACE_ENABLE_ALL_MODULES=ON
+
+    - name: Verify a known header exists
+      run: |
+        $probe = "$env:VCPKG_INSTALLED/$env:VCPKG_TRIPLET/include/curl/curl.h"
+        if (-not (Test-Path $probe)) {
+          Write-Error "Expected header not found at $probe — deps install may have failed."
+          exit 1
+        }
+
+    - name: Zip installed vcpkg packages (deps only), split into <2GB volumes
+      shell: pwsh
+      run: |
+        $src = "$env:VCPKG_INSTALLED"
+        Write-Host "Zipping from: $src"
+        # -v1900m: GitHub's release asset limit is 2 GiB. Produces .zip.001, .002, ...
+        7z a -tzip -mx=5 -v1900m vcpkg-windows-arm64-deps.zip "$src\*"
+
+    - name: Upload volumes to GitHub Release
+      shell: pwsh
+      run: |
+        $RELEASE_TAG = "vcpkg-windows-arm64-deps-cache"
+        gh release view $RELEASE_TAG > $null 2>&1
+        if ($LASTEXITCODE -ne 0) {
+          gh release create $RELEASE_TAG `
+            -t "vcpkg Windows ARM64 deps cache (non-Qt)" `
+            -n "Pre-built vcpkg packages for $env:VCPKG_TRIPLET, excluding Qt (OpenSpace master)."
+        }
+        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
+        gh release edit $RELEASE_TAG `
+          -t "vcpkg Windows ARM64 deps cache (non-Qt)" `
+          -n "Pre-built vcpkg packages for $env:VCPKG_TRIPLET, excluding Qt (OpenSpace master). Updated $timestamp UTC."
+
+        # Remove stale volumes first, in case the new zip has fewer volumes than the old one
+        gh release view $RELEASE_TAG --json assets --jq '.assets[].name' |
+          Where-Object { $_ -like "vcpkg-windows-arm64-deps.zip.*" } |
+          ForEach-Object { gh release delete-asset $RELEASE_TAG $_ -y }
+
+        $volumes = Get-ChildItem -Path . -Filter "vcpkg-windows-arm64-deps.zip.*"
+        if ($volumes.Count -eq 0) {
+          Write-Error "No volume files found to upload (expected vcpkg-windows-arm64-deps.zip.001 etc.)"
+          exit 1
+        }
+        foreach ($v in $volumes) {
+          Write-Host "Uploading $($v.Name) ..."
+          gh release upload $RELEASE_TAG $v.FullName --clobber
+        }
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
