@@ -92,9 +92,52 @@
       border-top: 1px solid #30363d;
     }
 
-    /* --- Asset Date Styling Start --- */
+    /* --- Older Builds Toggle Styling Start --- */
+    details.older-builds {
+      margin-top: 1rem;
+    }
 
-    /* The element that holds the date text for Mobile view (hidden by default on desktop) */
+    details.older-builds summary {
+      background-color: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 0.8rem 1rem;
+      cursor: pointer;
+      font-weight: 600;
+      list-style: none; /* Remove default triangle in supported browsers */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s ease;
+    }
+
+    /* Hide default triangle for WebKit browsers */
+    details.older-builds summary::-webkit-details-marker {
+      display: none;
+    }
+
+    /* Custom arrows for the toggle */
+    details.older-builds summary::after {
+      content: "▼";
+      font-size: 0.8rem;
+      color: #8b949e;
+    }
+
+    details[open].older-builds summary::after {
+      content: "▲";
+    }
+
+    details.older-builds summary:hover {
+      background-color: #30363d;
+    }
+
+    details.older-builds > ul {
+      margin-top: 0.5rem;
+    }
+    /* --- Older Builds Toggle Styling End --- */
+
+    /* --- Asset Date Styling Start --- */
     .mobile-date-info {
         display: none;
         font-size: 0.8rem;
@@ -103,14 +146,12 @@
         font-style: italic;
     }
 
-    /* Desktop Hover Tooltip Logic */
     @media (min-width: 769px) {
-        /* Add tooltip via pseudo-element when data-last-updated is present */
         .asset-download-link[data-last-updated]:hover::after {
             content: attr(data-last-updated);
             position: absolute;
             left: 0;
-            bottom: 100%; /* Position above the link */
+            bottom: 100%;
             background-color: #21262d;
             color: #c9d1d9;
             padding: 5px 10px;
@@ -125,7 +166,6 @@
         }
     }
 
-    /* Mobile View Adjustments */
     @media (max-width: 768px) {
       li {
         flex-direction: column;
@@ -136,7 +176,6 @@
         margin-top: 0.5rem;
       }
       
-      /* On mobile, show the static date text instead of the hover tooltip */
       .mobile-date-info {
           display: block;
       }
@@ -194,257 +233,252 @@
             <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/Build%20OpenSpace%20DEB%20Package%20Ubuntu%2024.04%20GCC%2013.yml">workflow</a>
           </span>
         </li>
-        
-        
-        <li>
-        Older Linux builds are below, which have a minimum requirement of Ubuntu 24.04 or similar distro. The dependency management was via submodules for these builds.
-        </li>
-        
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.22.0+-2-daily-ubuntu24.04-aarch64.AppImage">
-              OpenSpace-0.22.0+-2-daily-ubuntu24.04-aarch64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily-24.04.yml">workflow</a>
-          </span>
-        </li>
-
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.22.0+-2-daily-ubuntu24.04-x86_64.AppImage">
-              OpenSpace-0.22.0+-2-daily-ubuntu24.04-x86_64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily-24.04.yml">workflow</a>
-          </span>
-        </li>
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/TaskRunner-0.22.0+-2-daily-ubuntu24.04-aarch64.AppImage">
-              TaskRunner-0.22.0+-2-daily-ubuntu24.04-aarch64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily-24.04.yml">workflow</a>
-          </span>
-        </li>
-
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/TaskRunner-0.22.0+-2-daily-ubuntu24.04-x86_64.AppImage">
-              TaskRunner-0.22.0+-2-daily-ubuntu24.04-x86_64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily-24.04.yml">workflow</a>
-          </span>
-        </li>
-        
-
-        
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.22.0+.ubuntu24.04_amd64_daily.deb">
-              openspace_0.22.0+.ubuntu24.04_amd64_daily.deb
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-24.04wCpack.yml">workflow</a>
-          </span>
-        </li>
-        
-
-        
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.22.0+.ubuntu24.04_arm64_daily.deb">
-              openspace_0.22.0+.ubuntu24.04_arm64_daily.deb
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-24.04wCpack-arm.yml">workflow</a>
-          </span>
-        </li>
-
-        <li>
-          Older Linux builds are below, which have a minimum requirement of Ubuntu 22.04 or similar distro.
-        </li>
-
-        
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.3+-1-daily-aarch64.AppImage">
-              OpenSpace-0.21.3+-1-daily-aarch64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily.yml">workflow</a>
-          </span>
-        </li>
-         <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.3plus-1-daily-x86_64.AppImage">
-              OpenSpace-0.21.3plus-1-daily-x86_64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily.yml">workflow</a>
-          </span>
-        </li>
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.4+-1-daily-aarch64.AppImage">
-              OpenSpace-0.21.4+-1-daily-aarch64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily.yml">workflow</a>
-          </span>
-        </li>
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.4plus-1-daily-x86_64.AppImage">
-              OpenSpace-0.21.4plus-1-daily-x86_64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily.yml">workflow</a>
-          </span>
-        </li>
-        
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.3plus-1-single-prec-x86_64.AppImage">
-              OpenSpace-0.21.3plus-1-single-prec-x86_64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-single-prec.yml">workflow</a>
-          </span>
-        </li>
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.4+.ubuntu22.04.1_aarch64_daily.deb">
-              openspace_0.21.4+.ubuntu22.04.1_aarch64_daily.deb
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-22.04wCpack-arm.yml">workflow</a>
-          </span>
-        </li>
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.4+.ubuntu22.04.1_amd64_daily.deb">
-              openspace_0.21.4+.ubuntu22.04.1_amd64_daily.deb
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-22.04wCpack.yml">workflow</a>
-          </span>
-        </li>
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.4+.ubuntu24.04_aarch64_daily.deb">
-              openspace_0.21.4+.ubuntu24.04_aarch64_daily.deb
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-24.04wCpack-arm.yml">workflow</a>
-          </span>
-        </li>
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.4+.ubuntu24.04_amd64_daily.deb">
-              openspace_0.21.4+.ubuntu24.04_amd64_daily.deb
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-24.04wCpack.yml">workflow</a>
-          </span>
-        </li>
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.22.0rc2+-2-daily-aarch64.AppImage">
-              OpenSpace-0.22.0rc2+-2-daily-aarch64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily.yml">workflow</a>
-          </span>
-        </li>
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.22.0rc2+-2-daily-x86_64.AppImage">
-              OpenSpace-0.22.0rc2+-2-daily-x86_64.AppImage
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily.yml">workflow</a>
-          </span>
-        </li>
-
-        <li>
-          <span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.22.0rc1+.ubuntu22.04_amd64_daily.deb">
-              openspace_0.22.0rc1+.ubuntu22.04_amd64_daily.deb
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-22.04wCpack.yml">workflow</a>
-          </span>
-        </li>
-
-
-        
       </ul>
+
+      <!-- Toggleable Older Linux Builds Section -->
+      <details class="older-builds">
+        <summary>Click here to view older Linux builds</summary>
+        <ul>
+          <li>
+          Older Linux builds are below, which have a minimum requirement of Ubuntu 24.04 or similar distro. The dependency management was via submodules for these builds.
+          </li>
+          
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.22.0+-2-daily-ubuntu24.04-aarch64.AppImage">
+                OpenSpace-0.22.0+-2-daily-ubuntu24.04-aarch64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily-24.04.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.22.0+-2-daily-ubuntu24.04-x86_64.AppImage">
+                OpenSpace-0.22.0+-2-daily-ubuntu24.04-x86_64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily-24.04.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/TaskRunner-0.22.0+-2-daily-ubuntu24.04-aarch64.AppImage">
+                TaskRunner-0.22.0+-2-daily-ubuntu24.04-aarch64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily-24.04.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/TaskRunner-0.22.0+-2-daily-ubuntu24.04-x86_64.AppImage">
+                TaskRunner-0.22.0+-2-daily-ubuntu24.04-x86_64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily-24.04.yml">workflow</a>
+            </span>
+          </li>
+          
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.22.0+.ubuntu24.04_amd64_daily.deb">
+                openspace_0.22.0+.ubuntu24.04_amd64_daily.deb
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-24.04wCpack.yml">workflow</a>
+            </span>
+          </li>
+          
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.22.0+.ubuntu24.04_arm64_daily.deb">
+                openspace_0.22.0+.ubuntu24.04_arm64_daily.deb
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-24.04wCpack-arm.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            Older Linux builds are below, which have a minimum requirement of Ubuntu 22.04 or similar distro.
+          </li>
+          
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.3+-1-daily-aarch64.AppImage">
+                OpenSpace-0.21.3+-1-daily-aarch64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily.yml">workflow</a>
+            </span>
+          </li>
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.3plus-1-daily-x86_64.AppImage">
+                OpenSpace-0.21.3plus-1-daily-x86_64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily.yml">workflow</a>
+            </span>
+          </li>
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.4+-1-daily-aarch64.AppImage">
+                OpenSpace-0.21.4+-1-daily-aarch64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.4plus-1-daily-x86_64.AppImage">
+                OpenSpace-0.21.4plus-1-daily-x86_64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily.yml">workflow</a>
+            </span>
+          </li>
+          
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.21.3plus-1-single-prec-x86_64.AppImage">
+                OpenSpace-0.21.3plus-1-single-prec-x86_64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-single-prec.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.4+.ubuntu22.04.1_aarch64_daily.deb">
+                openspace_0.21.4+.ubuntu22.04.1_aarch64_daily.deb
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-22.04wCpack-arm.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.4+.ubuntu22.04.1_amd64_daily.deb">
+                openspace_0.21.4+.ubuntu22.04.1_amd64_daily.deb
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-22.04wCpack.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.4+.ubuntu24.04_aarch64_daily.deb">
+                openspace_0.21.4+.ubuntu24.04_aarch64_daily.deb
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-24.04wCpack-arm.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.21.4+.ubuntu24.04_amd64_daily.deb">
+                openspace_0.21.4+.ubuntu24.04_amd64_daily.deb
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-24.04wCpack.yml">workflow</a>
+            </span>
+          </li>
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.22.0rc2+-2-daily-aarch64.AppImage">
+                OpenSpace-0.22.0rc2+-2-daily-aarch64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/arm64-appimage-daily.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-AppImage/OpenSpace-0.22.0rc2+-2-daily-x86_64.AppImage">
+                OpenSpace-0.22.0rc2+-2-daily-x86_64.AppImage
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-AppImage%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/appimage-daily.yml">workflow</a>
+            </span>
+          </li>
+
+          <li>
+            <span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-CPACK-DEB/openspace_0.22.0rc1+.ubuntu22.04_amd64_daily.deb">
+                openspace_0.22.0rc1+.ubuntu22.04_amd64_daily.deb
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-deb%E2%80%90specific-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/deb-on-22.04wCpack.yml">workflow</a>
+            </span>
+          </li>
+        </ul>
+      </details>
     </section>
 
     <!-- Windows Section -->
@@ -464,59 +498,77 @@
             &nbsp;&nbsp;
             <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/vcpkg-windows-2022.yml">workflow</a>
           </span>
-      </li>
-        
-        <li>
-        Older Windows builds are below, which use submodules for dependencies.
         </li>
-      <li><span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily.zip">
-              OpenSpace-minimal-daily.zip
+        
+        <li><span class="build-link">
+            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ARM64-ZIP/OpenSpace-minimal-daily-vcpkg-arm64.zip">
+              OpenSpace-minimal-daily-vcpkg-arm64.zip (currently untested)
             </a>
           </span>
           <span class="workflow-link">
             <a target=_blank href="https://docs.openspaceproject.com/latest/getting-started/install/index.html">documentation</a>
             &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/windows-2022.yml">workflow</a>
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/vcpkg-windows-arm64.yml">workflow</a>
           </span>
-      </li>
-
-        <li><span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily-Windows-11-arm64.zip">
-              OpenSpace-minimal-daily-Windows-11-arm64.zip
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-on-ARM64">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/windows-11-arm.yml">workflow</a>
-          </span>
-      </li>
-
-        <li><span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily-Win11arm64-mesa.zip">
-              OpenSpace-minimal-daily-Win11arm64-mesa.zip
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-on-ARM64">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/windows-11-arm.yml">workflow</a>
-          </span>
-      </li>
-        
-      <li><span class="build-link">
-            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-single-precision.zip">
-              OpenSpace-minimal-single-precision.zip
-            </a>
-          </span>
-          <span class="workflow-link">
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-single-precision-Windows-build-documentation">documentation</a>
-            &nbsp;&nbsp;
-            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/windows-single-prec.yml">workflow</a>
-          </span>
-      </li>  
+        </li>
       </ul>
+
+      <!-- Toggleable Older Windows Builds Section -->
+      <details class="older-builds">
+        <summary>Click here to view older Windows builds</summary>
+        <ul>
+          <li>
+          Older Windows builds are below, which use submodules for dependencies.
+          </li>
+          <li><span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily.zip">
+                OpenSpace-minimal-daily.zip
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://docs.openspaceproject.com/latest/getting-started/install/index.html">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/windows-2022.yml">workflow</a>
+            </span>
+          </li>
+
+          <li><span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily-Windows-11-arm64.zip">
+                OpenSpace-minimal-daily-Windows-11-arm64.zip
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-on-ARM64">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/windows-11-arm.yml">workflow</a>
+            </span>
+          </li>
+
+          <li><span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-daily-Win11arm64-mesa.zip">
+                OpenSpace-minimal-daily-Win11arm64-mesa.zip
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-on-ARM64">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/windows-11-arm.yml">workflow</a>
+            </span>
+          </li>
+          
+          <li><span class="build-link">
+              <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/daily-WIN-ZIP/OpenSpace-minimal-single-precision.zip">
+                OpenSpace-minimal-single-precision.zip
+              </a>
+            </span>
+            <span class="workflow-link">
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/wiki/OpenSpace-single-precision-Windows-build-documentation">documentation</a>
+              &nbsp;&nbsp;
+              <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/windows-single-prec.yml">workflow</a>
+            </span>
+          </li>  
+        </ul>
+      </details>
     </section>
 
     <!-- Mac Section -->
