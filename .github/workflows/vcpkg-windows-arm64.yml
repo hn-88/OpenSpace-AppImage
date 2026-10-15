@@ -268,6 +268,10 @@ jobs:
         gh release edit $RELEASE_TAG `
           -t "OpenSpace Windows ARM64 Daily Build" `
           -n "Automated daily build of OpenSpace for Windows ARM64 (updated $timestamp UTC)."
+        # Upload .zip asset (overwrite if exists)
+        gh release upload $RELEASE_TAG $ZIP_FILE --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
 
     - name: Download and install Mesa llvmpipe ARM64 opengl32.dll
       shell: pwsh
@@ -363,7 +367,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}    
 
-        # Upload .zip asset (overwrite if exists)
-        gh release upload $RELEASE_TAG $ZIP_FILE --clobber
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT }}
+
