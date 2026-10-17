@@ -11,13 +11,12 @@ env:
   # This yml is copied from https://github.com/hn-88/OCVWarp/blob/master/.github/workflows/cmake-nix.yml
   # and modified.
   BUILD_TYPE: RelWithDebInfo
-  OPENSPACE_VERSION: "0.22.0rc1"
+  OPENSPACE_VERSION: "0.22.0dev"
   openSpaceHome: ${{ github.workspace }}/source/OpenSpace
-  # QT_DIR: C:/Qt/6.9.3/msvc2019_64
-  # QT6_DIR: C:/Qt/6.9.3/msvc2019_64
-  # CMAKE_PREFIX_PATH: C:/Qt/6.9.3/msvc2019_64/lib/cmake
-  # The install qt action is supposed to set QT_DIR variable.
   buildConfig: RelWithDebInfo
+  VCPKG_TRIPLET: x64-windows-static-md
+  VCPKG_ROOT: C:/vcpkg-pinned          # NOT C:/vcpkg (preinstalled on the runner)
+  VCPKG_INSTALLED: C:/vcpkg_installed  # separate from vcpkg's classic tree
   
 jobs:
   build:
