@@ -33,56 +33,88 @@ jobs:
     - name: get openspace code for a particular release
       # https://docs.openspaceproject.com/releases-v0.20/contribute/development/compiling/ubuntu.html
       run: |
-        git clone --recursive https://github.com/hn-88/OpenSpace $env:openSpaceHome
+        git clone https://github.com/hn-88/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
-        git checkout "reload-ui-by-reenabling" --recurse-submodules
-        git submodule update --init --recursive
+        git checkout "atmosphere-no-double"
         mkdir build
         cd build
 
-    - name: Install CMake 4.0.7
+    - name: Install CMake 4.3.3
       uses: lukka/get-cmake@latest
       with:
-        cmakeVersion: '4.0.7'
+        cmakeVersion: '4.3.3'
 
-    - name: Install Qt 6.9
+    - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
-        version: 6.9.*
-        
+        version: '6.9.*'          # set to the version OpenSpace expects
+        host: windows
+        target: desktop
+        arch: win64_msvc2022_64
+        cache: true
+
     
-    #- name: Install dependencies
-      # https://github.com/OpenSpace/OpenSpace-Docs/blob/3ddcca71b5ff4700ab1f75c5a961ed07c455cb68/dev/compiling/index.md
-      #shell: pwsh
-      #run: |
-        # Install QT 6.9.3        
-       # python -m pip install --upgrade pip
-       # pip install aqtinstall
-       # aqt install-qt windows desktop 6.9.3 win64_msvc2019_64 --outputdir C:\Qt
-
-    - name: Install Boost (MSVC 14.3)
-      run: choco install boost-msvc-14.3 -y
-
-    - name: Set Boost environment variables
+    - name: Bootstrap vcpkg (pinned)
+      shell: pwsh
       run: |
-        echo "BOOST_ROOT=C:\tools\boost_1_85_0" >> $env:GITHUB_ENV
-        echo "BOOST_INCLUDEDIR=C:\tools\boost_1_85_0" >> $env:GITHUB_ENV
-        echo "BOOST_LIBRARYDIR=C:\tools\boost_1_85_0\lib64-msvc-14.3" >> $env:GITHUB_ENV
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $true   # fail on native command errors
+    
+        $manifest = Get-Content "$env:openSpaceHome/vcpkg.json" -Raw | ConvertFrom-Json
+        $commit = $manifest.'vcpkg-configuration'.'default-registry'.baseline
+        if (-not $commit) { throw "No builtin-baseline in vcpkg.json" }
+        Write-Host "Pinning vcpkg to $commit"
+    
+        git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+        git -C $env:VCPKG_ROOT checkout $commit
+        & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+     
+    - name: Download and restore vcpkg deps cache
+      shell: pwsh
+      run: |
+        $RELEASE_TAG  = "vcpkg-windows-deps-cache"
+        $INSTALL_ROOT = $env:VCPKG_INSTALLED
 
-    # - name: Patches for molecule
-    #  run : |
-        # Copy-Item -Verbose "deb-patches/patch*.patch" "$env:openSpaceHome"
+        Write-Host "Downloading vcpkg cache volumes from release $RELEASE_TAG ..."
+        gh release download $RELEASE_TAG --pattern "vcpkg-windows-deps.zip.*" --clobber
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Failed to download cache volumes from release $RELEASE_TAG"
+          exit 1
+        }
 
+        Write-Host "Extracting to $INSTALL_ROOT\installed ..."
+        New-Item -ItemType Directory -Force -Path "$INSTALL_ROOT\installed" | Out-Null
+        # 7z reassembles all .zip.NNN volumes automatically when you extract from .001
+        7z x "vcpkg-windows-deps.zip.001" -o"$INSTALL_ROOT\installed" -y
 
+        Write-Host "Verifying key files exist..."
+        $tree = "$INSTALL_ROOT\installed\$env:VCPKG_TRIPLET"
+        
+        if (-not (Test-Path "$tree\include\curl\curl.h")) {
+          Write-Error "curl.h not found under $tree — cache extraction may have failed"
+          exit 1
+        }
+        Write-Host "vcpkg cache restored successfully."
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
+     
+
+    
+    # CMake configure: point VCPKG_INSTALLED_DIR at the SAME path the cache was
+    # restored into (so the automatic manifest install sees everything already
+    # satisfied instead of installing into its own default vcpkg_installed/<triplet>
+    # location and rebuilding from scratch)
     - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         cd "$env:openSpaceHome/build"
-        cmake -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
-        -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
-        -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
-        -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
+        cmake -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+          -DVCPKG_TARGET_TRIPLET="$env:VCPKG_TRIPLET" `
+          -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLED/installed" `
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DASSIMP_BUILD_MINIZIP=1 `
+          -DOPENSPACE_USE_SYSTEM_QT=ON `
+          -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF `
+          -DGHOUL_HIGH_DEBUG_MODE=OFF -DGHOUL_HAVE_TESTS=OFF `
+          -DOPENSPACE_ENABLE_ALL_MODULES=ON $env:openSpaceHome
         
     - name: Build
       # Build your program with the given configuration
@@ -99,12 +131,13 @@ jobs:
         # A file, directory or wildcard pattern that describes what to upload
         path: ${{ env.openSpaceHome }}/bin/**
 
-    - name: Deploy
-      # Build and deploy your program with the given configuration
+        
+    - name: Set Qt dirs
+      shell: pwsh
       run: |
-        cd $env:openSpaceHome
-        # ./deploy.bat This fails, probably due to warnings which are treated as errors, and CMake flags
-    
+        "QT_BIN_DIR=$env:QT_ROOT_DIR\bin" >> $env:GITHUB_ENV
+        "QT_PLUGINS_DIR=$env:QT_ROOT_DIR\plugins" >> $env:GITHUB_ENV
+        
     - name: Prepare and deploy
       shell: cmd
       run: |
@@ -131,8 +164,8 @@ jobs:
            
         @echo off
         REM Path variables
-        set "QtBin=${{ env.QT_DIR }}\bin"
-        set "QtPlugins=${{ env.QT_DIR }}\plugins"
+        set "QtBin=${{ env.QT_BIN_DIR }}"
+        set "QtPlugins=${{ env.QT_PLUGINS_DIR }}"
         set "TargetBin=${{ env.openSpaceHome }}\bin"
         
         echo Copying required Qt runtime DLLs from %QtBin% to %TargetBin%...
@@ -184,11 +217,10 @@ jobs:
         
         echo ### Create main zip file
         :: Need to manually add any new weird paths that don't match the wildcards below
-        7z.exe a -tzip -mx=9 -mfb=257 -mpass=15 OpenSpace-minimal-test.zip^
+        7z.exe a -tzip -mx=9 -mfb=257 -mpass=15 -xr!*.pdb OpenSpace-minimal-test-vcpkg.zip^
           bin/*^
           config/*^
           data/*^
-          documentation/*^
           scripts/*^
           shaders/*^
           ACKNOWLEDGMENTS.md^
@@ -205,25 +237,26 @@ jobs:
           modules/molecule/ext/mold/src/shaders/gfx/*^
           modules/*/scripts/*^
           modules/globebrowsing/gdal_data/*^
-          modules/webgui/ext/nodejs/node.exe^
-          ^
-          %sync%^
-          -x!documentation/.git
+          modules/webgui/ext/nodejs/node.exe
+
+        :: 7z returns 1 for non-fatal warnings; only 2+ is a real failure
+        if %errorlevel% geq 2 exit /b %errorlevel%
+        exit /b 0
               
     
     - name: Upload Artifact minimal
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         # Artifact name
-        name: OpenSpace-test-minimal
+        name: OpenSpace-daily-minimal
         # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: ${{ env.openSpaceHome }}/OpenSpace-minimal-test.zip
+        path: ${{ env.openSpaceHome }}/OpenSpace-minimal-test-vcpkg.zip
 
     - name: Upload .zip to GitHub Release - Windows
       run: |
         $RELEASE_TAG = "daily-WIN-ZIP"
-        $ZIP_FILE = "${{ env.openSpaceHome }}\OpenSpace-minimal-test.zip"
+        $ZIP_FILE = "${{ env.openSpaceHome }}\OpenSpace-minimal-test-vcpkg.zip"
     
         # Check if release exists
         gh release view $RELEASE_TAG > $null 2>&1
@@ -241,5 +274,3 @@ jobs:
         gh release upload $RELEASE_TAG $ZIP_FILE --clobber
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
-      
-    
