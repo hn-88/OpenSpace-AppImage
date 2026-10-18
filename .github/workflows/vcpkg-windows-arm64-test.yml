@@ -3,8 +3,8 @@ name: vcpkg-windows-arm64-test
 on:
   workflow_dispatch:
 
-  schedule:
-    - cron: "26 13 * * *"   # runs daily at 13:26 UTC
+  #schedule:
+  #  - cron: "26 13 * * *"   # runs daily at 13:26 UTC
 
 env:
   BUILD_TYPE: RelWithDebInfo
