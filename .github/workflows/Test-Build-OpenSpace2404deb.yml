@@ -37,7 +37,7 @@ jobs:
         run: |
           git clone https://github.com/hn-88/OpenSpace openspace-src
           cd openspace-src
-          git checkout "atmosphere-stars-no-double"
+          git checkout "exclude-source-files-from-install"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
