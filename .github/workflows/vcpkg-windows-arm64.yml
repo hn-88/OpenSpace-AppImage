@@ -109,9 +109,17 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
 
+    - name: Pre-fetch CCfits
+      shell: pwsh
+      run: |
+         $dl = "$env:VCPKG_ROOT\downloads"
+         New-Item -ItemType Directory -Force $dl | Out-Null
+         curl.exe -k -L -o "$dl\CCfits-2.7.tar.gz" https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/ccfits/v2.7/CCfits-2.7.tar.gz
+    
     # VCPKG_INSTALLED_DIR points at the same path the cache was restored into, so the
     # automatic manifest install finds everything already satisfied (only packages that
     # changed since the cache was built get compiled).
+    
     - name: Configure CMake
       run: |
         cd "$env:openSpaceHome/build"
