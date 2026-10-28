@@ -39,7 +39,8 @@ jobs:
       - name: Checkout OpenSpace Manifest & Overlays
         uses: actions/checkout@v4
         with:
-          repository: 'OpenSpace/OpenSpace'
+          repository: 'hn-88/OpenSpace'
+          ref: 'mirror-urls-for-ccfits'
           path: openspace-src
           sparse-checkout: |
             vcpkg.json
