@@ -1,8 +1,8 @@
-name: Watch OpenSpace vcpkg.json
+name: Watch OpenSpace vcpkg inputs
 
 on:
   schedule:
-    - cron: "17 1 * * *" 
+    - cron: "17 1 * * *"
   workflow_dispatch:
 
 jobs:
@@ -11,17 +11,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compare upstream vcpkg.json against recorded hash
+      - name: Compare upstream vcpkg inputs against recorded values
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          failed=0
+
+          # 1. Root vcpkg.json (content hash)
           URL="https://raw.githubusercontent.com/OpenSpace/OpenSpace/master/vcpkg.json"
-          expected=$(tr -d '[:space:]' < ".github/workflows/vcpkg.json.sha256" )
+          expected=$(tr -d '[:space:]' < .github/workflows/vcpkg.json.sha256)
           actual=$(curl -fsSL "$URL" | sha256sum | cut -d' ' -f1)
-
-          echo "expected: $expected"
-          echo "actual:   $actual"
-
+          echo "vcpkg.json  expected: $expected"
+          echo "vcpkg.json  actual:   $actual"
           if [ "$expected" != "$actual" ]; then
             echo "::error::OpenSpace vcpkg.json has changed upstream."
             echo "See: https://github.com/OpenSpace/OpenSpace/commits/master/vcpkg.json"
-            exit 1
+            failed=1
           fi
+
+          # 2. Overlay ports (git tree SHA covers every file beneath it)
+          expected=$(tr -d '[:space:]' < .github/workflows/vcpkg-ports.tree.sha)
+          actual=$(gh api "repos/OpenSpace/OpenSpace/git/trees/master:support/vcpkg/ports" --jq .sha)
+          echo "ports tree  expected: $expected"
+          echo "ports tree  actual:   $actual"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::OpenSpace support/vcpkg/ports has changed upstream."
+            echo "See: https://github.com/OpenSpace/OpenSpace/commits/master/support/vcpkg/ports"
+            failed=1
+          fi
+
+          exit $failed
