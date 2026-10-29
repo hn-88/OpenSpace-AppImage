@@ -35,9 +35,9 @@ jobs:
 
     - name: Get OpenSpace source
       run: |
-        git clone https://github.com/hn-88/OpenSpace $env:openSpaceHome
+        git clone https://github.com/OpenSpace/OpenSpace $env:openSpaceHome
         cd $env:openSpaceHome
-        git checkout "mirror-urls-for-ccfits"
+        git checkout "master"
 
     - name: Bootstrap vcpkg (pinned to manifest baseline)
       shell: pwsh
