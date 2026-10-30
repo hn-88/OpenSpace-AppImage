@@ -39,34 +39,34 @@ jobs:
           cd openspace-src
           git checkout "atmosphere-no-double"
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Resolve Docker Image Name
-        id: image_tag
+      - name: Install QT and dependencies
         run: |
-          LOWER_IMAGE="${IMAGE_NAME,,}"
-          echo "image=${REGISTRY}/${LOWER_IMAGE}:ubuntu-2404-gcc13" >> $GITHUB_OUTPUT
+          sudo apt-get update
+          sudo apt-get install -y build-essential git ninja-build wget cmake curl zip unzip autoconf autoconf-archive automake libtool python3 bison flex pkg-config zip rpm dpkg
+          sudo apt-get install -y qt6-base-dev qt6-wayland libqt6opengl6-dev
+          sudo apt-get install -y perl libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev \
+          libxkbcommon-x11-dev libwayland-dev wayland-protocols libx11-dev libxext-dev libxfixes-dev libxcb1-dev \
+          libxcb-glx0-dev libxcb-keysyms1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev libxcb-xinput-dev \
+          libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
+          libxcb-xinerama0-dev libxcb-xkb-dev libxcb-cursor-dev libegl-dev libgl-dev libdbus-1-dev libatspi2.0-dev \
+          libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev libmpv-dev libnss3 libnspr4 xvfb libgl1-mesa-dri
 
-      - name: Pull Docker Image
+
+      - name: Vcpkg
         run: |
-          docker pull ${{ steps.image_tag.outputs.image }}
+          VCPKG_COMMIT=04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4
+          git init -q /vcpkg && \
+              git -C /vcpkg remote add origin https://github.com/microsoft/vcpkg && \
+              git -C /vcpkg fetch --depth 1 -q origin ${VCPKG_COMMIT} && \
+              git -C /vcpkg checkout -q FETCH_HEAD && \
+              /vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          VCPKG_ROOT=/vcpkg
+          PATH="${VCPKG_ROOT}:${PATH}"
+          VCPKG_DISABLE_METRICS=1
 
       - name: Build OpenSpace and Generate .deb
         run: |
-          docker run --rm \
-            -v "${{ github.workspace }}/openspace-src:/workspace" \
-            -w /workspace \
-            ${{ steps.image_tag.outputs.image }} \
-            bash -c '
-              set -ex
-              git config --global --add safe.directory "*"
-
-              cmake -B build -S . \
+            cmake -B build -S . \
                 -G Ninja \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake \
