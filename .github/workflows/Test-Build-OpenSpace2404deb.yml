@@ -33,23 +33,32 @@ jobs:
           echo "Disk space available for compilation:"
           df -h /
 
-      - name: Checkout OpenSpace Upstream
+      - name: Checkout OpenSpace
         run: |
           git clone https://github.com/hn-88/OpenSpace openspace-src
           cd openspace-src
           git checkout "atmosphere-no-double"
 
-      - name: Install QT and dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git ninja-build wget cmake curl zip unzip autoconf autoconf-archive automake libtool python3 bison flex pkg-config zip rpm dpkg
-          sudo apt-get install -y qt6-base-dev qt6-wayland libqt6opengl6-dev
+          sudo apt-get install -y build-essential git ninja-build wget curl zip unzip autoconf autoconf-archive automake libtool python3 bison flex pkg-config zip rpm dpkg
           sudo apt-get install -y perl libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev \
           libxkbcommon-x11-dev libwayland-dev wayland-protocols libx11-dev libxext-dev libxfixes-dev libxcb1-dev \
           libxcb-glx0-dev libxcb-keysyms1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev libxcb-xinput-dev \
           libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
           libxcb-xinerama0-dev libxcb-xkb-dev libxcb-cursor-dev libegl-dev libgl-dev libdbus-1-dev libatspi2.0-dev \
           libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev libmpv-dev libnss3 libnspr4 xvfb libgl1-mesa-dri
+
+      - name: Install CMake 4.0.7
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: '4.0.7'
+
+      - name: Install Qt 6.9
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.9.*
 
 
       - name: Vcpkg
