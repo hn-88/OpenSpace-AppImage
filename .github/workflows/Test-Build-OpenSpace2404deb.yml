@@ -25,7 +25,7 @@ jobs:
           dotnet: true
           haskell: true
           large-packages: true
-          docker-images: false  # Must be false so the local Docker daemon remains operational
+          docker-images: true
           swap-storage: true
 
       - name: Verify Available Disk Space
@@ -66,6 +66,8 @@ jobs:
 
       - name: Build OpenSpace and Generate .deb
         run: |
+            cd openspace-src
+            mkdir -p build
             cmake -B build -S . \
                 -G Ninja \
                 -DCMAKE_BUILD_TYPE=Release \
