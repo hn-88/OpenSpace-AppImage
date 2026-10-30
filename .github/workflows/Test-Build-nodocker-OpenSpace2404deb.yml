@@ -1,4 +1,4 @@
-name: Test Build OpenSpace DEB Package (Ubuntu 24.04 GCC 13)
+name: Test Build no docker OpenSpace DEB Ubuntu 24.04 GCC 13
 
 on:
   workflow_dispatch:
@@ -12,6 +12,8 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/openspace-deps-ubuntu-2404-gcc13
+  VCPKG_ROOT: /vcpkg
+  VCPKG_DISABLE_METRICS: 1
 
 jobs:
   build-deb-ubuntu-2404:
@@ -38,6 +40,7 @@ jobs:
           git clone https://github.com/hn-88/OpenSpace openspace-src
           cd openspace-src
           git checkout "atmosphere-no-double"
+          
 
       - name: Install dependencies
         run: |
@@ -60,38 +63,37 @@ jobs:
         with:
           version: 6.9.*
 
-
       - name: Vcpkg
         run: |
+          set -euo pipefail
           VCPKG_COMMIT=04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4
-          git init -q /vcpkg && \
-              git -C /vcpkg remote add origin https://github.com/microsoft/vcpkg && \
-              git -C /vcpkg fetch --depth 1 -q origin ${VCPKG_COMMIT} && \
-              git -C /vcpkg checkout -q FETCH_HEAD && \
-              /vcpkg/bootstrap-vcpkg.sh -disableMetrics
-          VCPKG_ROOT=/vcpkg
-          PATH="${VCPKG_ROOT}:${PATH}"
-          VCPKG_DISABLE_METRICS=1
+          sudo mkdir -p /vcpkg
+          sudo chown "$USER":"$(id -gn)" /vcpkg
+          git init -q /vcpkg
+          git -C /vcpkg remote add origin https://github.com/microsoft/vcpkg
+          git -C /vcpkg fetch --depth 1 -q origin ${VCPKG_COMMIT}
+          git -C /vcpkg checkout -q FETCH_HEAD
+          /vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          test -f /vcpkg/scripts/buildsystems/vcpkg.cmake
+          echo "/vcpkg" >> "$GITHUB_PATH"
 
       - name: Build OpenSpace and Generate .deb
         run: |
-            cd openspace-src
-            mkdir -p build
-            cmake -B build -S . \
-                -G Ninja \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake \
-                -DVCPKG_MANIFEST_INSTALL=OFF \
-                -DVCPKG_INSTALLED_DIR=/vcpkg/installed \
-                -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
-                -DOPENSPACE_USE_SYSTEM_QT=ON \
-                -DCPACK_GENERATOR="DEB"
+          set -euo pipefail
+          cd openspace-src
+          mkdir -p build
+          cmake -B build -S . \
+              -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake \
+              -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
+              -DOPENSPACE_USE_SYSTEM_QT=ON \
+              -DCPACK_GENERATOR="DEB"
 
-              cmake --build build --parallel $(nproc)
+          cmake --build build --parallel $(nproc)
 
-              cd build
-              cpack -G DEB
-            '
+          cd build
+          cpack -G DEB
 
       - name: Upload Debian Package (.deb)
         uses: actions/upload-artifact@v7
