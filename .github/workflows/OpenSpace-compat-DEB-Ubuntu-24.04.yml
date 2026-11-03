@@ -1,0 +1,140 @@
+name: OpenSpace-compat-DEB-Ubuntu-24.04
+
+on:
+  workflow_dispatch:
+  #schedule:
+  #  - cron: "31 12 * * *"   # scheduled for daily at 12:31 UTC, but gets delayed due to github congestion
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  VCPKG_ROOT: /vcpkg
+  VCPKG_DISABLE_METRICS: 1
+
+jobs:
+  build-deb-ubuntu-2404:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          preinstalled-runtimes: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Verify Available Disk Space
+        run: |
+          echo "Disk space available for compilation:"
+          df -h /
+
+      - name: Checkout OpenSpace
+        run: |
+          git clone https://github.com/OpenSpace/OpenSpace openspace-src
+          git clone https://github.com/hn-88/OpenSpace-compat patches
+
+      - name: Apply FP64 Emulation Patches (Linux)
+        if: runner.os == 'Linux'
+        working-directory: openspace-src
+        run: |
+          git apply --ignore-whitespace --ignore-space-change ../patches/v0-22-1-patches/openspace-v0.22.1-fp64-emulation-all.patch
+          git status -s
+
+      - name: Apply FP64 Emulation Patches (Windows)
+        if: runner.os == 'Windows'
+        working-directory: openspace-src
+        shell: bash
+        run: |
+          tar -xzf ../patches/v0-22-1-patches/openspace-fp64-new-files.tar.gz
+          git apply --ignore-whitespace --ignore-space-change ../patches/v0-22-1-patches/0002-fp64-emulation-cpp-and-cmake.patch
+          git status -s
+          
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git ninja-build wget curl zip unzip autoconf autoconf-archive automake libtool python3 bison flex pkg-config zip rpm dpkg
+          sudo apt-get install -y qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev perl libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev \
+          libxkbcommon-x11-dev libwayland-dev wayland-protocols libx11-dev libxext-dev libxfixes-dev libxcb1-dev \
+          libxcb-glx0-dev libxcb-keysyms1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-icccm4-dev libxcb-xinput-dev \
+          libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev libxcb-randr0-dev libxcb-render-util0-dev libxcb-util-dev \
+          libxcb-xinerama0-dev libxcb-xkb-dev libxcb-cursor-dev libegl-dev libgl-dev libdbus-1-dev libatspi2.0-dev \
+          libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev libmpv-dev libnss3 libnspr4 xvfb libgl1-mesa-dri
+
+      - name: Install CMake 4.0.7
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: '4.0.7'
+
+
+      - name: Vcpkg
+        run: |
+          set -euo pipefail
+          VCPKG_COMMIT=04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4
+          sudo mkdir -p /vcpkg
+          sudo chown "$USER":"$(id -gn)" /vcpkg
+          git init -q /vcpkg
+          git -C /vcpkg remote add origin https://github.com/microsoft/vcpkg
+          git -C /vcpkg fetch --depth 1 -q origin ${VCPKG_COMMIT}
+          git -C /vcpkg checkout -q FETCH_HEAD
+          /vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          test -f /vcpkg/scripts/buildsystems/vcpkg.cmake
+          echo "/vcpkg" >> "$GITHUB_PATH"
+
+      - name: Build OpenSpace and Generate .deb
+        run: |
+          set -euo pipefail
+          cd openspace-src
+          mkdir -p build
+          cmake -B build -S . \
+              -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake \
+              -DBUILD_TESTS=OFF -DOPENSPACE_HAVE_TESTS=OFF -DSGCT_BUILD_TESTS=OFF \
+              -DOPENSPACE_USE_SYSTEM_QT=ON \
+              -DCPACK_GENERATOR="DEB"
+
+          cmake --build build --parallel $(nproc)
+
+          cd build
+          cpack -G DEB
+
+      - name: Upload Debian Package (.deb)
+        uses: actions/upload-artifact@v7
+        with:
+          name: openspace-compat-ubuntu-2404-gcc13-deb
+          path: openspace-src/build/*.deb
+          if-no-files-found: error
+
+      - name: Upload .deb to GitHub Release
+        run: |
+          # Separate tag from the 26.04 build so --clobber doesn't overwrite its .deb
+          RELEASE_TAG="compat-vcpkg-DEB-ubuntu2404"
+
+          echo "Contents of build dir:"
+          ls -la openspace-src/build/*.deb
+
+          # Case-insensitive match, so the CPack file name doesn't matter
+          mapfile -t DEB_FILES < <(find openspace-src/build -maxdepth 1 -iname '*.deb')
+          if [ "${#DEB_FILES[@]}" -eq 0 ]; then
+            echo "No .deb found" && exit 1
+          fi
+
+          # Create release if it doesn't exist
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" -t "OpenSpace-compat CPack Daily Deb Build (Ubuntu 24.04)" -n "Automated daily .deb build of OpenSpace for Ubuntu 24.04."
+
+          gh release edit "$RELEASE_TAG" \
+            -t "OpenSpace-compat Deb Build (Ubuntu 24.04)" \
+            -n "Automated build of OpenSpace-compat for Ubuntu 24.04 (updated $(date -u '+%Y-%m-%d %H:%M:%S') UTC). On installing this .deb file, you can run openspace by typing 'openspace' in a terminal window. Please see https://github.com/hn-88/OpenSpace-compat/blob/main/v0-22-1-patches/README.md"
+
+          # Upload all matched .deb files (overwrite if they exist)
+          gh release upload "$RELEASE_TAG" "${DEB_FILES[@]}" --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+          GH_REPO: ${{ github.repository }}
