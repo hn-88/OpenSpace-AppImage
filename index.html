@@ -191,12 +191,77 @@
   <main>
     <!-- Common Section -->
     <section id="common">
+      <h2>Official nightly builds:</h2>  
+      <ul>
+      <li>
+        The OpenSpace project now has official nightly builds, at https://liu-se.cdn.openspaceproject.com/releases/nightly <br>
+        The deb file there is built using Ubuntu 26.04 I believe, so it will need 26.04 as a minimum requirement, 
+        won't install on Ubuntu 24.04 or equivalent systems - will complain of dependencies which cannot be met. 
+      </li>     
+      </ul>
+    </section>
+    
+    <section id="common">
       <h2>Please note:</h2>  
       <ul>
       <li>
         You can see the last updated timestamp for each file by hovering the cursor over the file link on desktop. If some "daily" builds have older timestamps, that means that the 
         build workflow no longer works with the latest master, and some work would be needed to fix it. 
       </li>     
+      </ul>
+    </section>
+
+        <!-- OpenSpace-compat Section -->
+    <section id="mac">
+      <h2>OpenSpace-compat</h2>
+      <ul>
+        <li>
+        OpenSpace-compat is a patched version of OpenSpace which runs 10x faster on non-NVidia GPUs which do not have hardware fp64 (double) support. 
+      </li> 
+      <li><span class="build-link">
+            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/compat-vcpkg-DEB-ubuntu2404/OpenSpace-0.22.0-dev-ubuntu2404-amd64.deb">
+              OpenSpace-compat Ubuntu24.04 Deb
+            </a>
+          </span>
+          <span class="workflow-link">
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-compat/blob/main/v0-22-1-patches/README.md">documentation</a>
+            &nbsp;&nbsp;
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/OpenSpace-compat-DEB-Ubuntu-24.04.yml">workflow</a>
+          </span>
+      </li>
+      <li><span class="build-link">
+            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/compat-WIN-ZIP/OpenSpace-minimal-compat-vcpkg.zip">
+              OpenSpace-compat Windows x64 minimal zip file
+            </a>
+          </span>
+          <span class="workflow-link">
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-compat/blob/main/v0-22-1-patches/README.md">documentation</a>
+            &nbsp;&nbsp;
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/compat-windows.yml">workflow</a>
+          </span>
+      </li>
+      <li><span class="build-link">
+            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/compat-WIN-ARM64-ZIP/OpenSpace-minimal-compat-vcpkg-arm64.zip">
+              OpenSpace-compat Windows ARM64 minimal zip file
+            </a>
+          </span>
+          <span class="workflow-link">
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-compat/blob/main/v0-22-1-patches/README.md">documentation</a>
+            &nbsp;&nbsp;
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/compat-windows-arm64.yml">workflow</a>
+          </span>
+      </li>
+      <li><span class="build-link">
+            <a class="asset-download-link" target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/releases/download/compat-WIN-ARM64-ZIP/OpenSpace-minimal-compat-Win11arm64-llvmpipe.zip">
+              OpenSpace-compat Windows ARM64 with bundled software rendering rendering dll
+            </a>
+          </span>
+          <span class="workflow-link">
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-compat/blob/main/v0-22-1-patches/README.md">documentation</a>
+            &nbsp;&nbsp;
+            <a target=_blank href="https://github.com/hn-88/OpenSpace-AppImage/blob/main/.github/workflows/compat-windows-arm64.yml">workflow</a>
+          </span>
+      </li>
       </ul>
     </section>
     
