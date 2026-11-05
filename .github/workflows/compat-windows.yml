@@ -275,7 +275,7 @@ jobs:
         # Update title/notes each run
         $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
         gh release edit $RELEASE_TAG `
-          -t "OpenSpace Windows Daily Build" `
+          -t "OpenSpace-compat Windows x64 Build" `
           -n "Automated build of OpenSpace-compat (updated $timestamp UTC). Please see https://github.com/hn-88/OpenSpace-compat/blob/main/v0-22-1-patches/README.md"
     
         # Upload .zip asset (overwrite if exists)
