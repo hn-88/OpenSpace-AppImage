@@ -40,4 +40,11 @@ jobs:
             failed=1
           fi
 
+          echo "If fails, need to update caches by running these workflows:"
+          echo "Build and Push Docker Image (Ubuntu 24.04 GCC 13)"
+          echo "Build and Push Docker Image (Ubuntu 26.04 GCC 15)"
+          echo "vcpkg-windows-arm64-deps-cache"
+          echo "vcpkg-windows-deps-cache"
+          echo "vcpkg-linux-deps-cache"
+
           exit $failed
